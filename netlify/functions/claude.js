@@ -12,6 +12,7 @@ exports.handler = async (event) => {
   }
 
   try {
+    console.log('Calling Anthropic, key prefix:', apiKey.slice(0, 16) + '...');
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -23,12 +24,14 @@ exports.handler = async (event) => {
     });
 
     const data = await upstream.json();
+    console.log('Anthropic status:', upstream.status, data?.error?.message || 'ok');
     return {
       statusCode: upstream.status,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     };
   } catch (err) {
+    console.log('Fetch error:', err.message);
     return {
       statusCode: 502,
       body: JSON.stringify({ error: { message: err.message } }),
