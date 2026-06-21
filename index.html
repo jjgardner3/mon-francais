@@ -390,6 +390,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
   .topnav { padding-left: max(1.5rem, env(safe-area-inset-left)); padding-right: max(0.75rem, env(safe-area-inset-right)); }
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app">
@@ -401,6 +402,76 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 </div>
 
 <script>
+// ═══════════════════════════════════════
+// SUPABASE
+// ═══════════════════════════════════════
+const SUPABASE_URL = 'https://rqkiigclhydrdtwvixqa.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_1UZiJaS0PV-gOd3nqOPVYw_e2u-4zi1';
+const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let supaUser = null; // currently signed-in user or null
+let syncTimer = null; // debounce timer for cloud sync
+
+// Load all user data from Supabase into localStorage
+async function supaLoadState() {
+  if (!supaUser) return;
+  const { data, error } = await supa.from('user_state').select('*').eq('user_id', supaUser.id).single();
+  if (error || !data) return;
+  // Only overwrite localStorage if Supabase has data (non-empty)
+  if (data.state && Object.keys(data.state).length > 0)
+    localStorage.setItem('fpl_state_v3', JSON.stringify(data.state));
+  if (data.vocab_bank && data.vocab_bank.length > 0)
+    localStorage.setItem('fpl_vocab_bank_v2', JSON.stringify(data.vocab_bank));
+  if (data.vocab_gen && Object.keys(data.vocab_gen).length > 0)
+    localStorage.setItem('fpl_vocab_gen_v2', JSON.stringify(data.vocab_gen));
+  if (data.grammar_srs && Object.keys(data.grammar_srs).length > 0)
+    localStorage.setItem('fpl_grammar_srs_v2', JSON.stringify(data.grammar_srs));
+  if (data.grammar_scores && Object.keys(data.grammar_scores).length > 0)
+    localStorage.setItem('fpl_grammar_scores', JSON.stringify(data.grammar_scores));
+  if (typeof data.grammar_streak === 'number')
+    localStorage.setItem('fpl_grammar_streak', String(data.grammar_streak));
+  if (data.grammar_notes && data.grammar_notes.length > 0)
+    localStorage.setItem('fpl_grammar_notes', JSON.stringify(data.grammar_notes));
+  if (data.my_words && data.my_words.length > 0)
+    localStorage.setItem('fpl_my_words', JSON.stringify(data.my_words));
+}
+
+// Push all localStorage data up to Supabase (debounced)
+function supaSyncState() {
+  if (!supaUser) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async () => {
+    const payload = {
+      user_id: supaUser.id,
+      state: JSON.parse(localStorage.getItem('fpl_state_v3') || '{}'),
+      vocab_bank: JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]'),
+      vocab_gen: JSON.parse(localStorage.getItem('fpl_vocab_gen_v2') || '{}'),
+      grammar_srs: JSON.parse(localStorage.getItem('fpl_grammar_srs_v2') || '{}'),
+      grammar_scores: JSON.parse(localStorage.getItem('fpl_grammar_scores') || '{}'),
+      grammar_streak: parseInt(localStorage.getItem('fpl_grammar_streak') || '0', 10),
+      grammar_notes: JSON.parse(localStorage.getItem('fpl_grammar_notes') || '[]'),
+      my_words: JSON.parse(localStorage.getItem('fpl_my_words') || '[]'),
+    };
+    await supa.from('user_state').upsert(payload, { onConflict: 'user_id' });
+  }, 2000); // debounce: 2 seconds after last change
+}
+
+// Auth state listener — runs on every page load and auth change
+supa.auth.onAuthStateChange(async (event, session) => {
+  supaUser = session?.user || null;
+  if (event === 'SIGNED_IN') {
+    await supaLoadState();
+    // Reload the app so state is fresh
+    renderNav();
+    renderContent();
+  }
+  if (event === 'SIGNED_OUT') {
+    supaUser = null;
+  }
+  // Update auth UI in header
+  renderAuthButton();
+});
+
 // ═══════════════════════════════════════
 // GLOBAL STATE
 // ═══════════════════════════════════════
@@ -414,7 +485,7 @@ const ANTHROPIC_API_URL = '/.netlify/functions/claude';
 function getApiKey() { return true; } // API key handled server-side via Netlify function
 
 function loadState() { try { return JSON.parse(localStorage.getItem('fpl_state_v3') || '{}'); } catch { return {}; } }
-function saveState(s) { try { localStorage.setItem('fpl_state_v3', JSON.stringify(s)); } catch {} }
+function saveState(s) { try { localStorage.setItem('fpl_state_v3', JSON.stringify(s)); supaSyncState(); } catch {} }
 let state = loadState();
 
 function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -491,6 +562,19 @@ function renderNav() {
     <button class="nav-tab ${activeTab===t.id?'active':''}" onclick="switchTab('${t.id}')">
       <span class="nav-dot" style="background:${t.dot}"></span>${t.label}
     </button>`).join('');
+  // Auth button is in the topnav, outside navTabs — inject it if not present
+  const nav = document.querySelector('.topnav');
+  if (nav && !document.getElementById('authBtn')) {
+    nav.style.position = 'relative';
+    const btn = document.createElement('button');
+    btn.id = 'authBtn';
+    btn.onclick = openAuthModal;
+    btn.title = 'Sign in to sync progress';
+    btn.textContent = '\u2601 Sign in';
+    btn.style.cssText = 'position:absolute;right:12px;top:50%;transform:translateY(-50%);background:transparent;border:1px solid #2a2d3a;border-radius:20px;color:#888;font-size:12px;padding:4px 12px;cursor:pointer;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;';
+    nav.appendChild(btn);
+  }
+  renderAuthButton();
 }
 
 function switchTab(id) { activeTab = id; renderNav(); renderContent(); if (id === 'vocab') vocabMaybeGenerate(); }
@@ -775,12 +859,12 @@ function vocabLoadBank() {
   } catch { return null; }
 }
 function vocabSaveBank(bank) {
-  try { localStorage.setItem(VOCAB_STORE_KEY, JSON.stringify(bank)); } catch(e) { console.warn('Storage full', e); }
+  try { localStorage.setItem(VOCAB_STORE_KEY, JSON.stringify(bank)); supaSyncState(); } catch(e) { console.warn('Storage full', e); }
 }
 function vocabLoadGen() {
   try { return JSON.parse(localStorage.getItem(VOCAB_GEN_KEY) || '{"batch":0,"done":false}'); } catch { return {batch:0,done:false}; }
 }
-function vocabSaveGen(g) { try { localStorage.setItem(VOCAB_GEN_KEY, JSON.stringify(g)); } catch {} }
+function vocabSaveGen(g) { try { localStorage.setItem(VOCAB_GEN_KEY, JSON.stringify(g)); supaSyncState(); } catch {} }
 
 // Initialise bank from seed on very first load
 function vocabInitBank() {
@@ -2137,12 +2221,14 @@ function myWordsAdd(french, english, source) {
   if (myWordList.some(w => w.french.toLowerCase() === french.toLowerCase())) return false;
   myWordList.unshift({ french, english: english || '', source: source || 'unknown', addedAt: Date.now() });
   localStorage.setItem(MY_WORDS_KEY, JSON.stringify(myWordList));
+  supaSyncState();
   return true;
 }
 
 function myWordsDelete(idx) {
   myWordList.splice(idx, 1);
   localStorage.setItem(MY_WORDS_KEY, JSON.stringify(myWordList));
+  supaSyncState();
   renderContent();
 }
 
@@ -2175,11 +2261,13 @@ function saveGrammarNote(note) {
   if (grammarNotes.some(n => n.exp === note.exp)) return false;
   grammarNotes.unshift({ ...note, savedAt: Date.now() });
   localStorage.setItem('fpl_grammar_notes', JSON.stringify(grammarNotes));
+  supaSyncState();
   return true;
 }
 function deleteGrammarNote(idx) {
   grammarNotes.splice(idx, 1);
   localStorage.setItem('fpl_grammar_notes', JSON.stringify(grammarNotes));
+  supaSyncState();
   renderContent();
 }
 function downloadGrammarNotes() {
@@ -2205,6 +2293,7 @@ function gSaveScores() {
   localStorage.setItem('fpl_grammar_scores', JSON.stringify(grammarScores));
   localStorage.setItem('fpl_grammar_streak', grammarStreak);
   localStorage.setItem('fpl_grammar_srs_v2', JSON.stringify(grammarSRS));
+  supaSyncState();
 }
 
 function gGetSRS(qid) {
@@ -3155,6 +3244,57 @@ function renderReviewHTML() {
 }
 
 // ═══════════════════════════════════════
+// AUTH UI
+// ═══════════════════════════════════════
+function openAuthModal() {
+  const m = document.getElementById('authModal');
+  if (m) { m.style.display = 'flex'; }
+}
+function closeAuthModal() {
+  const m = document.getElementById('authModal');
+  if (m) { m.style.display = 'none'; }
+}
+async function authSignIn() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  errEl.style.display = 'none';
+  const { error } = await supa.auth.signInWithPassword({ email, password });
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+  else { closeAuthModal(); }
+}
+async function authSignUp() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  const successEl = document.getElementById('authSuccess');
+  errEl.style.display = 'none';
+  successEl.style.display = 'none';
+  const { error } = await supa.auth.signUp({ email, password });
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+  else { successEl.textContent = 'Check your email to confirm your account!'; successEl.style.display = 'block'; }
+}
+async function authSignOut() {
+  await supa.auth.signOut();
+  renderAuthButton();
+  renderNav();
+  renderContent();
+}
+function renderAuthButton() {
+  const el = document.getElementById('authBtn');
+  if (!el) return;
+  if (supaUser) {
+    el.textContent = supaUser.email.split('@')[0];
+    el.title = 'Click to sign out';
+    el.onclick = authSignOut;
+  } else {
+    el.textContent = '☁ Sign in';
+    el.title = 'Sign in to sync progress';
+    el.onclick = openAuthModal;
+  }
+}
+
+// ═══════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════
 document.addEventListener('change', e => {
@@ -3164,5 +3304,19 @@ document.addEventListener('change', e => {
 renderNav();
 renderContent();
 </script>
+<!-- Auth Modal -->
+<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:90%;max-width:360px;position:relative;">
+    <button onclick="closeAuthModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#888;font-size:20px;cursor:pointer;">✕</button>
+    <h2 style="margin:0 0 8px;color:#e8dcc8;font-family:'Playfair Display',serif;">Mon Français</h2>
+    <p style="margin:0 0 24px;color:#888;font-size:14px;">Sign in to sync your progress across devices</p>
+    <div id="authError" style="display:none;color:#f97066;font-size:13px;margin-bottom:12px;"></div>
+    <input id="authEmail" type="email" placeholder="Email address" style="width:100%;box-sizing:border-box;padding:10px 14px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;margin-bottom:10px;outline:none;">
+    <input id="authPassword" type="password" placeholder="Password" style="width:100%;box-sizing:border-box;padding:10px 14px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;margin-bottom:16px;outline:none;">
+    <button onclick="authSignIn()" id="authSignInBtn" style="width:100%;padding:11px;background:#c9a87c;border:none;border-radius:8px;color:#0c0e14;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:10px;">Sign in</button>
+    <button onclick="authSignUp()" id="authSignUpBtn" style="width:100%;padding:11px;background:transparent;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;cursor:pointer;">Create account</button>
+    <p id="authSuccess" style="display:none;color:#3ecf8e;font-size:13px;text-align:center;margin-top:12px;"></p>
+  </div>
+</div>
 </body>
 </html>
