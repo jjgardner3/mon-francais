@@ -865,7 +865,7 @@ Respond ONLY with a JSON array, no markdown, no explanation:
     const res = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
     });
 
     // Surface API-level errors clearly
@@ -1375,7 +1375,7 @@ Respond ONLY with valid JSON, no markdown, no backticks:
     const res = await fetch(ANTHROPIC_API_URL, {
       method:'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt}]})
     });
     const data = await res.json();
     const text = (data.content?.[0]?.text || '').replace(/```json|```/g,'').trim();
@@ -1714,7 +1714,7 @@ Respond ONLY with a JSON object:
     const res = await fetch(ANTHROPIC_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
     const text = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
@@ -1782,7 +1782,7 @@ Sent from Mon Français`;
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         messages: [{
           role: 'user',
@@ -2804,7 +2804,7 @@ async function generateSituation() {
     const scenarioRes = await fetch(ANTHROPIC_API_URL, {
       method:'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:JSON.stringify({model:'claude-haiku-4-20250514',max_tokens:150,messages:[{role:'user',content:scenarioPrompt}]})
+      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:150,messages:[{role:'user',content:scenarioPrompt}]})
     });
     const scenarioData = await scenarioRes.json();
     const scenario = (scenarioData.content?.[0]?.text||'').trim() || SITUATIONS[Math.floor(Math.random() * SITUATIONS.length)];
@@ -2821,7 +2821,7 @@ Respond ONLY with JSON, no markdown:
     const res = await fetch(ANTHROPIC_API_URL, {
       method:'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt}]})
     });
     const data = await res.json();
     const text = (data.content?.[0]?.text||'').replace(/```json|```/g,'').trim();
@@ -2862,7 +2862,7 @@ Respond ONLY with JSON:
     const res = await fetch(ANTHROPIC_API_URL, {
       method:'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:300,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt}]})
     });
     const data = await res.json();
     const text = (data.content?.[0]?.text||'').replace(/```json|```/g,'').trim();
@@ -3003,7 +3003,7 @@ Respond ONLY with JSON, no markdown:
     const res = await fetch(ANTHROPIC_API_URL, {
       method:'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1200,messages:[{role:'user',content:prompt}]})
     });
     const data = await res.json();
     const text = (data.content?.[0]?.text||'').replace(/```json|```/g,'').trim();
