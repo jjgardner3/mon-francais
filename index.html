@@ -885,21 +885,32 @@ async function vocabLoadFromSupabase() {
 
   try {
     // Fetch all words from Supabase vocab_bank table (public read)
-    const { data, error } = await supa
-      .from('vocab_bank')
-      .select('id, french, english, type, example, rank')
-      .order('rank', { ascending: true });
-
-    if (error) throw error;
+    // Paginate in batches of 1000 to bypass Supabase's default row limit
+    let allWords = [];
+    let from = 0;
+    const PAGE = 1000;
+    while (true) {
+      const { data, error } = await supa
+        .from('vocab_bank')
+        .select('id, french, english, type, example, rank')
+        .order('rank', { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allWords = allWords.concat(data);
+      if (data.length < PAGE) break;
+      from += PAGE;
+      if (statusEl) statusEl.textContent = `Loading vocabulary bank… (${allWords.length} words)`;
+    }
 
     // Map to the format the app expects
-    const words = (data || []).map(w => ({
+    const words = allWords.map(w => ({
       id: w.id,
       french: w.french,
       english: w.english,
       type: w.type || 'word',
       example: w.example || '',
-      rank: w.rank || 0,
+      rank: w.rank ?? 9999,
     }));
 
     localStorage.setItem(STORE_KEY, JSON.stringify(words));
