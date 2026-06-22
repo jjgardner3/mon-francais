@@ -3284,13 +3284,106 @@ function renderAuthButton() {
   const el = document.getElementById('authBtn');
   if (!el) return;
   if (supaUser) {
-    el.textContent = supaUser.email.split('@')[0];
-    el.title = 'Click to sign out';
-    el.onclick = authSignOut;
+    const name = supaUser.user_metadata?.full_name || supaUser.email.split('@')[0];
+    el.textContent = 'Bonjour, ' + name.split(' ')[0] + ' 👤';
+    el.title = 'Account & progress';
+    el.onclick = openAccountModal;
   } else {
     el.textContent = '☁ Sign in';
     el.title = 'Sign in to sync progress';
     el.onclick = openAuthModal;
+  }
+}
+
+function openAccountModal() {
+  // Populate fields before showing
+  const name = supaUser?.user_metadata?.full_name || '';
+  const email = supaUser?.email || '';
+  const nameEl = document.getElementById('acctName');
+  const emailEl = document.getElementById('acctEmail');
+  if (nameEl) nameEl.value = name;
+  if (emailEl) emailEl.textContent = email;
+
+  // Build progress stats
+  const state = JSON.parse(localStorage.getItem('fpl_state_v3') || '{}');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]');
+  const srsRaw = JSON.parse(localStorage.getItem('fpl_state_v3') || '{}');
+
+  // Vocab stats
+  const totalWords = bank.length;
+  const vocabSRS = srsRaw._vocab || {};
+  const mastered = Object.values(vocabSRS).filter(v => v && v.interval >= 7).length;
+
+  // Grammar streak
+  const grammarStreak = parseInt(localStorage.getItem('fpl_grammar_streak') || '0', 10);
+
+  // Speaking sessions this week
+  const scores = (srsRaw._speak_scores || []);
+  const now = Date.now();
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const speakThisWeek = scores.filter(s => s.ts && s.ts > weekAgo).length;
+
+  // Tasks completed this week
+  let tasksCompleted = 0;
+  for (const key of Object.keys(state)) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+      const d = new Date(key + 'T00:00:00');
+      if (now - d.getTime() < 7 * 24 * 60 * 60 * 1000) {
+        tasksCompleted += Object.values(state[key] || {}).filter(Boolean).length;
+      }
+    }
+  }
+
+  const statsEl = document.getElementById('acctStats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+        <div style="background:#0c0e14;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#c9a87c">${totalWords}</div>
+          <div style="font-size:11px;color:#666;margin-top:2px">words in bank</div>
+        </div>
+        <div style="background:#0c0e14;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#3ecf8e">${mastered}</div>
+          <div style="font-size:11px;color:#666;margin-top:2px">words mastered</div>
+        </div>
+        <div style="background:#0c0e14;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#a78bfa">${grammarStreak}</div>
+          <div style="font-size:11px;color:#666;margin-top:2px">grammar streak</div>
+        </div>
+        <div style="background:#0c0e14;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#4f8ef7">${speakThisWeek}</div>
+          <div style="font-size:11px;color:#666;margin-top:2px">speaking this week</div>
+        </div>
+      </div>`;
+  }
+
+  const m = document.getElementById('acctModal');
+  if (m) m.style.display = 'flex';
+}
+
+function closeAccountModal() {
+  const m = document.getElementById('acctModal');
+  if (m) m.style.display = 'none';
+}
+
+async function saveDisplayName() {
+  const nameEl = document.getElementById('acctName');
+  const msgEl = document.getElementById('acctMsg');
+  if (!nameEl || !supaUser) return;
+  const name = nameEl.value.trim();
+  if (!name) return;
+  const { error } = await supa.auth.updateUser({ data: { full_name: name } });
+  if (!error) {
+    msgEl.textContent = 'Saved!';
+    msgEl.style.color = '#3ecf8e';
+    msgEl.style.display = 'block';
+    // Update the header button
+    renderAuthButton();
+    setTimeout(() => { msgEl.style.display = 'none'; }, 2000);
+  } else {
+    msgEl.textContent = error.message;
+    msgEl.style.color = '#f97066';
+    msgEl.style.display = 'block';
   }
 }
 
@@ -3316,6 +3409,26 @@ renderContent();
     <button onclick="authSignIn()" id="authSignInBtn" style="width:100%;padding:11px;background:#c9a87c;border:none;border-radius:8px;color:#0c0e14;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:10px;">Sign in</button>
     <button onclick="authSignUp()" id="authSignUpBtn" style="width:100%;padding:11px;background:transparent;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;cursor:pointer;">Create account</button>
     <p id="authSuccess" style="display:none;color:#3ecf8e;font-size:13px;text-align:center;margin-top:12px;"></p>
+  </div>
+</div>
+<!-- Account Modal -->
+<div id="acctModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:90%;max-width:380px;position:relative;">
+    <button onclick="closeAccountModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#888;font-size:20px;cursor:pointer;">✕</button>
+    <h2 style="margin:0 0 4px;color:#e8dcc8;font-family:'Playfair Display',serif;">Mon compte</h2>
+    <p id="acctEmail" style="margin:0 0 20px;color:#666;font-size:13px;"></p>
+
+    <label style="font-size:12px;color:#888;display:block;margin-bottom:6px;">Display name</label>
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <input id="acctName" type="text" placeholder="Your first name" style="flex:1;padding:9px 12px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;outline:none;">
+      <button onclick="saveDisplayName()" style="padding:9px 16px;background:#c9a87c;border:none;border-radius:8px;color:#0c0e14;font-weight:600;font-size:13px;cursor:pointer;">Save</button>
+    </div>
+    <p id="acctMsg" style="display:none;font-size:13px;margin:-12px 0 12px;"></p>
+
+    <label style="font-size:12px;color:#888;display:block;margin-bottom:10px;">Your progress</label>
+    <div id="acctStats"></div>
+
+    <button onclick="authSignOut()" style="width:100%;margin-top:20px;padding:10px;background:transparent;border:1px solid #3a2a2a;border-radius:8px;color:#f97066;font-size:13px;cursor:pointer;">Sign out</button>
   </div>
 </div>
 </body>
