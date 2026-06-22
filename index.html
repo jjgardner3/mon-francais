@@ -889,18 +889,24 @@ async function vocabLoadFromSupabase() {
     let allWords = [];
     let from = 0;
     const PAGE = 1000;
-    while (true) {
+    let iterations = 0;
+    while (iterations++ < 20) {
+      if (statusEl) statusEl.textContent = `Loading vocabulary bank… (${allWords.length} fetched)`;
       const { data, error } = await supa
         .from('vocab_bank')
         .select('id, french, english, type, example, rank')
-        .order('rank', { ascending: true })
+        .order('rank', { ascending: true, nullsFirst: false })
         .range(from, from + PAGE - 1);
       if (error) throw error;
       if (!data || data.length === 0) break;
       allWords = allWords.concat(data);
       if (data.length < PAGE) break;
       from += PAGE;
-      if (statusEl) statusEl.textContent = `Loading vocabulary bank… (${allWords.length} words)`;
+    }
+
+    if (allWords.length === 0) {
+      if (statusEl) statusEl.textContent = 'Vocab bank is empty — run SQL seed files in Supabase.';
+      return;
     }
 
     // Map to the format the app expects
@@ -918,7 +924,8 @@ async function vocabLoadFromSupabase() {
     if (activeTab === 'vocab') renderContent();
   } catch (err) {
     console.error('Vocab load error:', err);
-    if (statusEl) statusEl.textContent = 'Error loading vocabulary. Please refresh.';
+    const msg = err?.message || JSON.stringify(err);
+    if (statusEl) statusEl.textContent = `Error: ${msg}`;
   }
 }
 
