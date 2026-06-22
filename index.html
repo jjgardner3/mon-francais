@@ -868,6 +868,8 @@ function vocabInitBank() {
   return bank;
 }
 
+let vocabBank = vocabInitBank();
+
 // ═══════════════════════════════════════
 // VOCABULARY — Static bank from Supabase
 // ═══════════════════════════════════════
@@ -901,6 +903,7 @@ async function vocabLoadFromSupabase() {
     }));
 
     localStorage.setItem(STORE_KEY, JSON.stringify(words));
+    vocabBank = words;
     if (activeTab === 'vocab') renderContent();
   } catch (err) {
     console.error('Vocab load error:', err);
