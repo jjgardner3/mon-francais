@@ -422,8 +422,6 @@ async function supaLoadState() {
     localStorage.setItem('fpl_state_v3', JSON.stringify(data.state));
   if (data.vocab_bank && data.vocab_bank.length > 0)
     localStorage.setItem('fpl_vocab_bank_v2', JSON.stringify(data.vocab_bank));
-  if (data.vocab_gen && Object.keys(data.vocab_gen).length > 0)
-    localStorage.setItem('fpl_vocab_gen_v2', JSON.stringify(data.vocab_gen));
   if (data.grammar_srs && Object.keys(data.grammar_srs).length > 0)
     localStorage.setItem('fpl_grammar_srs_v2', JSON.stringify(data.grammar_srs));
   if (data.grammar_scores && Object.keys(data.grammar_scores).length > 0)
@@ -445,7 +443,6 @@ function supaSyncState() {
       user_id: supaUser.id,
       state: JSON.parse(localStorage.getItem('fpl_state_v3') || '{}'),
       vocab_bank: JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]'),
-      vocab_gen: JSON.parse(localStorage.getItem('fpl_vocab_gen_v2') || '{}'),
       grammar_srs: JSON.parse(localStorage.getItem('fpl_grammar_srs_v2') || '{}'),
       grammar_scores: JSON.parse(localStorage.getItem('fpl_grammar_scores') || '{}'),
       grammar_streak: parseInt(localStorage.getItem('fpl_grammar_streak') || '0', 10),
@@ -850,8 +847,7 @@ const ANKI_SEED = [
 
 // ── localStorage-backed word bank ──────────────────────────────
 const VOCAB_STORE_KEY = 'fpl_vocab_bank_v2';
-const VOCAB_GEN_KEY   = 'fpl_vocab_gen_v2';   // tracks generation progress
-
+// ── localStorage-backed word bank ──────────────────────────────
 function vocabLoadBank() {
   try {
     const raw = localStorage.getItem(VOCAB_STORE_KEY);
@@ -861,10 +857,6 @@ function vocabLoadBank() {
 function vocabSaveBank(bank) {
   try { localStorage.setItem(VOCAB_STORE_KEY, JSON.stringify(bank)); supaSyncState(); } catch(e) { console.warn('Storage full', e); }
 }
-function vocabLoadGen() {
-  try { return JSON.parse(localStorage.getItem(VOCAB_GEN_KEY) || '{"batch":0,"done":false}'); } catch { return {batch:0,done:false}; }
-}
-function vocabSaveGen(g) { try { localStorage.setItem(VOCAB_GEN_KEY, JSON.stringify(g)); supaSyncState(); } catch {} }
 
 // Initialise bank from seed on very first load
 function vocabInitBank() {
@@ -876,138 +868,50 @@ function vocabInitBank() {
   return bank;
 }
 
-// ── AI batch generation ─────────────────────────────────────────
-// 10 batches × 250 words = 2500 total target
-// Each batch covers a frequency band and a set of word categories
-const VOCAB_BATCHES = [
-  { band:'1-100',    cats:"most essential verbs: être, avoir, aller, faire, pouvoir, vouloir, savoir, venir, prendre, dire, voir, partir, mettre, donner, trouver, parler, passer, aimer, manger, boire. Basic pronouns, articles, conjunctions (et, ou, mais, donc, car, parce que, quand, si). Numbers 1-20." },
-  { band:'101-200',  cats:"everyday verbs: dormir, travailler, habiter, acheter, vendre, lire, écrire, entendre, ouvrir, fermer, commencer, finir, chercher, attendre, rester, tomber, rentrer, monter, descendre, sortir. Days of week, months, seasons." },
-  { band:'201-300',  cats:"home and rooms: maison, appartement, chambre, cuisine, salon, salle de bain, porte, fenêtre, lit, table, chaise, canapé, cuisine. Common household objects and furniture. Prepositions of place: sur, sous, dans, devant, derrière, entre, à côté de." },
-  { band:'301-400',  cats:"family and people: père, mère, frère, sœur, fils, fille, mari, femme, ami, voisin, enfant, bébé, homme, femme, garçon, fille. Body parts: tête, main, pied, bras, jambe, yeux, oreille, nez, bouche, dos." },
-  { band:'401-500',  cats:"food and drink: pain, eau, café, vin, lait, jus, thé, bière, viande, poisson, légume, fruit, fromage, œuf, riz, pâtes, soupe, salade, dessert, sucre, sel, huile. Meals: petit-déjeuner, déjeuner, dîner." },
-  { band:'501-600',  cats:"transport and city: voiture, bus, métro, train, avion, vélo, taxi, rue, route, ville, quartier, centre-ville, gare, aéroport, arrêt, station, parking, feux, pont, direction, droite, gauche, tout droit." },
-  { band:'601-700',  cats:"time expressions: heure, minute, seconde, matin, après-midi, soir, nuit, hier, aujourd\'hui, demain, maintenant, bientôt, tard, tôt, longtemps, pendant, depuis, il y a, dans, avant, après, enfin, déjà, encore, toujours, jamais, souvent." },
-  { band:'701-800',  cats:"verbs for communication and thought: demander, répondre, expliquer, raconter, promettre, oublier, rappeler, appeler, écouter, regarder, montrer, choisir, décider, accepter, refuser, aider, suivre, croire, penser, savoir, connaître, comprendre, apprendre." },
-  { band:'801-900',  cats:"emotions and feelings: content, heureux, triste, fatigué, stressé, énervé, inquiet, surpris, fier, amoureux, jaloux, honte, peur, joie, colère, espoir, ennui, amour, confiance, doute. Common expressions: avoir peur, être content, se sentir." },
-  { band:'901-1000', cats:"adjectives for description: grand, petit, long, court, haut, bas, fort, faible, rapide, lent, jeune, vieux, nouveau, ancien, beau, laid, propre, sale, chaud, froid, cher, gratuit, facile, difficile, important, intéressant, sympa, génial, nul, bizarre." },
-  { band:'1001-1100',cats:"shopping and money: prix, argent, payer, carte, billet, monnaie, addition, facture, solde, promotion, magasin, marché, supermarché, caisse, sac, taille, pointure, essayer, rendre, rembourser, bon marché, trop cher." },
-  { band:'1101-1200',cats:"health: médecin, hôpital, pharmacie, médicament, maladie, douleur, blessure, santé, fatigue, fièvre, rhume, toux, allergie, urgence, rendez-vous, ordonnance, opération, guérir, soigner, se reposer, avoir mal, se sentir bien/mal." },
-  { band:'1201-1300',cats:"weather and nature: soleil, pluie, vent, neige, nuage, orage, température, chaud, froid, beau, mauvais, forêt, montagne, rivière, lac, mer, plage, campagne, fleur, arbre, plante, animal, oiseau, chat, chien, cheval." },
-  { band:'1301-1400',cats:"work and career: travail, emploi, entreprise, bureau, réunion, collègue, patron, salaire, contrat, chômage, retraite, formation, expérience, cv, entretien, promotion, projet, client, réunion, délai, deadline, télétravail." },
-  { band:'1401-1500',cats:"school and learning: école, lycée, université, cours, leçon, devoir, examen, note, étudiant, professeur, classe, matière, cahier, crayon, stylo, manuel, bibliothèque, réussir, échouer, apprendre, enseigner, étudier." },
-  { band:'1501-1600',cats:"technology and media: téléphone, ordinateur, internet, application, logiciel, données, réseau, messagerie, mot de passe, connexion, site, page, écran, clavier, souris, imprimante, charger, télécharger, envoyer, recevoir, cliquer." },
-  { band:'1601-1700',cats:"travel and tourism: voyage, vacances, hôtel, réservation, passeport, valise, billet, excursion, guide, musée, monument, carte, plan, touriste, visiter, découvrir, séjourner, s\'installer, se perdre, demander son chemin." },
-  { band:'1701-1800',cats:"social life and relationships: ami, copain, rencontrer, sortir, inviter, fête, anniversaire, mariage, couple, divorce, dispute, se réconcilier, féliciter, consoler, remercier, s\'excuser, pardonner, se souvenir, garder contact." },
-  { band:'1801-1900',cats:"useful linking words and discourse markers: d\'abord, ensuite, puis, enfin, donc, ainsi, cependant, pourtant, néanmoins, en revanche, par contre, d\'ailleurs, en fait, à vrai dire, c\'est-à-dire, par exemple, en général, en particulier, surtout, notamment." },
-  { band:'1901-2000',cats:"verbs for daily actions: se lever, se coucher, s\'habiller, se laver, se brosser les dents, préparer, cuisiner, nettoyer, ranger, conduire, stationner, livrer, commander, réserver, annuler, confirmer, rappeler, vérifier, imprimer, signer." },
-  { band:'2001-2100',cats:"quantities and measurements: beaucoup, peu, assez, trop, plusieurs, quelques, chaque, tous, certains, la plupart, environ, à peu près, exactement, entier, moitié, quart, kilo, litre, mètre, kilomètre, heure, semaine, mois, année." },
-  { band:'2101-2200',cats:"expressing opinions and nuance: je pense que, à mon avis, selon moi, il me semble que, je trouve que, j\'ai l\'impression que, en fait, finalement, d\'un côté, de l\'autre côté, quand même, tout de même, même si, bien que, malgré, grâce à." },
-  { band:'2201-2300',cats:"common French expressions: avoir besoin de, être en train de, avoir envie de, avoir l'air, se rendre compte, avoir du mal à, faire attention, avoir lieu, mettre en place, faire partie de, en avoir marre, s\'en sortir, se débrouiller, laisser tomber, tenir compagnie." },
-  { band:'2301-2400',cats:"advanced everyday vocabulary: actualité, société, politique, environnement, développement, situation, problème, solution, résultat, conséquence, avantage, inconvénient, objectif, défi, effort, progrès, améliorer, résoudre, gérer, s\'adapter." },
-  { band:'2401-2500',cats:"idiomatic expressions and useful phrases: c\'est pas grave, tant pis, tant mieux, ça m\'est égal, ça dépend, n\'importe quoi, quoi qu\'il en soit, en tout cas, de toute façon, à tout à l'heure, à bientôt, ça marche, c\'est parti, allez, vas-y, t\'inquiète." },
-];
+// ═══════════════════════════════════════
+// VOCABULARY — Static bank from Supabase
+// ═══════════════════════════════════════
 
-let vocabGenerating = false;
-let vocabBank = vocabInitBank();
+async function vocabLoadFromSupabase() {
+  const STORE_KEY = 'fpl_vocab_bank_v2';
+  const cached = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+  if (cached.length > 100) return; // already loaded
 
-// Repair truncated JSON arrays — salvage all complete objects before cutoff
-function repairJsonArray(text) {
-  // Try clean parse first
-  try { return JSON.parse(text); } catch {}
-  // Find last complete object (ends with }) then close the array
-  const lastClose = text.lastIndexOf('}');
-  if (lastClose === -1) return [];
-  const trimmed = text.slice(0, lastClose + 1) + ']';
-  // Remove any trailing comma before the ]
-  const fixed = trimmed.replace(/,\s*]$/, ']');
-  try { return JSON.parse(fixed); } catch { return []; }
-}
-
-async function vocabGenerateBatch() {
-  if (vocabGenerating) return;
-  const gen = vocabLoadGen();
-  if (gen.done || gen.batch >= VOCAB_BATCHES.length) return;
-
-  vocabGenerating = true;
-  const batch = VOCAB_BATCHES[gen.batch];
-  // Only send last 20 french words to avoid prompt bloat
-  const existing = vocabBank.slice(-20).map(w => w.french).join(', ');
-
-  const prompt = `You are building a French vocabulary learning database. Generate exactly 100 French words/phrases for frequency band ${batch.band}, focusing on: ${batch.cats}.
-
-Rules:
-- Include the article for nouns (le/la/l'/les/un/une)
-- Mix word types: nouns, verbs, adjectives, adverbs, expressions
-- Every word must be genuinely useful in everyday spoken French
-- Do NOT duplicate these recent entries: ${existing}
-- Keep example sentences short (under 10 words)
-
-Respond ONLY with a JSON array, no markdown, no explanation:
-[{"french":"le pain","english":"bread","type":"nm","example":"Je mange du pain le matin.","rank":${batch.band.split('-')[0]}},...]`;
+  // Show loading state
+  const statusEl = document.getElementById('vocabLoadStatus');
+  if (statusEl) statusEl.textContent = 'Loading vocabulary bank\u2026';
 
   try {
-    const res = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 8000, messages: [{ role: 'user', content: prompt }] })
-    });
+    // Fetch all words from Supabase vocab_bank table (public read)
+    const { data, error } = await supa
+      .from('vocab_bank')
+      .select('id, french, english, type, example, rank')
+      .order('rank', { ascending: true });
 
-    // Surface API-level errors clearly
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(`API ${res.status}: ${err?.error?.message || res.statusText}`);
-    }
+    if (error) throw error;
 
-    const data = await res.json();
+    // Map to the format the app expects
+    const words = (data || []).map(w => ({
+      id: w.id,
+      french: w.french,
+      english: w.english,
+      type: w.type || 'word',
+      example: w.example || '',
+      rank: w.rank || 0,
+    }));
 
-    // Check for server-side error in response body
-    if (data.error) throw new Error(data.error.message || 'API error');
-
-    const text = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
-    const words = repairJsonArray(text);
-
-    if (words.length === 0) throw new Error('No valid words parsed');
-
-    // Deduplicate against existing bank
-    const existingFrench = new Set(vocabBank.map(w => w.french.toLowerCase()));
-    const newWords = words
-      .filter(w => w.french && w.english && !existingFrench.has(w.french.toLowerCase()))
-      .map((w, i) => ({ ...w, id: `gen_${gen.batch}_${i}` }));
-
-    vocabBank = [...vocabBank, ...newWords];
-    vocabSaveBank(vocabBank);
-
-    // Success — advance batch and reset retry counter
-    gen.batch++;
-    gen.retries = 0;
-    if (gen.batch >= VOCAB_BATCHES.length) gen.done = true;
-    vocabSaveGen(gen);
-
+    localStorage.setItem(STORE_KEY, JSON.stringify(words));
     if (activeTab === 'vocab') renderContent();
-
-  } catch (e) {
-    // Track retries per batch — skip after 3 failures to avoid getting stuck
-    gen.retries = (gen.retries || 0) + 1;
-    const isServerError = e.message && (e.message.includes('500') || e.message.includes('Internal server') || e.message.includes('overloaded'));
-    const maxRetries = isServerError ? 5 : 3;
-
-    if (gen.retries >= maxRetries) {
-      console.warn(`Vocab batch ${gen.batch} failed ${gen.retries}x, skipping:`, e.message);
-      gen.batch++;
-      gen.retries = 0;
-      if (gen.batch >= VOCAB_BATCHES.length) gen.done = true;
-    } else {
-      console.warn(`Vocab batch ${gen.batch} failed (attempt ${gen.retries}/${maxRetries}):`, e.message);
-    }
-    vocabSaveGen(gen);
-    if (activeTab === 'vocab') renderContent();
+  } catch (err) {
+    console.error('Vocab load error:', err);
+    if (statusEl) statusEl.textContent = 'Error loading vocabulary. Please refresh.';
   }
-  vocabGenerating = false;
+}
 
-  // Auto-continue next batch only on success (retries=0) and not done
-  const genState = vocabLoadGen();
-  if (!genState.done && genState.retries === 0) {
-    setTimeout(vocabGenerateBatch, 1500);
+function vocabMaybeGenerate() {
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]');
+  if (bank.length <= 100) {
+    vocabLoadFromSupabase();
   }
 }
 
@@ -1094,31 +998,21 @@ function getVocabStats() {
   const srsData = state._vocab2 || {};
   const seen = Object.keys(srsData).length;
   const mastered = Object.values(srsData).filter(s => s.interval >= 7).length;
-  const gen = vocabLoadGen();
   const newSeenToday = getNewCardsSeenToday();
   const newSlotsLeft = Math.max(0, NEW_CARDS_PER_DAY - newSeenToday);
-  return { total, seen, mastered, genBatch: gen.batch, genDone: gen.done, newSeenToday, newSlotsLeft };
+  return { total, seen, mastered, newSeenToday, newSlotsLeft };
 }
 
 // ── Render ───────────────────────────────────────────────────────
 function renderVocabHTML() {
   const deck = getVocabDeck();
   const stats = getVocabStats();
-  const gen = vocabLoadGen();
 
-  // Generation progress bar
-  const genPct = Math.round((gen.batch / VOCAB_BATCHES.length) * 100);
-  const genStatus = gen.done
-    ? `<div style="font-size:11px;color:var(--green);margin-top:4px">✓ Full 2,500-word bank ready</div>`
-    : `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-           <div class="dp-bar-wrap" style="flex:1"><div class="dp-bar" style="width:${genPct}%;background:var(--purple)"></div></div>
-           <span style="font-size:11px;color:var(--text3)">${stats.total} words · batch ${gen.batch}/${VOCAB_BATCHES.length}</span>
-           ${vocabGenerating
-             ? `<span style="font-size:11px;color:var(--purple)">Generating…</span>`
-             : gen.retries > 0
-               ? `<span style="font-size:11px;color:var(--amber)">Error on batch ${gen.batch}</span><button class="btn" style="font-size:10px;padding:3px 8px" onclick="vocabForceResume()">Retry</button>`
-               : `<button class="btn" style="font-size:10px;padding:3px 8px" onclick="vocabForceResume()">Resume</button>`}
-         </div>`;
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]');
+  const isLoading = bank.length <= 100;
+  const genStatus = isLoading
+    ? `<div id="vocabLoadStatus" style="font-size:12px;color:var(--purple);margin-top:4px">⟳ Loading vocabulary bank from cloud…</div>`
+    : `<div style="font-size:11px;color:var(--green);margin-top:4px">✓ ${bank.length} words loaded</div>`;
 
   const statsRow = `<div class="stats-row" style="margin-bottom:1rem">
     <div class="stat-card"><div class="stat-lbl">Bank size</div><div class="stat-val">${stats.total}</div><div class="stat-sub">words total</div></div>
@@ -1136,7 +1030,6 @@ function renderVocabHTML() {
         <div style="font-size:40px;margin-bottom:0.75rem">✓</div>
         <div style="font-size:17px;color:var(--green);margin-bottom:6px">All caught up!</div>
         <div style="font-size:13px;color:var(--text2);margin-bottom:1.5rem">No cards due right now. Come back later or browse the word list below.</div>
-        ${!gen.done ? `<button class="btn btn-primary" onclick="vocabGenerateBatch()">Generate more words</button>` : ''}
       </div>
       ${renderVocabList(stats)}
     </div>`;
@@ -1341,22 +1234,7 @@ function rateVocab2(rating) {
 function startAddNew() { vocabState.addMode = true; renderContent(); }
 
 // Kick off generation silently on vocab tab open if not done
-function vocabForceResume() {
-  // Reset stuck state then kick off generation
-  vocabGenerating = false;
-  const gen = vocabLoadGen();
-  gen.retries = 0;
-  vocabSaveGen(gen);
-  if (activeTab === 'vocab') renderContent();
-  setTimeout(vocabGenerateBatch, 100);
-}
 
-function vocabMaybeGenerate() {
-  const gen = vocabLoadGen();
-  if (!gen.done && !vocabGenerating) {
-    setTimeout(vocabGenerateBatch, 1500);
-  }
-}
 
 
 
