@@ -2300,15 +2300,126 @@ function renderGrammarTopics() {
         </div>`).join('')}
     </div>` : '';
 
+  const conjButton = `<button class="btn" style="width:100%;margin-bottom:1rem;font-size:13px;padding:10px 16px;border-color:var(--purple);color:var(--purple)" onclick="showConjChart()">
+    📊 Regular Verb Conjugation Chart
+  </button>`;
+
   return `<div class="practice-screen">
     <div class="ps-header">
       <div class="ps-title">Grammaire</div>
       <div class="ps-sub">8 topics · fill-in and multiple choice · streak: <span style="color:var(--amber)">${grammarStreak}</span></div>
     </div>
     ${srsBar}
+    ${conjButton}
     ${notesPanel}
     ${cards}
   </div>`;
+}
+
+// ── Conjugation Chart Modal ──────────────────────────────────────
+let conjChartGroup = 'er';
+
+function showConjChart() {
+  conjChartGroup = 'er';
+  document.getElementById('conjModal').style.display = 'flex';
+  renderConjChart();
+}
+function closeConjChart() {
+  document.getElementById('conjModal').style.display = 'none';
+}
+function setConjGroup(g) {
+  conjChartGroup = g;
+  ['er','ir','re'].forEach(k => {
+    const btn = document.getElementById('conjTab'+k.charAt(0).toUpperCase()+k.slice(1));
+    if (!btn) return;
+    const active = k === g;
+    btn.style.background = active ? 'var(--purple)' : 'none';
+    btn.style.color = active ? '#fff' : '#aaa';
+    btn.style.borderColor = active ? 'var(--purple)' : '#2a2d3a';
+  });
+  renderConjChart();
+}
+
+function renderConjChart() {
+  const groups = {
+    er: {
+      label: '-ER verbs', model: 'parler (to speak)',
+      stems: { present: 'parl', imparfait: 'parl', futur: 'parler', cond: 'parler', subj: 'parl', imperatif: 'parl' },
+      tenses: [
+        { name: 'Présent', key: 'present', endings: ['e','es','e','ons','ez','ent'] },
+        { name: 'Imparfait', key: 'imparfait', endings: ['ais','ais','ait','ions','iez','aient'] },
+        { name: 'Futur simple', key: 'futur', endings: ['ai','as','a','ons','ez','ont'] },
+        { name: 'Conditionnel', key: 'cond', endings: ['ais','ais','ait','ions','iez','aient'] },
+        { name: 'Subjonctif présent', key: 'subj', endings: ['e','es','e','ions','iez','ent'], prefix: 'que ' },
+        { name: 'Impératif', key: 'imperatif', endings: ['e','-','e','ons','ez','-'], subjects: ['-','tu','-','nous','vous','-'] },
+        { name: 'Passé composé', aux: 'avoir', pp: 'parlé' },
+        { name: 'Plus-que-parfait', aux: 'avait/avaient…', pp: 'parlé', note: 'imparfait of avoir + parlé' },
+      ]
+    },
+    ir: {
+      label: '-IR verbs', model: 'finir (to finish)',
+      stems: { present: 'fin', imparfait: 'finiss', futur: 'finir', cond: 'finir', subj: 'finiss', imperatif: 'fin' },
+      tenses: [
+        { name: 'Présent', key: 'present', endings: ['is','is','it','issons','issez','issent'] },
+        { name: 'Imparfait', key: 'imparfait', endings: ['ais','ais','ait','ions','iez','aient'] },
+        { name: 'Futur simple', key: 'futur', endings: ['ai','as','a','ons','ez','ont'] },
+        { name: 'Conditionnel', key: 'cond', endings: ['ais','ais','ait','ions','iez','aient'] },
+        { name: 'Subjonctif présent', key: 'subj', endings: ['e','es','e','ions','iez','ent'], prefix: 'que ' },
+        { name: 'Impératif', key: 'imperatif', endings: ['is','-','it','issons','issez','-'], subjects: ['-','tu','-','nous','vous','-'] },
+        { name: 'Passé composé', aux: 'avoir', pp: 'fini' },
+        { name: 'Plus-que-parfait', aux: 'avait/avaient…', pp: 'fini', note: 'imparfait of avoir + fini' },
+      ]
+    },
+    re: {
+      label: '-RE verbs', model: 'vendre (to sell)',
+      stems: { present: 'vend', imparfait: 'vend', futur: 'vendr', cond: 'vendr', subj: 'vend', imperatif: 'vend' },
+      tenses: [
+        { name: 'Présent', key: 'present', endings: ['s','s','—','ons','ez','ent'] },
+        { name: 'Imparfait', key: 'imparfait', endings: ['ais','ais','ait','ions','iez','aient'] },
+        { name: 'Futur simple', key: 'futur', endings: ['ai','as','a','ons','ez','ont'] },
+        { name: 'Conditionnel', key: 'cond', endings: ['ais','ais','ait','ions','iez','aient'] },
+        { name: 'Subjonctif présent', key: 'subj', endings: ['e','es','e','ions','iez','ent'], prefix: 'que ' },
+        { name: 'Impératif', key: 'imperatif', endings: ['s','-','—','ons','ez','-'], subjects: ['-','tu','-','nous','vous','-'] },
+        { name: 'Passé composé', aux: 'avoir', pp: 'vendu' },
+        { name: 'Plus-que-parfait', aux: 'avait/avaient…', pp: 'vendu', note: 'imparfait of avoir + vendu' },
+      ]
+    }
+  };
+
+  const subjects = ['je','tu','il/elle','nous','vous','ils/elles'];
+  const g = groups[conjChartGroup];
+
+  const tenseTables = g.tenses.map(t => {
+    if (t.aux) {
+      return `<div style="margin-bottom:1.25rem">
+        <div style="font-size:12px;font-weight:600;color:var(--purple);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">${t.name}</div>
+        <div style="font-size:13px;color:var(--text2);padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm)">
+          <span style="color:var(--text3)">formula: </span>${t.aux} + <span style="color:var(--green);font-style:italic">${t.pp}</span>
+          ${t.note ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">${t.note}</div>` : ''}
+        </div>
+      </div>`;
+    }
+    const stem = g.stems[t.key];
+    const subs = t.subjects || subjects;
+    const rows = t.endings.map((end, i) => {
+      if (end === '-') return '';
+      const form = end === '—' ? stem : stem + end;
+      const sub = subs[i] === '-' ? '' : (t.prefix || '') + subs[i];
+      return `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text3);font-size:12px;min-width:80px">${sub}</span>
+        <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${form}</span>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:1.25rem">
+      <div style="font-size:12px;font-weight:600;color:var(--purple);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">${t.name}</div>
+      <div style="padding:4px 12px;background:var(--surface2);border-radius:var(--radius-sm)">${rows}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('conjChartBody').innerHTML = `
+    <div style="font-size:13px;color:var(--text3);margin-bottom:1.25rem">Model verb: <span style="color:var(--text);font-style:italic">${g.model}</span></div>
+    ${tenseTables}
+  `;
 }
 
 function renderGrammarRef() {
@@ -3328,6 +3439,25 @@ renderContent();
     <div id="acctStats"></div>
 
     <button onclick="authSignOut()" style="width:100%;margin-top:20px;padding:10px;background:transparent;border:1px solid #3a2a2a;border-radius:8px;color:#f97066;font-size:13px;cursor:pointer;">Sign out</button>
+  </div>
+</div>
+
+<!-- Conjugation Chart Modal -->
+<div id="conjModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeConjChart()">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;width:90%;max-width:480px;max-height:85vh;display:flex;flex-direction:column;position:relative;">
+    <div style="padding:20px 24px 14px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;color:#e8dcc8">Conjugaison</div>
+        <div style="font-size:12px;color:#666;margin-top:2px">Regular verb endings</div>
+      </div>
+      <button onclick="closeConjChart()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="padding:14px 24px 10px;flex-shrink:0;display:flex;gap:8px">
+      <button onclick="setConjGroup('er')" id="conjTabEr" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--purple);background:var(--purple);color:#fff">-ER</button>
+      <button onclick="setConjGroup('ir')" id="conjTabIr" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid #2a2d3a;background:none;color:#aaa">-IR</button>
+      <button onclick="setConjGroup('re')" id="conjTabRe" style="flex:1;padding:8px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:1px solid #2a2d3a;background:none;color:#aaa">-RE</button>
+    </div>
+    <div id="conjChartBody" style="overflow-y:auto;padding:8px 24px 24px;flex:1"></div>
   </div>
 </div>
 </body>
