@@ -62,6 +62,25 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .nav-tab.active { background: var(--surface3); color: var(--text); }
 .nav-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
+/* BOTTOM NAV (mobile only) */
+.bottom-nav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface); border-top: 1px solid var(--border);
+  z-index: 100;
+}
+.bottom-nav-inner {
+  display: flex; height: 58px; padding-bottom: env(safe-area-inset-bottom);
+}
+.bnav-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; border: none; background: none; color: var(--text3);
+  font-size: 10px; font-weight: 500; font-family: 'Inter', sans-serif;
+  cursor: pointer; transition: color 0.15s; padding: 4px 0;
+}
+.bnav-tab.active { color: var(--blue); }
+.bnav-icon { font-size: 18px; line-height: 1; }
+
 /* CONTENT AREA */
 .content { flex: 1; overflow-y: auto; padding: 1.5rem; }
 
@@ -311,15 +330,14 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 }
 
 @media (max-width: 640px) {
-  /* Nav — collapse brand, make tabs scrollable */
-  .topnav { padding: 0 0.75rem; gap: 0; }
-  .brand { font-size: 15px; margin-right: 0.75rem; }
-  .nav-tabs { gap: 1px; }
-  .nav-tab { padding: 5px 10px; font-size: 11px; gap: 5px; }
-  .nav-dot { width: 6px; height: 6px; }
+  /* Nav — hide tabs on mobile, use bottom bar */
+  .topnav { padding: 0 0.75rem; gap: 0; height: 48px; }
+  .brand { font-size: 15px; margin-right: auto; }
+  .nav-tabs { display: none; }
+  .bottom-nav { display: block !important; }
 
   /* Content padding */
-  .content { padding: 1rem 0.75rem 2rem; }
+  .content { padding: 1rem 0.75rem 5rem; }
 
   /* Schedule */
   .week-header { flex-wrap: wrap; gap: 6px; }
@@ -456,16 +474,18 @@ function supaSyncState() {
 // Auth state listener — runs on every page load and auth change
 supa.auth.onAuthStateChange(async (event, session) => {
   supaUser = session?.user || null;
-  if (event === 'SIGNED_IN') {
-    await supaLoadState();
-    // Reload the app so state is fresh
-    renderNav();
-    renderContent();
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+    if (supaUser) {
+      await supaLoadState();
+      renderNav();
+      renderContent();
+    }
   }
   if (event === 'SIGNED_OUT') {
     supaUser = null;
+    renderNav();
+    renderContent();
   }
-  // Update auth UI in header
   renderAuthButton();
 });
 
@@ -553,13 +573,26 @@ function getTasksForDate(d) {
 // ═══════════════════════════════════════
 // RENDER NAV
 // ═══════════════════════════════════════
+const TAB_ICONS = { schedule:'\u{1F4C5}', vocab:'\u{1F4DA}', grammar:'\u270F\uFE0F', speaking:'\u{1F399}\uFE0F', verbs:'\u{1F504}', progress:'\u{1F4CA}' };
+
 function renderNav() {
   const c = document.getElementById('navTabs');
   c.innerHTML = TABS.map(t => `
     <button class="nav-tab ${activeTab===t.id?'active':''}" onclick="switchTab('${t.id}')">
       <span class="nav-dot" style="background:${t.dot}"></span>${t.label}
     </button>`).join('');
-  // Auth button is in the topnav, outside navTabs — inject it if not present
+
+  // Bottom nav (mobile)
+  const bn = document.getElementById('bottomNavInner');
+  if (bn) {
+    bn.innerHTML = TABS.map(t => `
+      <button class="bnav-tab ${activeTab===t.id?'active':''}" onclick="switchTab('${t.id}')">
+        <span class="bnav-icon">${TAB_ICONS[t.id]||'\u2022'}</span>
+        <span>${t.label}</span>
+      </button>`).join('');
+  }
+
+  // Auth button in topnav
   const nav = document.querySelector('.topnav');
   if (nav && !document.getElementById('authBtn')) {
     nav.style.position = 'relative';
@@ -3467,6 +3500,11 @@ renderContent();
     </div>
     <div id="conjChartBody" style="overflow-y:auto;padding:8px 24px 24px;flex:1"></div>
   </div>
+</div>
+
+<!-- Bottom nav (mobile) -->
+<div class="bottom-nav" id="bottomNav">
+  <div class="bottom-nav-inner" id="bottomNavInner"></div>
 </div>
 </body>
 </html>
