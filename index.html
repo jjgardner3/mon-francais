@@ -1133,6 +1133,7 @@ function renderVocabHTML() {
     </div>
     ${rev ? `<div class="btn-row">
       <button class="btn" data-speak="${card.french}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊 Hear it</button>
+      ${card.type === 'verb' ? `<button class="btn" style="color:var(--purple);border-color:var(--purple)" onclick="showVocabConjModal('${card.french.replace(/'/g,"\\'")}','${card.english.replace(/'/g,"\\'")}')">🔄 Conjugate</button>` : ''}
       <button class="btn btn-hard" onclick="rateVocab2(1)">Again</button>
       <button class="btn btn-ok" onclick="rateVocab2(2)">Hard</button>
       <button class="btn" onclick="rateVocab2(3)">Good</button>
@@ -1145,6 +1146,72 @@ function renderVocabHTML() {
     </div>`}
     <div style="margin-top:1.5rem">${renderVocabList(stats)}</div>
   </div>`;
+}
+
+// ── Vocab card conjugation modal ────────────────────────────────
+function showVocabConjModal(french, english) {
+  // Strip articles/pronouns to get bare infinitive
+  const bare = french.replace(/^(se |s')/i, '').trim();
+
+  // Try to find in VM_VERBS list
+  let vb = (typeof VM_VERBS !== 'undefined') ? VM_VERBS.find(v =>
+    v.infinitive.toLowerCase() === french.toLowerCase() ||
+    v.infinitive.toLowerCase() === bare.toLowerCase()
+  ) : null;
+
+  const PRONOUNS = ['je','tu','il/elle','nous','vous','ils/elles'];
+  const TENSES_TO_SHOW = ['present','passe_compose','imparfait','futur'];
+  const TENSE_LABELS = { present:'Présent', passe_compose:'Passé composé', imparfait:'Imparfait', futur:'Futur simple' };
+
+  let html = `<div style="font-size:13px;color:var(--text3);margin-bottom:1rem">
+    <span style="font-family:'Playfair Display',serif;font-style:italic;color:var(--text)">${french}</span>
+    <span style="margin-left:8px">${english}</span>
+  </div>`;
+
+  if (vb) {
+    TENSES_TO_SHOW.forEach(tId => {
+      const conjs = vmGetConjs(vb, tId);
+      if (!conjs || !conjs.length) return;
+      html += `<div style="margin-bottom:1.1rem">
+        <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${TENSE_LABELS[tId]}</div>
+        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">
+          ${conjs.map((c,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
+            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${c}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    });
+    html += `<button class="btn btn-primary" style="width:100%;margin-top:4px;font-size:13px" onclick="closeVocabConjModal();vmState.verbId='${vb.id}';vmState.view='card';switchTab('verbs')">Practice this verb →</button>`;
+  } else {
+    // Fall back to regular endings based on infinitive
+    const ending = bare.endsWith('re') ? 're' : bare.endsWith('ir') ? 'ir' : 'er';
+    const stem = ending === 're' ? bare.slice(0,-2) : ending === 'ir' ? bare.slice(0,-2) : bare.slice(0,-2);
+    const regularEndings = {
+      er:   { present:['e','es','e','ons','ez','ent'],   imparfait:['ais','ais','ait','ions','iez','aient'], futur:['erai','eras','era','erons','erez','eront'] },
+      ir:   { present:['is','is','it','issons','issez','issent'], imparfait:['issais','issais','issait','issions','issiez','issaient'], futur:['irai','iras','ira','irons','irez','iront'] },
+      re:   { present:['s','s','—','ons','ez','ent'],    imparfait:['ais','ais','ait','ions','iez','aient'],  futur:['rai','ras','ra','rons','rez','ront'] },
+    };
+    const ends = regularEndings[ending];
+    ['present','imparfait','futur'].forEach(tId => {
+      html += `<div style="margin-bottom:1.1rem">
+        <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${TENSE_LABELS[tId]} <span style="color:var(--text3);font-weight:400;font-size:10px">(regular -${ending})</span></div>
+        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">
+          ${ends[tId].map((e,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
+            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${e === '—' ? stem : stem + e}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    });
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${ending === 'ir' ? 'avoir + ' + bare.slice(0,-1) : ending === 're' ? 'avoir + ' + bare.slice(0,-2) + 'u' : 'avoir + ' + bare.slice(0,-2) + 'é'}</span></div>`;
+  }
+
+  document.getElementById('vocabConjBody').innerHTML = html;
+  document.getElementById('vocabConjModal').style.display = 'flex';
+}
+function closeVocabConjModal() {
+  document.getElementById('vocabConjModal').style.display = 'none';
 }
 
 function renderVocabList(stats) {
@@ -3505,6 +3572,17 @@ renderContent();
 <!-- Bottom nav (mobile) -->
 <div class="bottom-nav" id="bottomNav">
   <div class="bottom-nav-inner" id="bottomNavInner"></div>
+</div>
+
+<!-- Vocab card conjugation modal -->
+<div id="vocabConjModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeVocabConjModal()">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;width:90%;max-width:440px;max-height:85vh;display:flex;flex-direction:column;">
+    <div style="padding:18px 24px 12px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-family:'Playfair Display',serif;font-size:18px;color:#e8dcc8">Conjugaison</div>
+      <button onclick="closeVocabConjModal()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div id="vocabConjBody" style="overflow-y:auto;padding:16px 24px 24px;flex:1"></div>
+  </div>
 </div>
 </body>
 </html>
