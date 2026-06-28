@@ -1133,7 +1133,7 @@ function renderVocabHTML() {
     </div>
     ${rev ? `<div class="btn-row">
       <button class="btn" data-speak="${card.french}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊 Hear it</button>
-      ${card.type === 'verb' ? `<button class="btn" style="color:var(--purple);border-color:var(--purple)" onclick="showVocabConjModal('${card.french.replace(/'/g,"\\'")}','${card.english.replace(/'/g,"\\'")}')">🔄 Conjugate</button>` : ''}
+      ${(card.type === 'verb' || /(?:er|ir|re|oir)$/i.test((card.french||'').trim())) ? `<button class="btn" style="color:var(--purple);border-color:var(--purple)" onclick="showVocabConjModal('${card.french.replace(/'/g,"\\'")}','${card.english.replace(/'/g,"\\'")}')">🔄 Conjugate</button>` : ''}
       <button class="btn btn-hard" onclick="rateVocab2(1)">Again</button>
       <button class="btn btn-ok" onclick="rateVocab2(2)">Hard</button>
       <button class="btn" onclick="rateVocab2(3)">Good</button>
