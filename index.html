@@ -2681,8 +2681,9 @@ function gCheckFill() {
   const q=gState.queue[gState.qIdx];
   const userVal = inp.value.trim();
   function stripLeadingPronoun(s){return s.replace(/^(je |j'|tu |il |elle |on |nous |vous |ils |elles )/i,'');}
+  function stripTrailingContext(s){const m=(q.q||'').match(/___\s+([^.(,!?]+)/);if(!m)return s;const trail=m[1].trim();const n=gNormalize(s),nt=gNormalize(trail);if(n.endsWith(nt))return s.slice(0,s.length-trail.length).trim().replace(/['\u2019]\s*$/,"'");return s;}
   const normUser=gNormalize(userVal),normAns=gNormalize(q.answer);
-  const correct=normUser===normAns||gNormalize(stripLeadingPronoun(userVal))===normAns;
+  const correct=normUser===normAns||gNormalize(stripLeadingPronoun(userVal))===normAns||gNormalize(stripTrailingContext(userVal))===normAns||gNormalize(stripLeadingPronoun(stripTrailingContext(userVal)))===normAns;
   if(!correct){ inp.style.borderColor='var(--coral)'; inp.style.color='var(--coral)'; }
   else { inp.style.borderColor='var(--green)'; inp.style.color='var(--green)'; }
   gRecord(correct, userVal);
