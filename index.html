@@ -2680,7 +2680,9 @@ function gCheckFill() {
   const inp=document.getElementById('gFillInput'); if(!inp||!inp.value.trim()) return;
   const q=gState.queue[gState.qIdx];
   const userVal = inp.value.trim();
-  const correct = gNormalize(userVal)===gNormalize(q.answer);
+  function stripLeadingPronoun(s){return s.replace(/^(je |j'|tu |il |elle |on |nous |vous |ils |elles )/i,'');}
+  const normUser=gNormalize(userVal),normAns=gNormalize(q.answer);
+  const correct=normUser===normAns||gNormalize(stripLeadingPronoun(userVal))===normAns;
   if(!correct){ inp.style.borderColor='var(--coral)'; inp.style.color='var(--coral)'; }
   else { inp.style.borderColor='var(--green)'; inp.style.color='var(--green)'; }
   gRecord(correct, userVal);
