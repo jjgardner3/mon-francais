@@ -1199,7 +1199,7 @@ function showVocabConjModal(french, english) {
         <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">
           ${ends[tId].map((e,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
             <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
-            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${(tId==='subjunctive'?'que ':'')+${e === '—' ? stem : stem + e}}</span>
+            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${(tId==='subjunctive'?'que ':'')+(e === '—' ? stem : stem + e)}</span>
           </div>`).join('')}
         </div>
       </div>`;
