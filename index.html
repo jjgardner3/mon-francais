@@ -1556,8 +1556,19 @@ function renderSpeakingHTML() {
             <button class="btn btn-ok" onclick="rateSpeaking(3)">Close</button>
             <button class="btn btn-good" onclick="rateSpeaking(5)">Got it!</button>
             <button class="btn" style="color:var(--blue);border-color:var(--blue)" onclick="explainGrammar(this)">💡 Explain grammar</button>
+            <button class="btn" style="color:var(--purple);border-color:var(--purple)" onclick="toggleAskAI()">💬 Ask AI</button>
           </div>
           <div id="grammarExplanation" style="margin-top:1rem"></div>
+          <div id="askAIPanel" style="display:none;margin-top:1rem">
+            <div style="background:var(--surface2);border:1px solid var(--purple);border-radius:var(--radius-sm);padding:12px 14px">
+              <div style="font-size:11px;font-weight:600;color:var(--purple);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px">Ask a question about this sentence</div>
+              <div style="display:flex;gap:8px;margin-bottom:8px">
+                <input id="askAIInput" type="text" placeholder="e.g. Can I also say…? Why not…?" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:Inter,sans-serif;outline:none" onkeydown="if(event.key==='Enter')submitAskAI()">
+                <button class="btn btn-primary" style="white-space:nowrap;font-size:13px" onclick="submitAskAI()">Send</button>
+              </div>
+              <div id="askAIResponse" style="font-size:13px;color:var(--text2);line-height:1.6"></div>
+            </div>
+          </div>
         </div>
       ` : `
         <div class="btn-row">
@@ -1835,6 +1846,45 @@ Respond ONLY with a JSON object:
     if (box) box.innerHTML = '<div style="font-size:12px;color:var(--coral);padding:8px 0">Could not load explanation — try again.</div>';
     btn.disabled = false;
     btn.textContent = '💡 Explain grammar';
+  }
+}
+
+// ── Ask AI ─────────────────────────────────────────────────────
+function toggleAskAI() {
+  const panel = document.getElementById('askAIPanel');
+  if (!panel) return;
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) setTimeout(() => document.getElementById('askAIInput')?.focus(), 50);
+}
+
+async function submitAskAI() {
+  const input = document.getElementById('askAIInput');
+  const responseDiv = document.getElementById('askAIResponse');
+  if (!input || !responseDiv || !input.value.trim()) return;
+
+  const question = input.value.trim();
+  const s = speakState.sentence;
+
+  responseDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--text3)"><div class="spinner"></div>Thinking…</div>';
+
+  const context = s ? `The student is practicing French speaking. The current sentence is:\nEnglish: "${s.english}"\nFrench: "${s.french}"\nTense: ${SPEAKING_TENSE_NAMES[s.tense || speakState._resolvedTense] || speakState.tenseKey}\nGrammar note: ${s.grammar_note || 'none'}\n\n` : '';
+
+  const prompt = `You are a helpful French language tutor. ${context}The student asks: "${question}"\n\nAnswer clearly and concisely in plain English. If relevant, show French examples inline in *italics*. Keep your answer under 100 words unless the question genuinely requires more.`;
+
+  try {
+    const res = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 400, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'No response.';
+    const html = text.replace(/\*([^*]+)\*/g, '<em style="color:var(--green)">$1</em>').replace(/\n/g, '<br>');
+    responseDiv.innerHTML = html;
+    input.value = '';
+  } catch(e) {
+    responseDiv.innerHTML = '<span style="color:var(--coral)">Error — try again.</span>';
   }
 }
 
