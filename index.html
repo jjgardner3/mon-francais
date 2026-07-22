@@ -1163,9 +1163,32 @@ function showVocabConjModal(french, english) {
   const TENSES_TO_SHOW = ['present','passe_compose','imparfait','futur','conditional','subjunctive'];
   const TENSE_LABELS = { present:'Présent', passe_compose:'Passé composé', imparfait:'Imparfait', futur:'Futur simple', conditional:'Conditionnel', subjunctive:'Subjonctif présent' };
 
+  // Build stem info for header
+  let stemHTML = '';
+  if (vb) {
+    const present = vb.tenses?.present || [];
+    const jeForm = present[0] || '';
+    const nousForm = present[3] || '';
+    const jeStem = jeForm.replace(/(?:ons|ez|ent|[sxe])$/, '') || jeForm;
+    const nousStem = nousForm.replace(/ons$/, '') || nousForm;
+    const stemsMatch = jeStem === nousStem;
+    const stemStr = vb.subtype === 'irregular' && !stemsMatch
+      ? `<em style="color:var(--text)">${jeStem}-</em> <span style="color:var(--border2)">/</span> <em style="color:var(--text)">${nousStem}-</em>`
+      : `<em style="color:var(--text)">${bare.slice(0,-2)}-</em>`;
+    stemHTML = `<span style="margin-left:10px;font-size:12px">stem: ${stemStr}</span>`
+      + `<span style="margin-left:10px;font-size:12px">pp: <em style="color:var(--text)">${vb.pp}</em> <span style="color:var(--text3)">(${vb.aux})</span></span>`;
+  } else {
+    const ending = bare.endsWith('re') ? 're' : bare.endsWith('ir') ? 'ir' : 'er';
+    const stem = bare.slice(0, -2);
+    const pp = ending === 'ir' ? bare.slice(0,-1) : ending === 're' ? stem + 'u' : stem + 'é';
+    stemHTML = `<span style="margin-left:10px;font-size:12px">stem: <em style="color:var(--text)">${stem}-</em></span>`
+      + `<span style="margin-left:10px;font-size:12px">pp: <em style="color:var(--text)">${pp}</em> <span style="color:var(--text3)">(avoir)</span></span>`;
+  }
+
   let html = `<div style="font-size:13px;color:var(--text3);margin-bottom:1rem">
-    <span style="font-family:'Playfair Display',serif;font-style:italic;color:var(--text)">${french}</span>
-    <span style="margin-left:8px">${english}</span>
+    <div><span style="font-family:'Playfair Display',serif;font-style:italic;color:var(--text);font-size:15px">${french}</span>
+    <span style="margin-left:8px">${english}</span></div>
+    <div style="margin-top:4px">${stemHTML}</div>
   </div>`;
 
   if (vb) {
