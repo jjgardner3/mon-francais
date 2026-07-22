@@ -1160,8 +1160,8 @@ function showVocabConjModal(french, english) {
   ) : null;
 
   const PRONOUNS = ['je','tu','il/elle','nous','vous','ils/elles'];
-  const TENSES_TO_SHOW = ['present','passe_compose','imparfait','futur','conditional','subjunctive'];
-  const TENSE_LABELS = { present:'Présent', passe_compose:'Passé composé', imparfait:'Imparfait', futur:'Futur simple', conditional:'Conditionnel', subjunctive:'Subjonctif présent' };
+  const TENSES_TO_SHOW = ['present','passe','imparfait','futur','conditional','subjunctive'];
+  const TENSE_LABELS = { present:'Présent', passe:'Passé composé', imparfait:'Imparfait', futur:'Futur simple', conditional:'Conditionnel', subjunctive:'Subjonctif présent' };
 
   // Build stem info for header
   let stemHTML = '';
@@ -1205,7 +1205,7 @@ function showVocabConjModal(french, english) {
         </div>
       </div>`;
     });
-    html += `<button class="btn btn-primary" style="width:100%;margin-top:4px;font-size:13px" onclick="closeVocabConjModal();vmState.verbId='${vb.id}';vmState.view='card';switchTab('verbs')">Practice this verb →</button>`;
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${vb.aux} + ${vb.pp}</span></div>`;
   } else {
     // Fall back to regular endings based on infinitive
     const ending = bare.endsWith('re') ? 're' : bare.endsWith('ir') ? 'ir' : 'er';
