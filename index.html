@@ -3004,7 +3004,8 @@ function vmVariants(s){const b=s.trim().toLowerCase();return[...new Set([b,b.rep
 function vmSubmit(){
   if(vmState.quizAnswered)return;
   const inp=document.getElementById('vmQuizInput');
-  const ans=vmNorm(inp.value||'');if(!ans)return;
+  let ans=vmNorm(inp.value||'');if(!ans)return;
+  ans=ans.replace(/^que? /,'').replace(/^qu'/,'');
   const card=vmState.quizQueue[vmState.quizIdx];
   const vb=vmVerbs.find(x=>x.id===card.verbId);
   const correct=vmGetConjs(vb,card.tenseId)[card.pronounIdx];
