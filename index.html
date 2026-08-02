@@ -3465,6 +3465,17 @@ async function authSignOut() {
   renderNav();
   renderContent();
 }
+async function authResetPassword() {
+  const email = document.getElementById('authEmail').value.trim();
+  const errEl = document.getElementById('authError');
+  const successEl = document.getElementById('authSuccess');
+  errEl.style.display = 'none';
+  successEl.style.display = 'none';
+  if (!email) { errEl.textContent = 'Enter your email address first.'; errEl.style.display = 'block'; return; }
+  const { error } = await supa.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+  else { successEl.textContent = 'Password reset email sent — check your inbox!'; successEl.style.display = 'block'; }
+}
 function renderAuthButton() {
   const el = document.getElementById('authBtn');
   if (!el) return;
