@@ -2435,6 +2435,7 @@ function renderGrammarTopics() {
         </div>
         <div class="btn-row" style="justify-content:flex-start;gap:6px">
           <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="gStartTopic('${t.id}')">Practice →</button>
+          ${(()=>{const now=Date.now();const mQ=t.questions.filter((q,i)=>{const s=gGetSRS(q.id||(t.id+'_'+i));return s.interval>=14&&s.due>now;}).length;return mQ>0?`<button class="btn" style="font-size:11px;padding:5px 10px;color:var(--text3)" onclick="gStartTopic('${t.id}',true)">Show all ${t.questions.length}</button>`:'';})()}
           <button class="btn" style="font-size:12px;padding:7px 14px" onclick="gShowRef('${t.id}')">Reference</button>
         </div>
       </div>
@@ -2707,8 +2708,8 @@ function gStartSRS() {
   setTimeout(()=>{const inp=document.getElementById('gFillInput');if(inp)inp.focus();},80);
 }
 
-function gStartTopic(id) {
-  gState = {...gState, view:'quiz', topicId:id, queue:gBuildQueue(id), qIdx:0, answered:null, sessionCorrect:0, sessionWrong:0};
+function gStartTopic(id, includeAll) {
+  gState = {...gState, view:'quiz', topicId:id, queue:gBuildQueue(id, includeAll), qIdx:0, answered:null, sessionCorrect:0, sessionWrong:0};
   renderContent();
   setTimeout(()=>{const inp=document.getElementById('gFillInput');if(inp)inp.focus();},80);
 }
