@@ -1169,6 +1169,7 @@ function showVocabConjModal(french, english) {
     const present = vb.tenses?.present || [];
     const jeForm = present[0] || '';
     const nousForm = present[3] || '';
+    // Derive stems by stripping personal endings
     const jeStem = jeForm.replace(/(?:ons|ez|ent|[sxe])$/, '') || jeForm;
     const nousStem = nousForm.replace(/ons$/, '') || nousForm;
     const stemsMatch = jeStem === nousStem;
@@ -1222,7 +1223,7 @@ function showVocabConjModal(french, english) {
         <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">
           ${ends[tId].map((e,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
             <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
-            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${(tId==='subjunctive'?'que ':'')+(e === '—' ? stem : stem + e)}</span>
+            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${(tId==='subjunctive'?'que ':'')}${e === '—' ? stem : stem + e}</span>
           </div>`).join('')}
         </div>
       </div>`;
@@ -1891,9 +1892,17 @@ async function submitAskAI() {
 
   responseDiv.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--text3)"><div class="spinner"></div>Thinking…</div>';
 
-  const context = s ? `The student is practicing French speaking. The current sentence is:\nEnglish: "${s.english}"\nFrench: "${s.french}"\nTense: ${SPEAKING_TENSE_NAMES[s.tense || speakState._resolvedTense] || speakState.tenseKey}\nGrammar note: ${s.grammar_note || 'none'}\n\n` : '';
+  const context = s ? `The student is practicing French speaking. The current sentence is:
+English: "${s.english}"
+French: "${s.french}"
+Tense: ${SPEAKING_TENSE_NAMES[s.tense || speakState._resolvedTense] || speakState.tenseKey}
+Grammar note: ${s.grammar_note || 'none'}
 
-  const prompt = `You are a helpful French language tutor. ${context}The student asks: "${question}"\n\nAnswer clearly and concisely in plain English. If relevant, show French examples inline in *italics*. Keep your answer under 100 words unless the question genuinely requires more.`;
+` : '';
+
+  const prompt = `You are a helpful French language tutor. ${context}The student asks: "${question}"
+
+Answer clearly and concisely in plain English. If relevant, show French examples inline in *italics*. Keep your answer under 100 words unless the question genuinely requires more.`;
 
   try {
     const res = await fetch(ANTHROPIC_API_URL, {
@@ -1903,6 +1912,7 @@ async function submitAskAI() {
     });
     const data = await res.json();
     const text = data.content?.[0]?.text || 'No response.';
+    // Render *word* as italic
     const html = text.replace(/\*([^*]+)\*/g, '<em style="color:var(--green)">$1</em>').replace(/\n/g, '<br>');
     responseDiv.innerHTML = html;
     input.value = '';
@@ -1946,6 +1956,7 @@ Sent from Mon Français`;
     const body = encodeURIComponent(emailBody);
     const mailtoUrl = `mailto:jjgardner3@gmail.com?subject=${subject}&body=${body}`;
 
+    // mailto has a ~2000 char URL limit in some clients — check length
     if (mailtoUrl.length < 2000) {
       window.location.href = mailtoUrl;
       btn.disabled = false;
@@ -1955,6 +1966,7 @@ Sent from Mon Français`;
       throw new Error('Session too long for mailto');
     }
   } catch(e) {
+    // Fallback: clipboard copy
     btn.disabled = false;
     btn.textContent = '📧 Email session';
     if (status) { status.textContent = ''; }
@@ -2037,6 +2049,11 @@ const GRAMMAR_TOPICS = [
       {q:'She was reading when the phone rang. "Was reading" is:',type:'mc',choices:['Passé composé','Imparfait','Futur simple','Présent'],answer:1,exp:"Imparfait — ongoing background action interrupted by the call (passé composé).<br><em>Elle lisait quand le téléphone a sonné.</em>"},
       {q:"Il ___ (pleuvoir) depuis une heure quand je suis sorti. (Choose the right past tense)",hint:"Was it still raining when I left? → ongoing background = imparfait",type:'fill',answer:'pleuvait',exp:"Imparfait — ongoing background when something else happened.<br><em>Il pleuvait depuis une heure quand je suis sorti.</em>"},
       {q:"Which sentence is WRONG?",type:'mc',choices:["J'ai vu ce film trois fois.","Hier, il pleuvait fort.","Quand j'étais enfant, j'ai joué au foot tous les jours.","Elle est arrivée à 8h."],answer:2,exp:"Imparfait needed — <em>tous les jours</em> = repeated habit.<br><em>Quand j'étais enfant, je jouais au foot tous les jours.</em>"},
+      {q:"Quand je suis arrivé, il ___ (dormir).",hint:"Background action = imparfait",type:'fill',answer:'dormait',exp:"Imparfait — ongoing background. The PC (je suis arrivé) interrupts it.<br><em>Quand je suis arrivé, il dormait.</em>"},
+      {q:"Ce matin, je ___ (se lever) à 6h.",hint:"Specific completed action",type:'fill',answer:'me suis levé',exp:"Passé composé — specific completed action. <em>Ce matin</em> = a particular moment.<br><em>Ce matin, je me suis levé à 6h.</em>"},
+      {q:'\"I used to go to the cinema every Sunday.\" Which tense?',type:'mc',choices:['Passé composé','Imparfait','Futur simple','Présent'],answer:1,exp:"Imparfait — <em>tous les dimanches</em> = repeated habit in the past.<br><em>J'allais au cinéma tous les dimanches.</em>"},
+      {q:"Soudain, le téléphone ___ (sonner). (Suddenly, the phone rang.)",hint:"Sudden completed event",type:'fill',answer:'a sonné',exp:"Passé composé — <em>soudain</em> signals a sudden, completed interruption.<br><em>Soudain, le téléphone a sonné.</em>"},
+      {q:"Elle ___ (être) fatiguée quand elle est rentrée.",hint:"State or feeling in the past = ?",type:'fill',answer:'était',exp:"Imparfait — states and feelings use imparfait.<br><em>Elle était fatiguée quand elle est rentrée.</em>"},
     ]
   },
   {
@@ -2056,6 +2073,11 @@ const GRAMMAR_TOPICS = [
       {q:"Elle a acheté des pommes. → Elle ___ a acheté.",hint:"des = partitive/quantity → en",type:'fill',answer:'en',exp:"EN — des pommes → en. Goes before the auxiliary.<br><em>Elle en a acheté.</em>"},
       {q:'Which pronoun order is correct for "He gives them to us"?',type:'mc',choices:['Il nous les donne.','Il les nous donne.','Il leur nous donne.','Il nous leur donne.'],answer:0,exp:"Order: me/te/nous/vous → le/la/les → lui/leur → y → en<br><em>Il nous les donne.</em>"},
       {q:"Je ne ___ ai pas vu. (him)",hint:"Negation wraps the pronoun + verb",type:'fill',answer:"l'",exp:"Negation: ne + [pronoun] + verb + pas<br><em>Je ne l'ai pas vu.</em>"},
+      {q:"Vous donnez des fleurs à Marie. → Vous ___ donnez des fleurs.",hint:"à Marie = indirect object (person)",type:'fill',answer:'lui',exp:"IOP — à + person → lui. Before the verb.<br><em>Vous lui donnez des fleurs.</em>"},
+      {q:"Je pense à mes vacances. → J'___ pense.",hint:"à + thing = ?",type:'fill',answer:'y',exp:"Y replaces à + thing (not a person).<br><em>J'y pense.</em>"},
+      {q:"Il reste du pain ? → Il ___ reste.",hint:"Partitive/quantity → ?",type:'fill',answer:'en',exp:"EN replaces du/de la/des or a quantity.<br><em>Il en reste.</em>"},
+      {q:"Tu as acheté le livre ? → Tu ___ as acheté.",hint:"Le livre = masc. direct object, before auxiliary",type:'fill',answer:"l'",exp:"DOP — le livre → le, elides to l' before vowel/aux.<br><em>Tu l'as acheté.</em>"},
+      {q:'\"I gave it to her.\" → Je ___ ai donné.',hint:"DOP before IOP when both present",type:'fill',answer:'le lui',exp:"Order: DOP (le) before IOP (lui).<br><em>Je le lui ai donné.</em>"},
     ]
   },
   {
@@ -2073,6 +2095,11 @@ const GRAMMAR_TOPICS = [
       {q:"\"He only eats vegetables\" → Il ne mange ___ des légumes.",hint:"ne…que = only",type:'fill',answer:'que',exp:"ne…que = only/restriction<br><em>Il ne mange que des légumes.</em>"},
       {q:'Which is correct for "I no longer smoke"?',type:'mc',choices:['Je ne fume jamais.','Je ne fume plus.','Je ne fume pas encore.','Je ne fume rien.'],answer:1,exp:"ne…plus = no longer, not anymore<br><em>Je ne fume plus.</em>"},
       {q:"Make negative (passé composé): Il a mangé des pâtes.",hint:"In compound tenses, ne…pas wraps the auxiliary",type:'fill',answer:"Il n'a pas mangé de pâtes",exp:"Compound tense negation: ne…pas around the auxiliary. Also: des → de.<br><em>Il n'a pas mangé de pâtes.</em>"},
+      {q:'\"Nobody came.\" → ___ est venu.',hint:"ne...personne = nobody; with inversion, personne comes first",type:'fill',answer:"Personne n'",exp:"ne…personne = nobody. <em>Personne n'est venu.</em>"},
+      {q:'Which means \"I have nothing\"?',type:'mc',choices:["Je n'ai pas rien.","Je n'ai rien.","Je ne rien ai.","Je ne pas ai rien."],answer:1,exp:"ne…rien = nothing. Rien comes after the verb (after auxiliary in compound tenses).<br><em>Je n'ai rien.</em>"},
+      {q:'\"Neither Tom nor Paul is coming.\" → ___ Tom ___ Paul ne vient.',hint:"neither...nor = ni...ni",type:'fill',answer:'Ni / ni',exp:"ni…ni = neither…nor.<br><em>Ni Tom ni Paul ne vient.</em>"},
+      {q:"Negation in passé composé: \"I didn't eat.\" → Je ___.",hint:"ne...pas wraps the auxiliary",type:'fill',answer:"n'ai pas mangé",exp:"In compound tenses, ne…pas wraps the auxiliary.<br><em>Je n'ai pas mangé.</em>"},
+      {q:'\"She never lies.\" → Elle ne ___ jamais.',hint:"mentir = to lie",type:'fill',answer:'ment',exp:"ne…jamais = never.<br><em>Elle ne ment jamais.</em>"},
     ]
   },
   {
@@ -2090,6 +2117,11 @@ const GRAMMAR_TOPICS = [
       {q:"Make feminine: un beau garçon → une ___ fille",hint:"Beau has an irregular feminine form",type:'fill',answer:'belle',exp:"Irregular: beau → belle (feminine)<br><em>une belle fille</em>"},
       {q:"\"Last week\" (calendar) = la semaine ___",hint:"Calendar time = dernier after the noun",type:'fill',answer:'dernière',exp:"Calendar time: noun + dernier/dernière<br><em>la semaine dernière</em>"},
       {q:"Make feminine: Il est heureux → Elle est ___",hint:"-eux → -euse in feminine",type:'fill',answer:'heureuse',exp:"-eux → -euse<br><em>Elle est heureuse.</em>"},
+      {q:"Which form is correct: un ___ homme? (old)",type:'mc',choices:['vieux','vieil','vieille','vieux homme'],answer:1,exp:"Before a masculine noun starting with a vowel or silent h: vieux → <b>vieil</b>.<br><em>un vieil homme</em>"},
+      {q:"Make this feminine: Le nouveau directeur → La ___ directrice",type:'fill',answer:'nouvelle',exp:"nouveau → nouvelle (feminine). Also: nouvel before masculine + vowel.<br><em>La nouvelle directrice</em>"},
+      {q:"Agree the adjective: Ce sont des films ___ (intéressant).",hint:"Plural masculine",type:'fill',answer:'intéressants',exp:"Plural masculine: add -s.<br><em>Ce sont des films intéressants.</em>"},
+      {q:'\"Un grand homme\" means:',type:'mc',choices:["A tall man","A great man","A big man","An old man"],answer:1,exp:"<b>Grand before the noun</b> = great (figurative). Grand after = tall (literal). <em>un grand homme</em> = a great man."},
+      {q:"Make this feminine: heureux → ___",type:'fill',answer:'heureuse',exp:"-eux → -euse in feminine.<br><em>Elle est heureuse.</em>"},
     ]
   },
   {
@@ -2107,6 +2139,11 @@ const GRAMMAR_TOPICS = [
       {q:'Which uses the subjunctive CORRECTLY?',type:'mc',choices:["J'espère qu'il vienne.","Il faut que tu viens.","Je suis content que tu sois là.","Après qu'il parte."],answer:2,exp:"Je suis content que + subjonctif ✓<br>Espérer que → indicatif. Il faut que → viennes. Après que → indicatif.<br><em>Je suis content que tu sois là.</em>"},
       {q:'"I want to leave" (same subject) = Je veux ___',hint:"Same subject = infinitive, not que + subjunctive",type:'fill',answer:'partir',exp:"Same subject → infinitive. Je veux partir (not: que je parte).<br><em>Je veux partir.</em>"},
       {q:"Bien qu'il ___ (avoir) faim, il ne mange pas.",hint:"Bien que always triggers subjunctive",type:'fill',answer:'ait',exp:"Subjunctive of avoir = ait. Bien que always triggers subjunctive.<br><em>Bien qu'il ait faim, il ne mange pas.</em>"},
+      {q:"Pour que tu ___ (comprendre), il explique lentement.",hint:"Pour que = subjunctive trigger",type:'fill',answer:'comprennes',exp:"Pour que triggers subjunctive. Comprendre (tu) subjunctive: comprennes.<br><em>Pour que tu comprennes.</em>"},
+      {q:'\"I hope he comes\" → J\'espère qu\'il ___.',hint:"Espérer que is an exception!",type:'mc',choices:['vienne (subjonctif)','vient (indicatif)','venait (imparfait)','viendra (futur)'],answer:1,exp:"Espérer que → <b>indicatif</b> (not subjunctive). Key exception.<br><em>J'espère qu'il vient.</em>"},
+      {q:"Il est dommage que vous ne ___ (pouvoir) pas venir.",hint:"il est dommage que = subjunctive",type:'fill',answer:'puissiez',exp:"il est dommage que → subjunctive. Pouvoir (vous): puissiez.<br><em>Il est dommage que vous ne puissiez pas venir.</em>"},
+      {q:"Avant que tu ___ (partir), appelle-moi.",hint:"Avant que = subjunctive; après que = indicatif",type:'fill',answer:'partes',exp:"Avant que → subjunctive. Partir (tu): partes.<br><em>Avant que tu partes, appelle-moi.</em>"},
+      {q:"Which sentence is CORRECT?",type:'mc',choices:["Il veut que je viens.","Il veut que je vienne.","Il veut que je venais.","Il veut que je viendrai."],answer:1,exp:"Vouloir que → subjunctive. Venir (je): vienne.<br><em>Il veut que je vienne.</em>"},
     ]
   },
   {
@@ -2125,6 +2162,11 @@ const GRAMMAR_TOPICS = [
       {q:"Elle a fini son travail ___ une heure. (it took her an hour)",hint:"Duration to complete = en",type:'fill',answer:'en',exp:"En = within/in (how long it takes)<br><em>Elle a fini son travail en une heure.</em>"},
       {q:"Il arrive ___ dix minutes. (in 10 min from now)",hint:"Future point from now = dans",type:'fill',answer:'dans',exp:"Dans = in (future moment from now)<br><em>Il arrive dans dix minutes.</em>"},
       {q:'"I lived in Lyon for 2 years" (no longer)',type:'mc',choices:["Je vis à Lyon depuis 2 ans.","J'ai habité à Lyon pendant 2 ans.","J'habite à Lyon depuis 2 ans.","J'ai habité à Lyon dans 2 ans."],answer:1,exp:"Pendant + passé composé for completed durations.<br><em>J'ai habité à Lyon pendant 2 ans.</em>"},
+      {q:'\"I\'ve been working here for 3 years.\" (still do) → Je ___ ici depuis 3 ans.',hint:"Ongoing → présent + depuis",type:'fill',answer:'travaille',exp:"Depuis + présent for ongoing situations.<br><em>Je travaille ici depuis 3 ans.</em>"},
+      {q:'\"She finished the book in 2 hours.\" → Elle a fini le livre ___ 2 heures.',hint:"How long it took = ?",type:'fill',answer:'en',exp:"En = within/how long something takes to complete.<br><em>Elle a fini le livre en 2 heures.</em>"},
+      {q:"What's the difference between 'il y a' and 'depuis'?",type:'mc',choices:["Il y a = ongoing; depuis = ago","Il y a = ago (completed); depuis = ongoing (still happening)","They are interchangeable","Il y a = future; depuis = past"],answer:1,exp:"<b>Il y a</b> = ago (passé composé). <b>Depuis</b> = for/since (ongoing, présent tense)."},
+      {q:'\"The train leaves in 5 minutes.\" → Le train part ___ 5 minutes.',hint:"Future point from now",type:'fill',answer:'dans',exp:"Dans = in (a future moment from now).<br><em>Le train part dans 5 minutes.</em>"},
+      {q:'\"I started this job 6 months ago.\" → J\'ai commencé ce travail ___ 6 mois.',hint:"Points backward from now",type:'fill',answer:'il y a',exp:"Il y a = ago. Used with passé composé.<br><em>J'ai commencé ce travail il y a 6 mois.</em>"},
     ]
   },
   {
@@ -2141,6 +2183,11 @@ const GRAMMAR_TOPICS = [
       {q:"Passé composé: \"She washed her hands.\" → Elle s'est lavé ___ mains.",hint:"Body parts use the definite article, not a possessive",type:'fill',answer:'les',exp:"Definite article for body parts — les mains, not ses mains.<br><em>Elle s'est lavé les mains.</em>"},
       {q:'"What\'s your name?" in French:',type:'mc',choices:["Qu'est-ce que ton nom ?","Comment tu t'appelles ?","Quel est-ce que tu es ?","Tu as quel prénom ?"],answer:1,exp:"S'appeler = to be named<br><em>Comment tu t'appelles ?</em>"},
       {q:'Agreement check: "Elle s\'est cassé ___ jambe."',hint:"jambe is the direct object — does the PP agree?",type:'mc',choices:["cassée (agrees with elle)","cassé (no agreement — DO follows verb)","cassés","cassi"],answer:1,exp:"No agreement when DO follows verb.<br><em>Elle s'est cassé la jambe.</em>"},
+      {q:"Conjugate (présent): vous ___ (se coucher) tard.",hint:"Vous form of se coucher",type:'fill',answer:'vous couchez',exp:"Réflexive présent — se coucher: vous vous couchez.<br><em>Vous vous couchez tard.</em>"},
+      {q:"Passé composé: ils ___ (se lever) tôt.",hint:"Réflexives take être; ils = plural masc.",type:'fill',answer:'se sont levés',exp:"Réflexive + être. Ils → plural masculine -s agreement.<br><em>Ils se sont levés tôt.</em>"},
+      {q:'"I remember his name." → Je me souviens ___ son nom.',hint:"Se souvenir takes 'de'",type:'fill',answer:'de',exp:"Se souvenir is always followed by de: je me souviens de.<br><em>Je me souviens de son nom.</em>"},
+      {q:"Choose the correct form: \"She got up\"",type:'mc',choices:["Elle s'a levée.","Elle s'est levé.","Elle s'est levée.","Elle est se levée."],answer:2,exp:"Réflexive + être: elle → feminine agreement → levée.<br><em>Elle s'est levée.</em>"},
+      {q:"Negative imperative: \"Don't get up!\" (tu) → Ne ___ pas!",type:'fill',answer:'te lève',exp:"Negative imperative of réflexive: ne + reflexive pronoun + verb + pas. Pronoun stays BEFORE verb.<br><em>Ne te lève pas!</em>"},
     ]
   },
   {
@@ -2159,6 +2206,11 @@ const GRAMMAR_TOPICS = [
       {q:"Contract: Je vais à + le cinéma =",type:'fill',answer:'au cinéma',exp:"à + le = au<br><em>Je vais au cinéma.</em>"},
       {q:"Contract: C'est le livre de + les enfants =",type:'fill',answer:'des enfants',exp:"de + les = des<br><em>C'est le livre des enfants.</em>"},
       {q:'Which is correct after negation?',type:'mc',choices:["Je n'ai pas du café.","Je n'ai pas de café.","Je n'ai pas le café.","Je n'ai pas des cafés."],answer:1,exp:"After negation: un/une/des/du/de la → de<br><em>Je n'ai pas de café.</em>"},
+      {q:'\"I love music.\" → J\'aime ___ musique.',hint:"General likes → definite. Musique = feminine.",type:'fill',answer:'la',exp:"Definite article for general preferences. Musique is feminine → la.<br><em>J'aime la musique.</em>"},
+      {q:'\"He drinks some water.\" → Il boit ___ eau.',hint:"Eau = feminine, begins with vowel → partitive",type:'fill',answer:"de l'",exp:"Partitive before vowel: de l'. Eau is uncountable feminine.<br><em>Il boit de l'eau.</em>"},
+      {q:'\"I\'m talking to the children.\" → Je parle ___ enfants.',hint:"à + les = ?",type:'fill',answer:'aux',exp:"à + les = aux.<br><em>Je parle aux enfants.</em>"},
+      {q:'\"This is the king\'s castle.\" → C\'est le château ___ roi.',hint:"de + le = ?",type:'fill',answer:'du',exp:"de + le = du.<br><em>C'est le château du roi.</em>"},
+      {q:'Which is correct? \"I don\'t have any brothers.\"',type:'mc',choices:["Je n'ai pas des frères.","Je n'ai pas de frères.","Je n'ai pas les frères.","Je n'ai pas frères."],answer:1,exp:"After negation: des → de.<br><em>Je n'ai pas de frères.</em>"},
     ]
   },
   {
@@ -2176,7 +2228,12 @@ const GRAMMAR_TOPICS = [
       {q:"Complete: C\'est le livre ___ j\'ai besoin.",type:'mc',choices:['qui','que','dont','où'],answer:2,exp:"<b>DONT</b> replaces <b>de + noun</b>. The verb \'avoir besoin de\' requires \'de\', so \'dont\' is correct. <i>C\'est le livre dont j\'ai besoin.</i> — That\'s the book I need."},
       {q:"Complete: C\'est la ville ___ j\'habite.",type:'mc',choices:['qui','que','dont','où'],answer:3,exp:"<b>OÙ</b> is used for places (and sometimes times). <i>C\'est la ville où j\'habite.</i> — That\'s the city where I live."},
       {q:"Translate: \'The woman who is speaking is my teacher.\' Use relative pronoun.",type:'fill',answer:"La femme qui parle est mon professeur",exp:"Use <b>qui</b> (subject) since \'la femme\' is the one speaking. <i>La femme qui parle est mon professeur.</i>"},
-    ]
+    
+      {q:"C'est le professeur ___ j'admire le plus.",type:'mc',choices:['qui','que','dont','où'],answer:1,exp:"QUE — j'admire le professeur (direct object).<br><em>C'est le professeur que j'admire le plus.</em>"},
+      {q:"L'année ___ j'ai commencé à apprendre le français.",type:'mc',choices:['qui','que','dont','où'],answer:3,exp:"OÙ can refer to time as well as place.<br><em>L'année où j'ai commencé...</em>"},
+      {q:"C'est l'ami ___ je te parlais.",hint:"Je parlais de lui → dont",type:'fill',answer:'dont',exp:"Dont replaces de + noun. Parler de → dont.<br><em>C'est l'ami dont je te parlais.</em>"},
+      {q:'"The book that I\'m looking for." → Le livre ___ je cherche.',hint:"Chercher = direct object, no preposition",type:'fill',answer:'que',exp:"QUE — chercher has a direct object.<br><em>Le livre que je cherche.</em>"},
+      {q:"Complete: C'est une ville ___ j'ai toujours voulu habiter.",hint:"Habiter dans une ville → où",type:'fill',answer:'où',exp:"OÙ — une ville is a place. Habiter dans → où.<br><em>C'est une ville où j'ai toujours voulu habiter.</em>"},]
   },
   {
     id:'si_clauses', name:'Si Clauses (Conditionals)', badge:'important', color:'#fb923c',
@@ -2193,7 +2250,12 @@ const GRAMMAR_TOPICS = [
       {q:"Complete: Si tu ___ (étudier — imparfait), tu réussirais.",type:'fill',answer:"étudiais",exp:"<b>Si + imparfait → conditionnel</b>. The imparfait of \'étudier\' (tu) is \'étudiais\'. <i>Si tu étudiais, tu réussirais.</i> — If you studied, you would succeed."},
       {q:"What NEVER follows \'si\' (in a condition clause)?",type:'mc',choices:["Le présent","L\'imparfait","Le conditionnel","Le futur simple"],answer:2,exp:"The <b>conditionnel</b> NEVER follows \'si\' in a conditional clause. This is a firm rule. Si + présent OR si + imparfait — never \'si + conditionnel\'."},
       {q:"Complete: Si j\'étais riche, j\'___ (acheter — conditionnel) une maison.",type:'fill',answer:"achèterais",exp:"<b>Si + imparfait → conditionnel</b>. The conditionnel of \'acheter\' (je) is \'achèterais\'. <i>Si j\'étais riche, j\'achèterais une maison.</i> — If I were rich, I would buy a house."},
-    ]
+    
+      {q:"Complete: Si nous ___ (partir) maintenant, nous arriverons à l'heure.",hint:"Si + présent → futur",type:'fill',answer:'partons',exp:"Si + présent → futur simple. Partir (nous): partons.<br><em>Si nous partons maintenant, nous arriverons à l'heure.</em>"},
+      {q:'"If I were you, I would do it." → Si j\'___ toi, je le ferais.',hint:"Hypothetical = si + imparfait",type:'fill',answer:'étais',exp:"Si + imparfait → conditionnel. Être (je) imparfait: étais.<br><em>Si j\'étais toi, je le ferais.</em>"},
+      {q:"Complete: Si vous ___ (avoir) le temps, viendriez-vous ?",type:'fill',answer:'aviez',exp:"Si + imparfait → conditionnel. Avoir (vous) imparfait: aviez.<br><em>Si vous aviez le temps, viendriez-vous ?</em>"},
+      {q:"Which is the CORRECT si clause?",type:'mc',choices:["Si il viendrait, je serais content.","Si il vient, je serai content.","Si il venait, je sera content.","Si il viendra, je serai content."],answer:1,exp:"Si + présent → futur simple. Never conditionnel after si.<br><em>Si il vient, je serai content.</em>"},
+      {q:'"What would you do if you won the lottery?" → Si tu gagnais à la loterie, qu\'est-ce que tu ___?',type:'mc',choices:['ferais','feras','fais','ferait'],answer:0,exp:"Si + imparfait → conditionnel: ferais.<br><em>Si tu gagnais à la loterie, qu\'est-ce que tu ferais ?</em>"},]
   },
   {
     id:'comparative', name:'Comparative & Superlative', badge:'important', color:'#38bdf8',
@@ -2210,7 +2272,12 @@ const GRAMMAR_TOPICS = [
       {q:"How do you say \'She sings better than me\'?",type:'mc',choices:["Elle chante meilleure que moi.","Elle chante plus bien que moi.","Elle chante mieux que moi.","Elle chante plus mieux que moi."],answer:2,exp:"<b>BIEN</b> (adverb) has the irregular comparative <b>MIEUX</b>. Since \'chante\' is a verb and \'bien\' modifies how she sings (adverb), use \'mieux\'. <i>Elle chante mieux que moi.</i>"},
       {q:"Translate: \'He is the most intelligent student in the class.\'",type:'fill',answer:"Il est l'étudiant le plus intelligent de la classe",exp:"Superlative: <b>le/la/les + plus + adjective</b>. <i>Il est l\'étudiant le plus intelligent de la classe.</i> Note: \'de\' (not \'dans\') follows the superlative to express \'in\' a group."},
       {q:"Which sentence correctly means \'This is as expensive as the other one\'?",type:'mc',choices:["C\'est plus cher que l\'autre.","C\'est aussi cher que l\'autre.","C\'est moins cher que l\'autre.","C\'est autant cher que l\'autre."],answer:1,exp:"Equality comparison: <b>aussi + adjective + que</b>. <i>C\'est aussi cher que l\'autre.</i> — It\'s as expensive as the other one."},
-    ]
+    
+      {q:'"This book is less interesting than that one." → Ce livre est ___ intéressant ___ celui-là.',hint:"Less than = moins...que",type:'fill',answer:'moins / que',exp:"Comparative of inferiority: moins + adjective + que.<br><em>Ce livre est moins intéressant que celui-là.</em>"},
+      {q:'"She speaks French better than her sister." → Elle parle français ___ sa sœur.',hint:"Irregular comparative of bien (adverb)",type:'fill',answer:'mieux que',exp:"Bien (adverb) → mieux (never plus bien).<br><em>Elle parle français mieux que sa sœur.</em>"},
+      {q:"Superlative: \"She is the least patient.\" → Elle est ___ patiente.",hint:"Superlative of inferiority",type:'fill',answer:'la moins',exp:"Superlative of inferiority: la/le/les + moins + adjective.<br><em>Elle est la moins patiente.</em>"},
+      {q:"Which is the correct superlative of 'bon' (adjective)?",type:'mc',choices:["le plus bon","le meilleur","le mieux","le plus meilleur"],answer:1,exp:"Bon → irregular superlative: <b>le meilleur</b>. Never 'le plus bon'.<br><em>C'est le meilleur restaurant.</em>"},
+      {q:'"This film is as long as that one." → Ce film est ___ long ___ celui-là.',type:'fill',answer:'aussi / que',exp:"Equality: aussi + adjective + que.<br><em>Ce film est aussi long que celui-là.</em>"},]
   },
   {
     id:'imperative', name:'The Imperative', badge:'important', color:'#e879f9',
@@ -2227,6 +2294,11 @@ const GRAMMAR_TOPICS = [
       {q:"Make this negative imperative: \'Parle!\' → Don\'t speak!",type:'fill',answer:"Ne parle pas",exp:"Negative imperative: <b>ne + verb + pas</b>. <i>Parle! → Ne parle pas!</i>"},
       {q:"Which is correct? (Listen to me!)",type:'mc',choices:["Écoutez me!","Écoute-moi!","Écoute me!","Écoutes-moi!"],answer:1,exp:"With object pronouns in the imperative, they come <b>AFTER</b> the verb with a hyphen. \'Me\' becomes <b>moi</b> after the verb. <i>Écoute-moi!</i> Also note: -ER verb tu form drops the -s."},
       {q:"Give the tu imperative of \'être\'.",type:'fill',answer:"Sois",exp:"<b>Être</b> has an irregular imperative: <b>sois</b> (tu), soyons (nous), soyez (vous). <i>Sois patient!</i> — Be patient!"},
+      {q:"Give the vous imperative of 'finir'.",type:'fill',answer:'Finissez',exp:"Vous imperative of finir (regular -ir): finissez. Same as présent vous form.<br><em>Finissez vos devoirs!</em>"},
+      {q:"Make this command negative: \"Mange ça!\" → ___!",type:'fill',answer:"Ne mange pas ça",exp:"Negative imperative: ne + verb + pas. The object stays after pas.<br><em>Ne mange pas ça!</em>"},
+      {q:"Translate: \"Give it to me!\" (tu form)",type:'fill',answer:"Donne-le-moi",exp:"Imperative + pronouns: verb + DOP + IOP with hyphens. Me → moi after verb.<br><em>Donne-le-moi!</em>"},
+      {q:"Which is the correct negative imperative of 'se lever' (tu)?",type:'mc',choices:["Ne te lève pas!","Ne lève-toi pas!","Lève-toi pas!","Te lève pas!"],answer:0,exp:"In the <b>negative imperative</b>, the réflexive pronoun goes <b>before</b> the verb (unlike affirmative: Lève-toi!).<br><em>Ne te lève pas!</em>"},
+      {q:"Give the nous imperative of 'aller'.",type:'fill',answer:"Allons",exp:"Aller irregular imperative: va (tu), allons (nous), allez (vous).<br><em>Allons-y!</em>"},
     ]
   },
   {
@@ -2244,7 +2316,12 @@ const GRAMMAR_TOPICS = [
       {q:"Complete: Elle écoute de la musique ___ (faire) la vaisselle.",type:'fill',answer:"en faisant",exp:"Gérondif of \'faire\': nous faisons → drop -ons → fais + ant = <b>faisant</b>. <i>Elle écoute de la musique en faisant la vaisselle.</i> — She listens to music while doing the dishes."},
       {q:"Which sentence is correct?",type:'mc',choices:["En arrivant à la gare, le train est parti.","En arrivant à la gare, j\'ai vu mon ami.","En arrivant, il a été surpris par moi.","En tu arrivant, tu as vu Paul."],answer:1,exp:"The <b>subject of the gérondif must match the subject of the main verb</b>. In option B: \'j\'\' arrives AND \'j\'\' sees my friend — same subject ✓. In option A, \'le train\' can\'t be the one arriving at the station in this context."},
       {q:"Form the gérondif of \'finir\'.",type:'fill',answer:"en finissant",exp:"Participe présent of \'finir\': nous finissons → drop -ons → finiss + ant = <b>finissant</b>. Gérondif: <b>en finissant</b>. <i>En finissant ses devoirs, il peut jouer.</i> — Upon finishing his homework, he can play."},
-    ]
+    
+      {q:"Form the gérondif of 'prendre'.",type:'fill',answer:"en prenant",exp:"Participe présent: nous prenons → drop -ons → pren + ant = prenant. Gérondif: en prenant.<br><em>En prenant le bus, tu économises.</em>"},
+      {q:'"By working hard, you will succeed." → ___ dur, tu réussiras.',hint:"En + gérondif = by doing",type:'fill',answer:"En travaillant",exp:"Gérondif = en + participe présent. En travaillant = by working.<br><em>En travaillant dur, tu réussiras.</em>"},
+      {q:"What is the gérondif of 'savoir'?",type:'mc',choices:["en savant","en sachant","en savoir","en sait"],answer:1,exp:"Savoir is irregular: participe présent = sachant (not savant).<br><em>En sachant cela...</em>"},
+      {q:'"He fell asleep while watching TV." → Il s\'est endormi ___ la télé.',hint:"While watching = en regardant",type:'fill',answer:"en regardant",exp:"Gérondif for simultaneity.<br><em>Il s\'est endormi en regardant la télé.</em>"},
+      {q:"Which expresses MEANS (by doing)?",type:'mc',choices:["Il apprend après écouter.","Il apprend en écoutant.","Il apprend pour écouter.","Il apprend pendant écouter."],answer:1,exp:"Gérondif (en + participe présent) expresses means: en écoutant = by listening.<br><em>Il apprend en écoutant.</em>"},]
   },
   {
     id:'indirect_speech', name:'Indirect Speech', badge:'useful', color:'#64748b',
@@ -2261,8 +2338,69 @@ const GRAMMAR_TOPICS = [
       {q:"Report this question: Elle demande: \'Est-ce que tu viens?\' → Elle demande ___ tu viens.",type:'fill',answer:"si",exp:"For <b>yes/no questions</b> in indirect speech, use <b>si</b>: <i>Elle demande si tu viens.</i> — She asks whether you\'re coming. No inversion in the reported clause."},
       {q:"How do you report: \'Il demande : Qu\'est-ce que tu fais?\'",type:'mc',choices:["Il demande ce que tu fais.","Il demande si tu fais.","Il demande qu\'est-ce que tu fais.","Il demande quoi tu fais."],answer:0,exp:"For open questions asking about things (what): <b>il demande ce que</b>. <i>Il demande ce que tu fais.</i> — He asks what you\'re doing. \'Qu\'est-ce que\' becomes \'ce que\' in indirect speech."},
       {q:"Complete: Paul a dit: \'J\'habite à Paris.\' → Paul a dit qu\'il ___ à Paris.",type:'fill',answer:"habitait",exp:"Past reporting verb (a dit) + présent → <b>imparfait</b>: habite → <b>habitait</b>. <i>Paul a dit qu\'il habitait à Paris.</i> — Paul said he lived in Paris."},
+    
+      {q:"Convert: Il a dit : \'Je viendrai demain.\' → Il a dit qu\'il ___ le lendemain.",hint:"Futur → conditionnel in past indirect speech",type:'fill',answer:'viendrait',exp:"Past reporting verb: futur → conditionnel.<br><em>Il a dit qu\'il viendrait le lendemain.</em>"},
+      {q:'\"Est-ce qu\'il parle français ?\" → Il demande ___ il parle français.',hint:"Yes/no question → ?",type:'fill',answer:'si',exp:"Yes/no questions in indirect speech use si.<br><em>Il demande si il parle français.</em>"},
+      {q:"Which tense shift happens with a past reporting verb?",type:'mc',choices:["Présent → futur","Présent → imparfait","Imparfait → conditionnel","Futur → présent"],answer:1,exp:"With a past reporting verb, présent → <b>imparfait</b>.<br><em>Je suis là → il a dit qu\'il était là.</em>"},
+      {q:"Report: Elle a demandé : \'Où habitez-vous ?\' → Elle a demandé ___ j\'habitais.",hint:"Where = où (keeps form in indirect speech)",type:'fill',answer:'où',exp:"Question words like où, quand, comment keep their form (no inversion).<br><em>Elle a demandé où j\'habitais.</em>"},
+      {q:"Command → indirect speech: Le prof dit : \'Ouvrez vos livres.\' → Le prof dit ___ nos livres.",hint:"Command = de + infinitif",type:'fill',answer:"d\'ouvrir",exp:"Commands in indirect speech: dire à qn de + infinitif.<br><em>Le prof dit d\'ouvrir nos livres.</em>"},]
+  },,
+  {
+    id:'possessives', name:'Possessive Adjectives', badge:'essential', color:'#6ee7b7',
+    desc:'Mon/ma/mes, ton/ta/tes, son/sa/ses — agree with the noun owned, not the owner.',
+    ref:[
+      {label:'Agreement rule',text:"Possessives agree with the NOUN they describe, not the owner. Before feminine nouns starting with a vowel, use mon/ton/son (not ma/ta/sa).",ex:[["mon livre (masc)","ma voiture (fem)"],["mon amie (fem + vowel)","NOT: ma amie"]]},
+      {label:'All forms',text:"je: mon/ma/mes · tu: ton/ta/tes · il/elle: son/sa/ses · nous: notre/nos · vous: votre/vos · ils/elles: leur/leurs",ex:[["C\'est son chat.","It\'s his/her cat."],["Ce sont leurs enfants.","These are their children."]]},
+      {label:"Son/sa/ses = his OR her",text:"French doesn\'t distinguish owner\'s gender. Context determines it.",ex:[["Il aime sa mère.","He loves his mother."],["Elle aime sa mère.","She loves her mother."]]},
+    ],
+    questions:[
+      {q:'"My book" (livre = masc.) → ___ livre',type:'fill',answer:'Mon',exp:"Livre is masculine → mon (not ma).<br><em>mon livre</em>"},
+      {q:'"Her friend" (amie = fem., starts with vowel) → ___ amie',hint:"Before vowel, even feminine nouns use mon/ton/son",type:'fill',answer:'son',exp:"Before feminine nouns starting with a vowel: use son/ton/mon (not sa/ta/ma).<br><em>son amie</em>"},
+      {q:'"Their children" → ___ enfants',hint:"Their + plural",type:'fill',answer:'Leurs',exp:"Leur (their) + plural noun → leurs.<br><em>leurs enfants</em>"},
+      {q:'"Our house" (maison = fem.) → ___ maison',type:'fill',answer:'Notre',exp:"Notre (our) — same form for masculine and feminine singular.<br><em>notre maison</em>"},
+      {q:"Which is correct? He loves his dog (chien = masc.)",type:'mc',choices:["Il aime sa chien.","Il aime son chien.","Il aime leurs chien.","Il aime le sien."],answer:1,exp:"Son — chien is masculine, so son. Remember son/sa/ses = his OR her.<br><em>Il aime son chien.</em>"},
+      {q:'"Your (formal/vous) passport" → ___ passeport',type:'fill',answer:'Votre',exp:"Votre (your formal/plural) — same for masc/fem singular.<br><em>votre passeport</em>"},
+      {q:'"My eyes" (yeux = masc. plural) → ___ yeux',type:'fill',answer:'Mes',exp:"Mes — plural of mon/ma.<br><em>mes yeux</em>"},
+      {q:'"It\'s their car." → C\'est ___ voiture.',hint:"Their + singular noun",type:'fill',answer:'leur',exp:"Leur (their) + singular noun → leur (no -s).<br><em>C\'est leur voiture.</em>"},
     ]
   },
+  {
+    id:'futur_proche', name:'Futur Proche vs Futur Simple', badge:'common', color:'#93c5fd',
+    desc:'Aller + infinitif vs -ai/-as/-a endings — when to use each.',
+    ref:[
+      {label:'Futur proche (aller + inf)',text:"For near/planned future or high certainty. Very common in spoken French.",ex:[["Je vais manger ce soir.","I\'m going to eat tonight."],["Il va pleuvoir.","It\'s going to rain."]]},
+      {label:'Futur simple',text:"For distant or uncertain future, predictions, promises, formal writing.",ex:[["Dans dix ans, je parlerai couramment.","In ten years, I\'ll speak fluently."],["Il fera beau demain.","It will be nice tomorrow."]]},
+      {label:'Irregular futur stems',text:'aller→ir-, avoir→aur-, être→ser-, faire→fer-, pouvoir→pourr-, venir→viendr-, voir→verr-, vouloir→voudr-',ex:[["je serai","I will be"],["tu auras","you will have"]]},
+    ],
+    questions:[
+      {q:'"I\'m going to call him later." → Je ___ lui téléphoner plus tard.',hint:"Near/planned future",type:'fill',answer:'vais',exp:"Futur proche: aller (je) = vais + infinitif.<br><em>Je vais lui téléphoner plus tard.</em>"},
+      {q:'"In 20 years, cars will fly." → Dans 20 ans, les voitures ___.',hint:"Distant future prediction — futur simple",type:'fill',answer:'voleront',exp:"Futur simple for distant/predicted future. Voler (ils): voleront.<br><em>Dans 20 ans, les voitures voleront.</em>"},
+      {q:"What is the futur simple of \'être\' (je)?",type:'fill',answer:'serai',exp:"Être irregular futur stem: ser-. Je serai = I will be.<br><em>Je serai là demain.</em>"},
+      {q:'"She\'s about to leave." → Elle ___ partir.',hint:"Imminent action = futur proche",type:'fill',answer:'va',exp:"Futur proche: aller (elle) = va + infinitif.<br><em>Elle va partir.</em>"},
+      {q:"What is the futur simple of \'avoir\' (nous)?",type:'fill',answer:'aurons',exp:"Avoir irregular futur stem: aur-. Nous aurons = we will have.<br><em>Nous aurons une réunion demain.</em>"},
+      {q:"Which is more common in spoken/informal French for near future?",type:'mc',choices:["Je mangerai ce soir.","Je vais manger ce soir.","J\'aurais mangé ce soir.","Je mangerais ce soir."],answer:1,exp:"Futur proche (je vais manger) is preferred in spoken French for planned near-future actions."},
+      {q:'"You will see!" (promise) → Tu ___!',hint:"Future simple for promises; voir is irregular",type:'fill',answer:'verras',exp:"Voir irregular futur: verr- + as = verras.<br><em>Tu verras!</em>"},
+    ]
+  },
+  {
+    id:'partitive_art', name:'Partitive Articles & Quantities', badge:'common', color:'#fbbf24',
+    desc:"Du/de la/de l\' for uncountable nouns. Plus beaucoup de, assez de, trop de…",
+    ref:[
+      {label:'Partitive articles',text:"Use for uncountable/mass nouns. du (masc), de la (fem), de l\' (vowel), des (plural).",ex:[["Je mange du pain.","I eat some bread."],["Elle boit de la limonade.",""]]},
+      {label:'After negation: de',text:"All partitives become just de after negation.",ex:[["Il y a du lait. → Il n\'y a pas de lait.","There is no milk."]]},
+      {label:'Quantity expressions + de',text:"Beaucoup de, assez de, trop de, peu de, un peu de — always use de (never du/de la).",ex:[["J\'ai beaucoup de travail.","I have a lot of work."],["Il boit trop de café.",""]]},
+      {label:'Containers + de',text:"Un verre de, une bouteille de, une tasse de — no article after de.",ex:[["un verre d\'eau","a glass of water"],["deux tasses de thé",""]]},
+    ],
+    questions:[
+      {q:'"I\'m eating some bread." → Je mange ___ pain.',hint:"Pain = masculine uncountable",type:'fill',answer:'du',exp:"Partitive masculine: du. Pain is masculine.<br><em>Je mange du pain.</em>"},
+      {q:'"She drinks a lot of coffee." → Elle boit ___ café.',hint:"Quantity expression always uses plain de",type:'fill',answer:'beaucoup de',exp:"Quantity expressions use de (never du/de la).<br><em>Elle boit beaucoup de café.</em>"},
+      {q:"Negation: Il y a du sucre. → Il n\'y a pas ___ sucre.",type:'fill',answer:'de',exp:"After negation, all partitives → de.<br><em>Il n\'y a pas de sucre.</em>"},
+      {q:'"A cup of tea." → une tasse ___ thé.',type:'fill',answer:'de',exp:"Container/measure + de: no article.<br><em>une tasse de thé</em>"},
+      {q:"Which is correct? I have enough time.",type:'mc',choices:["J\'ai assez du temps.","J\'ai assez de temps.","J\'ai assez temps.","J\'ai assez de le temps."],answer:1,exp:"Quantity expressions: assez de (never assez du/de la).<br><em>J\'ai assez de temps.</em>"},
+      {q:'"She drinks some water." → Elle boit ___ eau.',hint:"Eau = feminine, begins with vowel",type:'fill',answer:"de l\'",exp:"Partitive before vowel: de l\'. Eau is uncountable feminine.<br><em>Elle boit de l\'eau.</em>"},
+      {q:"Which is correct? He eats too much sugar.",type:'mc',choices:["Il mange trop du sucre.","Il mange trop de sucre.","Il mange trop de la sucre.","Il mange trop sucre."],answer:1,exp:"Trop de (quantity expression) → always plain de.<br><em>Il mange trop de sucre.</em>"},
+    ]
+  }
 ];
 
 // Grammar state — persisted in localStorage
@@ -2392,11 +2530,27 @@ function gNormalize(s) {
     .replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a').replace(/[îï]/g,'i').replace(/[ôö]/g,'o').replace(/[ùûü]/g,'u').replace(/ç/g,'c');
 }
 
-function gBuildQueue(topicId) {
+function gBuildQueue(topicId, includeAll) {
   const t = GRAMMAR_TOPICS.find(x=>x.id===topicId);
-  const pool = t.questions.map((q,i)=>({...q,topicId,topicName:t.name,color:t.color,qIdx:i}));
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  return pool;
+  const now = Date.now();
+  const pool = t.questions.map((q,i)=>{
+    const qid = q.id || (topicId+'_'+i);
+    const s = gGetSRS(qid);
+    return {...q, topicId, topicName:t.name, color:t.color, qIdx:i, qid, _s:s};
+  });
+  // Filter out well-mastered questions unless includeAll
+  const active = includeAll ? pool : pool.filter(q => q._s.interval < 14 || q._s.due <= now);
+  const toShow = active.length ? active : pool; // fallback: show all if everything mastered
+  // Sort: overdue/unseen → due soon → recently correct
+  toShow.sort((a,b)=>{
+    const aDue = a._s.due <= now ? 0 : 1;
+    const bDue = b._s.due <= now ? 0 : 1;
+    if (aDue !== bDue) return aDue - bDue;
+    return a._s.interval - b._s.interval; // lower interval first (struggling)
+  });
+  // Shuffle within groups so it's not deterministic
+  for(let i=toShow.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[toShow[i],toShow[j]]=[toShow[j],toShow[i]];}
+  return toShow;
 }
 
 function renderGrammarHTML() {
@@ -2419,9 +2573,15 @@ function renderGrammarTopics() {
     </button>
   </div>`;
 
+  const now = Date.now();
   const cards = GRAMMAR_TOPICS.map(t => {
     const s = grammarScores[t.id] || {correct:0,total:0};
     const pct = s.total ? Math.round(s.correct/s.total*100) : 0;
+    // Count active (not well-mastered) questions
+    const totalQ = t.questions.length;
+    const activeQ = t.questions.filter((q,i)=>{const srs=gGetSRS(q.id||(t.id+'_'+i));return srs.interval<14||srs.due<=now;}).length;
+    const masteredQ = totalQ - activeQ;
+    const masteredNote = masteredQ > 0 ? `<span style="font-size:10px;color:var(--green);margin-left:4px">(${masteredQ} mastered, hidden)</span>` : '';
     return `<div class="day-panel" style="margin-bottom:10px;cursor:pointer">
       <div class="task-item" style="padding:14px 16px;flex-direction:column;gap:10px;align-items:stretch">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -2433,9 +2593,9 @@ function renderGrammarTopics() {
           <div class="dp-bar-wrap" style="flex:1"><div class="dp-bar" style="width:${pct}%;background:${t.color}"></div></div>
           <span style="font-size:11px;color:var(--text3);min-width:70px">${s.total ? pct+'% · '+s.total+' tried' : 'Not started'}</span>
         </div>
-        <div class="btn-row" style="justify-content:flex-start;gap:6px">
-          <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="gStartTopic('${t.id}')">Practice →</button>
-          ${(()=>{const now=Date.now();const mQ=t.questions.filter((q,i)=>{const s=gGetSRS(q.id||(t.id+'_'+i));return s.interval>=14&&s.due>now;}).length;return mQ>0?`<button class="btn" style="font-size:11px;padding:5px 10px;color:var(--text3)" onclick="gStartTopic('${t.id}',true)">Show all ${t.questions.length}</button>`:'';})()}
+        <div class="btn-row" style="justify-content:flex-start;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" style="font-size:12px;padding:7px 14px" onclick="gStartTopic('${t.id}')">Practice${activeQ<totalQ?' ('+activeQ+' active)':''} →</button>
+          ${masteredQ>0?`<button class="btn" style="font-size:11px;padding:5px 10px;color:var(--text3)" onclick="gStartTopic('${t.id}',true)">All ${totalQ}</button>`:''}
           <button class="btn" style="font-size:12px;padding:7px 14px" onclick="gShowRef('${t.id}')">Reference</button>
         </div>
       </div>
@@ -2734,9 +2894,23 @@ function gCheckFill() {
   const q=gState.queue[gState.qIdx];
   const userVal = inp.value.trim();
   function stripLeadingPronoun(s){return s.replace(/^(je |j'|tu |il |elle |on |nous |vous |ils |elles )/i,'');}
-  function stripTrailingContext(s){const parts=(q.q||'').split('___');if(parts.length<2)return s;let afterLast=parts[parts.length-1].replace(/\(.*/,'').replace(/[.,!?].*/,'').trim();if(!afterLast)return s;afterLast=afterLast.replace(/\s+/g,' ');const n=gNormalize(s),nt=gNormalize(afterLast);if(n.endsWith(nt))return s.slice(0,s.length-afterLast.length).trim();return s;}
+  // Strip trailing word(s) already in the sentence after the blank (e.g. "de l'eau" → "de l'" when sentence has "___ eau")
+  function stripTrailingContext(s) {
+    const parts = (q.q||'').split('___');
+    if (parts.length < 2) return s;
+    // Use text after the LAST blank (strip parenthetical hints and punctuation)
+    let afterLast = parts[parts.length-1].replace(/\(.*/, '').replace(/[.,!?].*/, '').trim();
+    if (!afterLast) return s;
+    afterLast = afterLast.replace(/\s+/g,' ');
+    const norm = gNormalize(s), normTrail = gNormalize(afterLast);
+    if (norm.endsWith(normTrail)) return s.slice(0, s.length - afterLast.length).trim();
+    return s;
+  }
   const normUser=gNormalize(userVal),normAns=gNormalize(q.answer);
-  const correct=normUser===normAns||gNormalize(stripLeadingPronoun(userVal))===normAns||gNormalize(stripTrailingContext(userVal))===normAns||gNormalize(stripLeadingPronoun(stripTrailingContext(userVal)))===normAns;
+  const correct=normUser===normAns
+    ||gNormalize(stripLeadingPronoun(userVal))===normAns
+    ||gNormalize(stripTrailingContext(userVal))===normAns
+    ||gNormalize(stripLeadingPronoun(stripTrailingContext(userVal)))===normAns;
   if(!correct){ inp.style.borderColor='var(--coral)'; inp.style.color='var(--coral)'; }
   else { inp.style.borderColor='var(--green)'; inp.style.color='var(--green)'; }
   gRecord(correct, userVal);
@@ -2788,8 +2962,6 @@ vmV('sentir','sentir','to feel / smell',3,'irregular','senti','avoir',{present:[
 vmV('sortir','sortir','to go out / leave',3,'irregular','sorti','être',{present:['sors','sors','sort','sortons','sortez','sortent'],futur:['sortirai','sortiras','sortira','sortirons','sortirez','sortiront'],passe:["suis sorti(e)","es sorti(e)","est sorti(e)","sommes sortis","êtes sortis","sont sortis"],imparfait:['sortais','sortais','sortait','sortions','sortiez','sortaient'],conditional:['sortirais','sortirais','sortirait','sortirions','sortiriez','sortiraient'],subjunctive:['sorte','sortes','sorte','sortions','sortiez','sortent']}),
 vmV('dormir','dormir','to sleep',3,'irregular','dormi','avoir',{present:['dors','dors','dort','dormons','dormez','dorment'],futur:['dormirai','dormiras','dormira','dormirons','dormirez','dormiront'],passe:["ai dormi","as dormi","a dormi","avons dormi","avez dormi","ont dormi"],imparfait:['dormais','dormais','dormait','dormions','dormiez','dormaient'],conditional:['dormirais','dormirais','dormirait','dormirions','dormiriez','dormiraient'],subjunctive:['dorme','dormes','dorme','dormions','dormiez','dorment']}),
 vmV('servir','servir','to serve',3,'irregular','servi','avoir',{present:['sers','sers','sert','servons','servez','servent'],futur:['servirai','serviras','servira','servirons','servirez','serviront'],passe:["ai servi","as servi","a servi","avons servi","avez servi","ont servi"],imparfait:['servais','servais','servait','servions','serviez','servaient'],conditional:['servirais','servirais','servirait','servirions','serviriez','serviraient'],subjunctive:['serve','serves','serve','servions','serviez','servent']}),
-vmV('devenir','devenir','to become',3,'irregular','devenu','être',{present:['deviens','deviens','devient','devenons','devenez','deviennent'],futur:['deviendrai','deviendras','deviendra','deviendrons','deviendrez','deviendront'],passe:["suis devenu(e)","es devenu(e)","est devenu(e)","sommes devenus","êtes devenus","sont devenus"],imparfait:['devenais','devenais','devenait','devenions','deveniez','devenaient'],conditional:['deviendrais','deviendrais','deviendrait','deviendrions','deviendriez','deviendraient'],subjunctive:['devienne','deviennes','devienne','devenions','deveniez','deviennent']}),
-vmV('tenir','tenir','to hold',3,'irregular','tenu','avoir',{present:['tiens','tiens','tient','tenons','tenez','tiennent'],futur:['tiendrai','tiendras','tiendra','tiendrons','tiendrez','tiendront'],passe:["ai tenu","as tenu","a tenu","avons tenu","avez tenu","ont tenu"],imparfait:['tenais','tenais','tenait','tenions','teniez','tenaient'],conditional:['tiendrais','tiendrais','tiendrait','tiendrions','tiendriez','tiendraient'],subjunctive:['tienne','tiennes','tienne','tenions','teniez','tiennent']}),
 vmV('partir','partir','to leave',3,'irregular','parti','être',{present:['pars','pars','part','partons','partez','partent'],futur:['partirai','partiras','partira','partirons','partirez','partiront'],passe:["suis parti(e)","es parti(e)","est parti(e)","sommes partis","êtes partis","sont partis"],imparfait:['partais','partais','partait','partions','partiez','partaient'],conditional:['partirais','partirais','partirait','partirions','partiriez','partiraient'],subjunctive:['parte','partes','parte','partions','partiez','partent']}),
 vmV('mettre','mettre','to put / place',3,'irregular','mis','avoir',{present:['mets','mets','met','mettons','mettez','mettent'],futur:['mettrai','mettras','mettra','mettrons','mettrez','mettront'],passe:["ai mis","as mis","a mis","avons mis","avez mis","ont mis"],imparfait:['mettais','mettais','mettait','mettions','mettiez','mettaient'],conditional:['mettrais','mettrais','mettrait','mettrions','mettriez','mettraient'],subjunctive:['mette','mettes','mette','mettions','mettiez','mettent']}),
 vmV('parler','parler','to speak / talk',1,'regular','parlé','avoir',{present:['parle','parles','parle','parlons','parlez','parlent'],futur:['parlerai','parleras','parlera','parlerons','parlerez','parleront'],passe:["ai parlé","as parlé","a parlé","avons parlé","avez parlé","ont parlé"],imparfait:['parlais','parlais','parlait','parlions','parliez','parlaient'],conditional:['parlerais','parlerais','parlerait','parlerions','parleriez','parleraient'],subjunctive:['parle','parles','parle','parlions','parliez','parlent']}),
@@ -2810,6 +2982,7 @@ vmV('ecrire','écrire','to write',3,'irregular','écrit','avoir',{present:['écr
 vmV('lire','lire','to read',3,'irregular','lu','avoir',{present:['lis','lis','lit','lisons','lisez','lisent'],futur:['lirai','liras','lira','lirons','lirez','liront'],passe:['ai lu','as lu','a lu','avons lu','avez lu','ont lu'],imparfait:['lisais','lisais','lisait','lisions','lisiez','lisaient'],conditional:['lirais','lirais','lirait','lirions','liriez','liraient'],subjunctive:['lise','lises','lise','lisions','lisiez','lisent']}),
 vmV('ouvrir','ouvrir','to open',3,'irregular','ouvert','avoir',{present:['ouvre','ouvres','ouvre','ouvrons','ouvrez','ouvrent'],futur:['ouvrirai','ouvriras','ouvrira','ouvrirons','ouvrirez','ouvriront'],passe:['ai ouvert','as ouvert','a ouvert','avons ouvert','avez ouvert','ont ouvert'],imparfait:['ouvrais','ouvrais','ouvrait','ouvrions','ouvriez','ouvraient'],conditional:['ouvrirais','ouvrirais','ouvrirait','ouvririons','ouvririez','ouvriraient'],subjunctive:['ouvre','ouvres','ouvre','ouvrions','ouvriez','ouvrent']},"Conjugates like an -ER verb in the present tense."),
 vmV('vivre','vivre','to live',3,'irregular','vécu','avoir',{present:['vis','vis','vit','vivons','vivez','vivent'],futur:['vivrai','vivras','vivra','vivrons','vivrez','vivront'],passe:['ai vécu','as vécu','a vécu','avons vécu','avez vécu','ont vécu'],imparfait:['vivais','vivais','vivait','vivions','viviez','vivaient'],conditional:['vivrais','vivrais','vivrait','vivrions','vivriez','vivraient'],subjunctive:['vive','vives','vive','vivions','viviez','vivent']}),
+vmV('devenir','devenir','to become',3,'irregular','devenu','être',{present:['deviens','deviens','devient','devenons','devenez','deviennent'],futur:['deviendrai','deviendras','deviendra','deviendrons','deviendrez','deviendront'],passe:["suis devenu(e)","es devenu(e)","est devenu(e)","sommes devenus","êtes devenus","sont devenus"],imparfait:['devenais','devenais','devenait','devenions','deveniez','devenaient'],conditional:['deviendrais','deviendrais','deviendrait','deviendrions','deviendriez','deviendraient'],subjunctive:['devienne','deviennes','devienne','devenions','deveniez','deviennent']}),
 vmV('tenir','tenir','to hold / keep',3,'irregular','tenu','avoir',{present:['tiens','tiens','tient','tenons','tenez','tiennent'],futur:['tiendrai','tiendras','tiendra','tiendrons','tiendrez','tiendront'],passe:['ai tenu','as tenu','a tenu','avons tenu','avez tenu','ont tenu'],imparfait:['tenais','tenais','tenait','tenions','teniez','tenaient'],conditional:['tiendrais','tiendrais','tiendrait','tiendrions','tiendriez','tiendraient'],subjunctive:['tienne','tiennes','tienne','tenions','teniez','tiennent']},"Also venir and other -enir verbs follow the same pattern."),
 vmV('courir','courir','to run',3,'irregular','couru','avoir',{present:['cours','cours','court','courons','courez','courent'],futur:['courrai','courras','courra','courrons','courrez','courront'],passe:['ai couru','as couru','a couru','avons couru','avez couru','ont couru'],imparfait:['courais','courais','courait','courions','couriez','couraient'],conditional:['courrais','courrais','courrait','courrions','courriez','courraient'],subjunctive:['coure','coures','coure','courions','couriez','courent']},'Note the double-r in futur/conditionnel: je <em>courrai</em>.'),
 vmV('boire','boire','to drink',3,'irregular','bu','avoir',{present:['bois','bois','boit','buvons','buvez','boivent'],futur:['boirai','boiras','boira','boirons','boirez','boiront'],passe:['ai bu','as bu','a bu','avons bu','avez bu','ont bu'],imparfait:['buvais','buvais','buvait','buvions','buviez','buvaient'],conditional:['boirais','boirais','boirait','boirions','boiriez','boiraient'],subjunctive:['boive','boives','boive','buvions','buviez','boivent']}),
@@ -2902,9 +3075,9 @@ function renderVMList(){
     <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div><div class="ps-title">Conjugaison</div><div class="ps-sub">${filtered.length} of ${vmVerbs.length} verbs</div></div>
       <div style="display:flex;gap:6px">
-       <button class="btn" style="font-size:12px" onclick="document.getElementById('verbEndingsModal').style.display='flex'">📋 Endings</button>
-       <button class="btn btn-primary" style="font-size:12px" onclick="vmState.view='quiz';renderContent()">Quiz mode →</button>
-     </div>
+        <button class="btn" style="font-size:12px" onclick="document.getElementById('verbEndingsModal').style.display='flex'">📋 Endings</button>
+        <button class="btn btn-primary" style="font-size:12px" onclick="vmState.view='quiz';renderContent()">Quiz mode →</button>
+      </div>
     </div>
     <input type="text" placeholder="Search verbs…" value="${vmState.search}" oninput="vmState.search=this.value;renderContent()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Inter,sans-serif;font-size:13px;padding:9px 12px;outline:none;margin-bottom:10px">
     <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">${groupPills}</div>
@@ -2916,7 +3089,32 @@ function renderVMList(){
 function vmSwitchTense(verbId,tId){vmState.verbId=verbId;vmState.tenseId=tId;renderContent();}
 function vmSetFilter(type,val){if(type==='group')vmState.filterGroup=val;else vmState.filterType=val;renderContent();}
 
-function vmQuizConjCard(vb,highlightTenseId){const tensesToShow=VM_TENSES.filter(t=>vb.tenses[t.id]);const blocks=tensesToShow.map(t=>{const conjs=vmGetConjs(vb,t.id);const isActive=t.id===highlightTenseId;const rows=VM_PRONOUNS.map((p,i)=>`<div style="display:flex;gap:8px;padding:3px 0;border-bottom:0.5px solid var(--border)"><span style="font-size:11px;color:var(--text3);min-width:80px">${p}</span><span style="font-size:12px;font-family:'Playfair Display',serif;font-style:italic;color:${isActive?'var(--coral)':'var(--green)'}">${conjs[i]||'—'}</span></div>`).join('');return`<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;color:${isActive?'var(--coral)':'var(--purple)'}">${t.label}${isActive?' ← missed':''}</div><div style="background:var(--surface);border-radius:var(--radius-sm);padding:4px 10px;${isActive?'border:1px solid var(--coral);':''}">${rows}</div></div>`;}).join('');const aux=vb.aux==='être'?'être':'avoir';return`<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:11px;margin-bottom:10px;display:flex;align-items:center;gap:8px"><span style="font-family:'Playfair Display',serif;font-style:italic;font-size:14px;color:var(--text)">${vb.infinitive}</span><span style="color:var(--text3)">— ${vb.translation}</span><span style="font-size:10px;color:var(--text3);margin-left:auto">pp: <em>${vb.pp}</em> (${aux})</span></div>${blocks}</div>`;}
+function vmQuizConjCard(vb, highlightTenseId){
+  const tensesToShow = VM_TENSES.filter(t => vb.tenses[t.id]);
+  const blocks = tensesToShow.map(t => {
+    const conjs = vmGetConjs(vb, t.id);
+    const isActive = t.id === highlightTenseId;
+    const rows = VM_PRONOUNS.map((p,i) =>
+      `<div style="display:flex;gap:8px;padding:3px 0;border-bottom:0.5px solid var(--border)">
+        <span style="font-size:11px;color:var(--text3);min-width:80px">${p}</span>
+        <span style="font-size:12px;font-family:'Playfair Display',serif;font-style:italic;color:${isActive?'var(--coral)':'var(--green)'}">${conjs[i]||'—'}</span>
+      </div>`).join('');
+    return `<div style="margin-bottom:10px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;color:${isActive?'var(--coral)':'var(--purple)'}">${t.label}${isActive?' ← missed':''}</div>
+      <div style="background:var(--surface);border-radius:var(--radius-sm);padding:4px 10px;${isActive?'border:1px solid var(--coral);':''}">${rows}</div>
+    </div>`;
+  }).join('');
+  const aux = vb.aux==='être'?'être':'avoir';
+  return `<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+    <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+      <span style="font-family:'Playfair Display',serif;font-style:italic;font-size:14px;color:var(--text)">${vb.infinitive}</span>
+      <span style="color:var(--text3)">— ${vb.translation}</span>
+      <span style="font-size:10px;color:var(--text3);margin-left:auto">pp: <em>${vb.pp}</em> (${aux})</span>
+    </div>
+    ${blocks}
+  </div>`;
+}
+
 function renderVMQuiz(){
   if(!vmState.quizQueue.length||vmState.quizIdx>=vmState.quizQueue.length){
     // setup screen
@@ -3008,6 +3206,7 @@ function vmSubmit(){
   if(vmState.quizAnswered)return;
   const inp=document.getElementById('vmQuizInput');
   let ans=vmNorm(inp.value||'');if(!ans)return;
+  // Strip leading "que/qu'" if the user prefixed it (subjonctif answers don't include que)
   ans=ans.replace(/^que? /,'').replace(/^qu'/,'');
   const card=vmState.quizQueue[vmState.quizIdx];
   const vb=vmVerbs.find(x=>x.id===card.verbId);
@@ -3681,12 +3880,12 @@ renderContent();
             <th style="padding:5px 8px;text-align:center;color:#90caf9;font-size:10px;font-weight:600">-IR (finir)</th>
             <th style="padding:5px 8px;text-align:center;color:#90caf9;font-size:10px;font-weight:600">-RE (vendre)</th>
           </tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Je/J'</td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">parle</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-is</span><br><em style="color:#666;font-size:11px">finis</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-s</span><br><em style="color:#666;font-size:11px">vends</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Tu</td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-es</span><br><em style="color:#666;font-size:11px">parles</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-is</span><br><em style="color:#666;font-size:11px">finis</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-s</span><br><em style="color:#666;font-size:11px">vends</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Il/Elle/On</td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">parle</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-it</span><br><em style="color:#666;font-size:11px">finit</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">—</span><br><em style="color:#666;font-size:11px">vend</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Nous</td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-ons</span><br><em style="color:#666;font-size:11px">parlons</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-issons</span><br><em style="color:#666;font-size:11px">finissons</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-ons</span><br><em style="color:#666;font-size:11px">vendons</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Vous</td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-ez</span><br><em style="color:#666;font-size:11px">parlez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-issez</span><br><em style="color:#666;font-size:11px">finissez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-ez</span><br><em style="color:#666;font-size:11px">vendez</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Ils/Elles</td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-ent</span><br><em style="color:#666;font-size:11px">parlent</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-issent</span><br><em style="color:#666;font-size:11px">finissent</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">-ent</span><br><em style="color:#666;font-size:11px">vendent</em></td></tr>
+          ${[['Je/J\'','-e','parle','-is','finis','-s','vends'],['Tu','-es','parles','-is','finis','-s','vends'],['Il/Elle/On','-e','parle','-it','finit','—','vend'],['Nous','-ons','parlons','-issons','finissons','-ons','vendons'],['Vous','-ez','parlez','-issez','finissez','-ez','vendez'],['Ils/Elles','-ent','parlent','-issent','finissent','-ent','vendent']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
+            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
+          </tr>`).join('')}
         </table>
       </div>
 
@@ -3697,9 +3896,24 @@ renderContent();
           <span style="font-size:10px;font-family:monospace;color:#b07acc">avoir/être + past participle</span>
         </div>
         <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a"><th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%"></th><th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-ER</th><th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-IR</th><th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-RE</th></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Past participle</td><td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-é</span><br><em style="color:#666;font-size:11px">parlé</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-i</span><br><em style="color:#666;font-size:11px">fini</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-u</span><br><em style="color:#666;font-size:11px">vendu</em></td></tr>
-          <tr><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Example (je)</td><td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai parlé</td><td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai fini</td><td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai vendu</td></tr>
+          <tr style="border-bottom:1px solid #2a2d3a">
+            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%"></th>
+            <th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-ER</th>
+            <th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-IR</th>
+            <th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-RE</th>
+          </tr>
+          <tr style="border-bottom:1px solid #1e2130">
+            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Past participle</td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-é</span><br><em style="color:#666;font-size:11px">parlé</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-i</span><br><em style="color:#666;font-size:11px">fini</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-u</span><br><em style="color:#666;font-size:11px">vendu</em></td>
+          </tr>
+          <tr>
+            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Example (je)</td>
+            <td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai parlé</td>
+            <td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai fini</td>
+            <td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai vendu</td>
+          </tr>
         </table>
       </div>
 
@@ -3710,13 +3924,18 @@ renderContent();
           <span style="font-size:10px;font-family:monospace;color:#60a99e">Stem = nous (présent) − ons</span>
         </div>
         <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a"><th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th><th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-ER (porter)</th><th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-IR (finir)</th><th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-RE (vendre)</th></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Je/J'</td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">portais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">finissais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">vendais</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Tu</td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">portais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">finissais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">vendais</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Il/Elle/On</td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ait</span><br><em style="color:#666;font-size:11px">portait</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ait</span><br><em style="color:#666;font-size:11px">finissait</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ait</span><br><em style="color:#666;font-size:11px">vendait</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Nous</td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">portions</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">finissions</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">vendions</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Vous</td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">portiez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">finissiez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">vendiez</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Ils/Elles</td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-aient</span><br><em style="color:#666;font-size:11px">portaient</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-aient</span><br><em style="color:#666;font-size:11px">finissaient</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">-aient</span><br><em style="color:#666;font-size:11px">vendaient</em></td></tr>
+          <tr style="border-bottom:1px solid #2a2d3a">
+            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
+            <th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-ER (porter)</th>
+            <th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-IR (finir)</th>
+            <th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-RE (vendre)</th>
+          </tr>
+          ${[['Je/J\'','-ais','portais','-ais','finissais','-ais','vendais'],['Tu','-ais','portais','-ais','finissais','-ais','vendais'],['Il/Elle/On','-ait','portait','-ait','finissait','-ait','vendait'],['Nous','-ions','portions','-ions','finissions','-ions','vendions'],['Vous','-iez','portiez','-iez','finissiez','-iez','vendiez'],['Ils/Elles','-aient','portaient','-aient','finissaient','-aient','vendaient']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
+            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
+          </tr>`).join('')}
         </table>
       </div>
 
@@ -3727,13 +3946,18 @@ renderContent();
           <span style="font-size:10px;font-family:monospace;color:#e0a84a">Stem = infinitive (−e for -re)</span>
         </div>
         <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a"><th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th><th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-ER (chanter)</th><th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-IR (finir)</th><th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-RE (vendr-)</th></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Je/J'</td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ai</span><br><em style="color:#666;font-size:11px">chanterai</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ai</span><br><em style="color:#666;font-size:11px">finirai</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ai</span><br><em style="color:#666;font-size:11px">vendrai</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Tu</td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-as</span><br><em style="color:#666;font-size:11px">chanteras</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-as</span><br><em style="color:#666;font-size:11px">finiras</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-as</span><br><em style="color:#666;font-size:11px">vendras</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Il/Elle/On</td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-a</span><br><em style="color:#666;font-size:11px">chantera</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-a</span><br><em style="color:#666;font-size:11px">finira</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-a</span><br><em style="color:#666;font-size:11px">vendra</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Nous</td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ons</span><br><em style="color:#666;font-size:11px">chanterons</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ons</span><br><em style="color:#666;font-size:11px">finirons</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ons</span><br><em style="color:#666;font-size:11px">vendrons</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Vous</td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ez</span><br><em style="color:#666;font-size:11px">chanterez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ez</span><br><em style="color:#666;font-size:11px">finirez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ez</span><br><em style="color:#666;font-size:11px">vendrez</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Ils/Elles</td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ont</span><br><em style="color:#666;font-size:11px">chanteront</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ont</span><br><em style="color:#666;font-size:11px">finiront</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">-ont</span><br><em style="color:#666;font-size:11px">vendront</em></td></tr>
+          <tr style="border-bottom:1px solid #2a2d3a">
+            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
+            <th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-ER (chanter)</th>
+            <th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-IR (finir)</th>
+            <th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-RE (vendr-)</th>
+          </tr>
+          ${[['Je/J\'','-ai','chanterai','-ai','finirai','-ai','vendrai'],['Tu','-as','chanteras','-as','finiras','-as','vendras'],['Il/Elle/On','-a','chantera','-a','finira','-a','vendra'],['Nous','-ons','chanterons','-ons','finirons','-ons','vendrons'],['Vous','-ez','chanterez','-ez','finirez','-ez','vendrez'],['Ils/Elles','-ont','chanteront','-ont','finiront','-ont','vendront']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
+            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
+          </tr>`).join('')}
         </table>
       </div>
 
@@ -3744,13 +3968,18 @@ renderContent();
           <span style="font-size:10px;font-family:monospace;color:#cc7090">Stem = futur + imparfait endings</span>
         </div>
         <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a"><th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th><th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-ER (chanter)</th><th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-IR (finir)</th><th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-RE (vendr-)</th></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Je/J'</td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">chanterais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">finirais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">vendrais</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Tu</td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">chanterais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">finirais</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ais</span><br><em style="color:#666;font-size:11px">vendrais</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Il/Elle/On</td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ait</span><br><em style="color:#666;font-size:11px">chanterait</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ait</span><br><em style="color:#666;font-size:11px">finirait</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ait</span><br><em style="color:#666;font-size:11px">vendrait</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Nous</td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">chanterions</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">finirions</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">vendrions</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Vous</td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">chanteriez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">finiriez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">vendriez</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Ils/Elles</td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-aient</span><br><em style="color:#666;font-size:11px">chanteraient</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-aient</span><br><em style="color:#666;font-size:11px">finiraient</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">-aient</span><br><em style="color:#666;font-size:11px">vendraient</em></td></tr>
+          <tr style="border-bottom:1px solid #2a2d3a">
+            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
+            <th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-ER (chanter)</th>
+            <th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-IR (finir)</th>
+            <th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-RE (vendr-)</th>
+          </tr>
+          ${[['Je/J\'','-ais','chanterais','-ais','finirais','-ais','vendrais'],['Tu','-ais','chanterais','-ais','finirais','-ais','vendrais'],['Il/Elle/On','-ait','chanterait','-ait','finirait','-ait','vendrait'],['Nous','-ions','chanterions','-ions','finirions','-ions','vendrions'],['Vous','-iez','chanteriez','-iez','finiriez','-iez','vendriez'],['Ils/Elles','-aient','chanteraient','-aient','finiraient','-aient','vendraient']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
+            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
+          </tr>`).join('')}
         </table>
       </div>
 
@@ -3761,13 +3990,18 @@ renderContent();
           <span style="font-size:10px;font-family:monospace;color:#7baa7d">Stem = ils/elles (présent) − ent</span>
         </div>
         <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a"><th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th><th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-ER (chercher)</th><th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-IR (finir)</th><th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-RE (attendre)</th></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Que je</td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">cherche</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">finisse</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">attende</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Que tu</td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-es</span><br><em style="color:#666;font-size:11px">cherches</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-es</span><br><em style="color:#666;font-size:11px">finisses</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-es</span><br><em style="color:#666;font-size:11px">attendes</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Qu'il/elle</td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">cherche</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">finisse</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-e</span><br><em style="color:#666;font-size:11px">attende</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Que nous</td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">cherchions</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">finissions</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-ions</span><br><em style="color:#666;font-size:11px">attendions</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Que vous</td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">cherchiez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">finissiez</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-iez</span><br><em style="color:#666;font-size:11px">attendiez</em></td></tr>
-          <tr style="border-bottom:1px solid #1e2130"><td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Qu'ils/elles</td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-ent</span><br><em style="color:#666;font-size:11px">cherchent</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-ent</span><br><em style="color:#666;font-size:11px">finissent</em></td><td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">-ent</span><br><em style="color:#666;font-size:11px">attendent</em></td></tr>
+          <tr style="border-bottom:1px solid #2a2d3a">
+            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
+            <th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-ER (chercher)</th>
+            <th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-IR (finir)</th>
+            <th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-RE (attendre)</th>
+          </tr>
+          ${[['Que je','-e','cherche','-e','finisse','-e','attende'],['Que tu','-es','cherches','-es','finisses','-es','attendes'],['Qu\'il/elle','-e','cherche','-e','finisse','-e','attende'],['Que nous','-ions','cherchions','-ions','finissions','-ions','attendions'],['Que vous','-iez','cherchiez','-iez','finissiez','-iez','attendiez'],['Qu\'ils/elles','-ent','cherchent','-ent','finissent','-ent','attendent']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
+            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
+            <td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
+          </tr>`).join('')}
         </table>
       </div>
 
