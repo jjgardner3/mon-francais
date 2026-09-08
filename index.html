@@ -439,7 +439,7 @@ async function supaLoadState() {
   if (data.state && Object.keys(data.state).length > 0)
     localStorage.setItem('fpl_state_v3', JSON.stringify(data.state));
   if (data.vocab_bank && data.vocab_bank.length > 0)
-    localStorage.setItem('fpl_vocab_bank_v2', JSON.stringify(data.vocab_bank));
+    localStorage.setItem('fpl_vocab_bank_v3', JSON.stringify(data.vocab_bank));
   if (data.grammar_srs && Object.keys(data.grammar_srs).length > 0)
     localStorage.setItem('fpl_grammar_srs_v2', JSON.stringify(data.grammar_srs));
   if (data.grammar_scores && Object.keys(data.grammar_scores).length > 0)
@@ -460,7 +460,7 @@ function supaSyncState() {
     const payload = {
       user_id: supaUser.id,
       state: JSON.parse(localStorage.getItem('fpl_state_v3') || '{}'),
-      vocab_bank: JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]'),
+      vocab_bank: JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]'),
       grammar_srs: JSON.parse(localStorage.getItem('fpl_grammar_srs_v2') || '{}'),
       grammar_scores: JSON.parse(localStorage.getItem('fpl_grammar_scores') || '{}'),
       grammar_streak: parseInt(localStorage.getItem('fpl_grammar_streak') || '0', 10),
@@ -879,7 +879,7 @@ const ANKI_SEED = [
 ];
 
 // ── localStorage-backed word bank ──────────────────────────────
-const VOCAB_STORE_KEY = 'fpl_vocab_bank_v2';
+const VOCAB_STORE_KEY = 'fpl_vocab_bank_v3';
 // ── localStorage-backed word bank ──────────────────────────────
 function vocabLoadBank() {
   try {
@@ -908,7 +908,7 @@ let vocabBank = vocabInitBank();
 // ═══════════════════════════════════════
 
 async function vocabLoadFromSupabase() {
-  const STORE_KEY = 'fpl_vocab_bank_v2';
+  const STORE_KEY = 'fpl_vocab_bank_v3';
   const cached = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
   if (cached.length > 100) return; // already loaded
 
@@ -963,7 +963,7 @@ async function vocabLoadFromSupabase() {
 }
 
 function vocabMaybeGenerate() {
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]');
   if (bank.length <= 100) {
     vocabLoadFromSupabase();
   }
@@ -1062,7 +1062,7 @@ function renderVocabHTML() {
   const deck = getVocabDeck();
   const stats = getVocabStats();
 
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]');
   const isLoading = bank.length <= 100;
   const genStatus = isLoading
     ? `<div id="vocabLoadStatus" style="font-size:12px;color:var(--purple);margin-top:4px">⟳ Loading vocabulary bank from cloud…</div>`
@@ -1150,10 +1150,9 @@ function renderVocabHTML() {
 
 // ── Vocab card conjugation modal ────────────────────────────────
 function showVocabConjModal(french, english) {
-  // Strip articles/pronouns to get bare infinitive
+  const isReflexive = /^(se |s')/i.test(french);
   const bare = french.replace(/^(se |s')/i, '').trim();
 
-  // Try to find in VM_VERBS list
   let vb = (typeof vmVerbs !== 'undefined') ? vmVerbs.find(v =>
     v.infinitive.toLowerCase() === french.toLowerCase() ||
     v.infinitive.toLowerCase() === bare.toLowerCase()
@@ -1163,13 +1162,25 @@ function showVocabConjModal(french, english) {
   const TENSES_TO_SHOW = ['present','passe','imparfait','futur','conditional','subjunctive'];
   const TENSE_LABELS = { present:'Présent', passe:'Passé composé', imparfait:'Imparfait', futur:'Futur simple', conditional:'Conditionnel', subjunctive:'Subjonctif présent' };
 
+  // Reflexive pronouns with elision before vowels
+  const REFL_BASE = ['me','te','se','nous','vous','se'];
+  const VOWELS = 'aeiouàâéèêëîïôùûüœ';
+  function rPron(i, form) {
+    const base = REFL_BASE[i];
+    if (['me','te','se'].includes(base) && VOWELS.includes((form||'')[0]?.toLowerCase()))
+      return base[0] + "'";
+    return base + ' ';
+  }
+  // Être passé composé forms for reflexives
+  const ETRE_FORMS = ["me suis","t'es","s'est","nous sommes","vous êtes","se sont"];
+
   // Build stem info for header
+  const dispAux = isReflexive ? 'être' : (vb ? vb.aux : 'avoir');
   let stemHTML = '';
   if (vb) {
     const present = vb.tenses?.present || [];
     const jeForm = present[0] || '';
     const nousForm = present[3] || '';
-    // Derive stems by stripping personal endings
     const jeStem = jeForm.replace(/(?:ons|ez|ent|[sxe])$/, '') || jeForm;
     const nousStem = nousForm.replace(/ons$/, '') || nousForm;
     const stemsMatch = jeStem === nousStem;
@@ -1177,13 +1188,13 @@ function showVocabConjModal(french, english) {
       ? `<em style="color:var(--text)">${jeStem}-</em> <span style="color:var(--border2)">/</span> <em style="color:var(--text)">${nousStem}-</em>`
       : `<em style="color:var(--text)">${bare.slice(0,-2)}-</em>`;
     stemHTML = `<span style="margin-left:10px;font-size:12px">stem: ${stemStr}</span>`
-      + `<span style="margin-left:10px;font-size:12px">pp: <em style="color:var(--text)">${vb.pp}</em> <span style="color:var(--text3)">(${vb.aux})</span></span>`;
+      + `<span style="margin-left:10px;font-size:12px">pp: <em style="color:var(--text)">${vb.pp}</em> <span style="color:var(--text3)">(${dispAux})</span></span>`;
   } else {
     const ending = bare.endsWith('re') ? 're' : bare.endsWith('ir') ? 'ir' : 'er';
     const stem = bare.slice(0, -2);
     const pp = ending === 'ir' ? bare.slice(0,-1) : ending === 're' ? stem + 'u' : stem + 'é';
     stemHTML = `<span style="margin-left:10px;font-size:12px">stem: <em style="color:var(--text)">${stem}-</em></span>`
-      + `<span style="margin-left:10px;font-size:12px">pp: <em style="color:var(--text)">${pp}</em> <span style="color:var(--text3)">(avoir)</span></span>`;
+      + `<span style="margin-left:10px;font-size:12px">pp: <em style="color:var(--text)">${pp}</em> <span style="color:var(--text3)">(${dispAux})</span></span>`;
   }
 
   let html = `<div style="font-size:13px;color:var(--text3);margin-bottom:1rem">
@@ -1194,41 +1205,65 @@ function showVocabConjModal(french, english) {
 
   if (vb) {
     TENSES_TO_SHOW.forEach(tId => {
-      const conjs = vmGetConjs(vb, tId);
+      let conjs = vmGetConjs(vb, tId);
       if (!conjs || !conjs.length) return;
+      // Reflexive: override passé composé with être-based forms
+      if (isReflexive && tId === 'passe') {
+        conjs = ETRE_FORMS.map(ef => ef + ' ' + vb.pp);
+      }
       html += `<div style="margin-bottom:1.1rem">
         <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${TENSE_LABELS[tId]}</div>
         <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">
-          ${conjs.map((c,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
-            <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
-            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${tId==='subjunctive'?'que '+c:c}</span>
-          </div>`).join('')}
+          ${conjs.map((c,i) => {
+            const pron = (isReflexive && tId !== 'passe') ? rPron(i, c) : '';
+            const display = tId === 'subjunctive' ? 'que ' + pron + c : pron + c;
+            return `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+              <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
+              <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${display}</span>
+            </div>`;
+          }).join('')}
         </div>
       </div>`;
     });
-    html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${vb.aux} + ${vb.pp}</span></div>`;
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${dispAux} + ${vb.pp}</span></div>`;
   } else {
-    // Fall back to regular endings based on infinitive
     const ending = bare.endsWith('re') ? 're' : bare.endsWith('ir') ? 'ir' : 'er';
-    const stem = ending === 're' ? bare.slice(0,-2) : ending === 'ir' ? bare.slice(0,-2) : bare.slice(0,-2);
+    const stem = bare.slice(0,-2);
+    const pp = ending === 'ir' ? bare.slice(0,-1) : ending === 're' ? stem + 'u' : stem + 'é';
     const regularEndings = {
-      er:   { present:['e','es','e','ons','ez','ent'],   imparfait:['ais','ais','ait','ions','iez','aient'], futur:['erai','eras','era','erons','erez','eront'],   conditional:['erais','erais','erait','erions','eriez','eraient'], subjunctive:['e','es','e','ions','iez','ent'] },
-      ir:   { present:['is','is','it','issons','issez','issent'], imparfait:['issais','issais','issait','issions','issiez','issaient'], futur:['irai','iras','ira','irons','irez','iront'], conditional:['irais','irais','irait','irions','iriez','iraient'], subjunctive:['isse','isses','isse','issions','issiez','issent'] },
-      re:   { present:['s','s','—','ons','ez','ent'],    imparfait:['ais','ais','ait','ions','iez','aient'],  futur:['rai','ras','ra','rons','rez','ront'],         conditional:['rais','rais','rait','rions','riez','raient'],     subjunctive:['e','es','e','ions','iez','ent'] },
+      er: { present:['e','es','e','ons','ez','ent'],   imparfait:['ais','ais','ait','ions','iez','aient'], futur:['erai','eras','era','erons','erez','eront'],   conditional:['erais','erais','erait','erions','eriez','eraient'], subjunctive:['e','es','e','ions','iez','ent'] },
+      ir: { present:['is','is','it','issons','issez','issent'], imparfait:['issais','issais','issait','issions','issiez','issaient'], futur:['irai','iras','ira','irons','irez','iront'], conditional:['irais','irais','irait','irions','iriez','iraient'], subjunctive:['isse','isses','isse','issions','issiez','issent'] },
+      re: { present:['s','s','—','ons','ez','ent'],    imparfait:['ais','ais','ait','ions','iez','aient'],  futur:['rai','ras','ra','rons','rez','ront'],         conditional:['rais','rais','rait','rions','riez','raient'],     subjunctive:['e','es','e','ions','iez','ent'] },
     };
     const ends = regularEndings[ending];
-    ['present','imparfait','futur','conditional','subjunctive'].forEach(tId => {
-      html += `<div style="margin-bottom:1.1rem">
-        <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${TENSE_LABELS[tId]} <span style="color:var(--text3);font-weight:400;font-size:10px">(regular -${ending})</span></div>
-        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">
-          ${ends[tId].map((e,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+    const tensesFallback = isReflexive
+      ? ['present','passe','imparfait','futur','conditional','subjunctive']
+      : ['present','imparfait','futur','conditional','subjunctive'];
+    tensesFallback.forEach(tId => {
+      let rows;
+      if (tId === 'passe') {
+        rows = ETRE_FORMS.map((ef,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
+          <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${ef} ${pp}</span>
+        </div>`).join('');
+      } else {
+        rows = ends[tId].map((e,i) => {
+          const form = e === '—' ? stem : stem + e;
+          const pron = isReflexive ? rPron(i, form) : '';
+          const display = tId === 'subjunctive' ? 'que ' + pron + form : pron + form;
+          return `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
             <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
-            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${(tId==='subjunctive'?'que ':'')}${e === '—' ? stem : stem + e}</span>
-          </div>`).join('')}
-        </div>
+            <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${display}</span>
+          </div>`;
+        }).join('');
+      }
+      const label = TENSE_LABELS[tId] + (tId !== 'passe' && !isReflexive ? ` <span style="color:var(--text3);font-weight:400;font-size:10px">(regular -${ending})</span>` : '');
+      html += `<div style="margin-bottom:1.1rem">
+        <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${label}</div>
+        <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">${rows}</div>
       </div>`;
     });
-    html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${ending === 'ir' ? 'avoir + ' + bare.slice(0,-1) : ending === 're' ? 'avoir + ' + bare.slice(0,-2) + 'u' : 'avoir + ' + bare.slice(0,-2) + 'é'}</span></div>`;
+    html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${dispAux} + ${pp}</span></div>`;
   }
 
   document.getElementById('vocabConjBody').innerHTML = html;
@@ -2986,6 +3021,10 @@ vmV('devenir','devenir','to become',3,'irregular','devenu','être',{present:['de
 vmV('tenir','tenir','to hold / keep',3,'irregular','tenu','avoir',{present:['tiens','tiens','tient','tenons','tenez','tiennent'],futur:['tiendrai','tiendras','tiendra','tiendrons','tiendrez','tiendront'],passe:['ai tenu','as tenu','a tenu','avons tenu','avez tenu','ont tenu'],imparfait:['tenais','tenais','tenait','tenions','teniez','tenaient'],conditional:['tiendrais','tiendrais','tiendrait','tiendrions','tiendriez','tiendraient'],subjunctive:['tienne','tiennes','tienne','tenions','teniez','tiennent']},"Also venir and other -enir verbs follow the same pattern."),
 vmV('courir','courir','to run',3,'irregular','couru','avoir',{present:['cours','cours','court','courons','courez','courent'],futur:['courrai','courras','courra','courrons','courrez','courront'],passe:['ai couru','as couru','a couru','avons couru','avez couru','ont couru'],imparfait:['courais','courais','courait','courions','couriez','couraient'],conditional:['courrais','courrais','courrait','courrions','courriez','courraient'],subjunctive:['coure','coures','coure','courions','couriez','courent']},'Note the double-r in futur/conditionnel: je <em>courrai</em>.'),
 vmV('boire','boire','to drink',3,'irregular','bu','avoir',{present:['bois','bois','boit','buvons','buvez','boivent'],futur:['boirai','boiras','boira','boirons','boirez','boiront'],passe:['ai bu','as bu','a bu','avons bu','avez bu','ont bu'],imparfait:['buvais','buvais','buvait','buvions','buviez','buvaient'],conditional:['boirais','boirais','boirait','boirions','boiriez','boiraient'],subjunctive:['boive','boives','boive','buvions','buviez','boivent']}),
+vmV('ennuyer','ennuyer','to bore/annoy',1,'irregular','ennuyé','avoir',{present:['ennuie','ennuies','ennuie','ennuyons','ennuyez','ennuient'],futur:['ennuierai','ennuieras','ennuiera','ennuierons','ennuierez','ennuieront'],passe:['ai ennuyé','as ennuyé','a ennuyé','avons ennuyé','avez ennuyé','ont ennuyé'],imparfait:['ennuyais','ennuyais','ennuyait','ennuyions','ennuyiez','ennuyaient'],conditional:['ennuierais','ennuierais','ennuierait','ennuierions','ennuieriez','ennuieraient'],subjunctive:['ennuie','ennuies','ennuie','ennuyions','ennuyiez','ennuient']},'Stem change: ennuy- → ennui- before mute e. Used as s\'ennuyer (to be bored).'),
+vmV('ouvrir','ouvrir','to open',3,'irregular','ouvert','avoir',{present:['ouvre','ouvres','ouvre','ouvrons','ouvrez','ouvrent'],futur:['ouvrirai','ouvriras','ouvrira','ouvrirons','ouvrirez','ouvriront'],passe:['ai ouvert','as ouvert','a ouvert','avons ouvert','avez ouvert','ont ouvert'],imparfait:['ouvrais','ouvrais','ouvrait','ouvrions','ouvriez','ouvraient'],conditional:['ouvrirais','ouvrirais','ouvrirait','ouvririons','ouvririez','ouvriraient'],subjunctive:['ouvre','ouvres','ouvre','ouvrions','ouvriez','ouvrent']},'Present conjugates like -er (ouvre not ouvris). Also: couvrir, souffrir, offrir follow same pattern.'),
+vmV('couvrir','couvrir','to cover',3,'irregular','couvert','avoir',{present:['couvre','couvres','couvre','couvrons','couvrez','couvrent'],futur:['couvrirai','couvriras','couvrira','couvrirons','couvrirez','couvriront'],passe:['ai couvert','as couvert','a couvert','avons couvert','avez couvert','ont couvert'],imparfait:['couvrais','couvrais','couvrait','couvrions','couvriez','couvraient'],conditional:['couvrirais','couvrirais','couvrirait','couvririons','couvririez','couvriraient'],subjunctive:['couvre','couvres','couvre','couvrions','couvriez','couvrent']}),
+vmV('souffrir','souffrir','to suffer',3,'irregular','souffert','avoir',{present:['souffre','souffres','souffre','souffrons','souffrez','souffrent'],futur:['souffrirai','souffriras','souffrira','souffrirons','souffrirez','souffriront'],passe:['ai souffert','as souffert','a souffert','avons souffert','avez souffert','ont souffert'],imparfait:['souffrais','souffrais','souffrait','souffrions','souffriez','souffraient'],conditional:['souffrirais','souffrirais','souffrirait','souffririons','souffririez','souffriraient'],subjunctive:['souffre','souffres','souffre','souffrions','souffriez','souffrent']}),
 vmV('croire','croire','to believe',3,'irregular','cru','avoir',{present:['crois','crois','croit','croyons','croyez','croient'],futur:['croirai','croiras','croira','croirons','croirez','croiront'],passe:['ai cru','as cru','a cru','avons cru','avez cru','ont cru'],imparfait:['croyais','croyais','croyait','croyions','croyiez','croyaient'],conditional:['croirais','croirais','croirait','croirions','croiriez','croiraient'],subjunctive:['croie','croies','croie','croyions','croyiez','croient']}),
 ];
 vmVerbs.forEach(vb=>{ vb.top10=['etre','avoir','aller','faire','prendre','vouloir','savoir','pouvoir','venir','dire'].includes(vb.id); });
@@ -3704,7 +3743,7 @@ function openAccountModal() {
 
   // Build progress stats
   const state = JSON.parse(localStorage.getItem('fpl_state_v3') || '{}');
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v2') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]');
   const srsRaw = JSON.parse(localStorage.getItem('fpl_state_v3') || '{}');
 
   // Vocab stats
