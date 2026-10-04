@@ -502,6 +502,29 @@ function getApiKey() { return true; } // API key handled server-side via Netlify
 
 function loadState() { try { return JSON.parse(localStorage.getItem('fpl_state_v4') || '{}'); } catch { return {}; } }
 function saveState(s) { try { localStorage.setItem('fpl_state_v4', JSON.stringify(s)); supaSyncState(); } catch {} }
+
+// One-time migration: merge any SRS/progress data from older state keys into v4
+(function migrateOldState() {
+  try {
+    const v4 = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
+    const v3 = JSON.parse(localStorage.getItem('fpl_state_v3') || '{}');
+    const v3SRS = v3._vocab2 || {};
+    const v4SRS = v4._vocab2 || {};
+    const v3Count = Object.keys(v3SRS).length;
+    const v4Count = Object.keys(v4SRS).length;
+    if (v3Count > 0) {
+      // Merge: v4 takes precedence for conflicts (it has newer cloud data), but fill gaps from v3
+      const mergedSRS = Object.assign({}, v3SRS, v4SRS);
+      const merged = Object.assign({}, v3, v4);
+      merged._vocab2 = mergedSRS;
+      localStorage.setItem('fpl_state_v4', JSON.stringify(merged));
+      // Clear v3 so we don't migrate again
+      localStorage.removeItem('fpl_state_v3');
+      console.log('[migrate] Merged vocab SRS v3→v4:', v3Count, '+', v4Count, '→', Object.keys(mergedSRS).length, 'words');
+    }
+  } catch(e) { console.warn('State migration error:', e); }
+})();
+
 let state = loadState();
 
 function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
