@@ -437,9 +437,8 @@ async function supaLoadState() {
   if (error || !data) return;
   // Only overwrite localStorage if Supabase has data (non-empty)
   if (data.state && Object.keys(data.state).length > 0)
-    localStorage.setItem('fpl_state_v3', JSON.stringify(data.state));
-  if (data.vocab_bank && data.vocab_bank.length > 0)
-    localStorage.setItem('fpl_vocab_bank_v3', JSON.stringify(data.vocab_bank));
+    localStorage.setItem('fpl_state_v4', JSON.stringify(data.state));
+  // vocab_bank is NOT loaded from user_state — it always comes fresh from the vocab_bank table
   if (data.grammar_srs && Object.keys(data.grammar_srs).length > 0)
     localStorage.setItem('fpl_grammar_srs_v2', JSON.stringify(data.grammar_srs));
   if (data.grammar_scores && Object.keys(data.grammar_scores).length > 0)
@@ -459,8 +458,8 @@ function supaSyncState() {
   syncTimer = setTimeout(async () => {
     const payload = {
       user_id: supaUser.id,
-      state: JSON.parse(localStorage.getItem('fpl_state_v3') || '{}'),
-      vocab_bank: JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]'),
+      state: JSON.parse(localStorage.getItem('fpl_state_v4') || '{}'),
+      // vocab_bank intentionally excluded — too large and always re-fetched from vocab_bank table
       grammar_srs: JSON.parse(localStorage.getItem('fpl_grammar_srs_v2') || '{}'),
       grammar_scores: JSON.parse(localStorage.getItem('fpl_grammar_scores') || '{}'),
       grammar_streak: parseInt(localStorage.getItem('fpl_grammar_streak') || '0', 10),
@@ -501,8 +500,8 @@ const ANTHROPIC_API_URL = '/.netlify/functions/claude';
 
 function getApiKey() { return true; } // API key handled server-side via Netlify function
 
-function loadState() { try { return JSON.parse(localStorage.getItem('fpl_state_v3') || '{}'); } catch { return {}; } }
-function saveState(s) { try { localStorage.setItem('fpl_state_v3', JSON.stringify(s)); supaSyncState(); } catch {} }
+function loadState() { try { return JSON.parse(localStorage.getItem('fpl_state_v4') || '{}'); } catch { return {}; } }
+function saveState(s) { try { localStorage.setItem('fpl_state_v4', JSON.stringify(s)); supaSyncState(); } catch {} }
 let state = loadState();
 
 function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
@@ -879,7 +878,7 @@ const ANKI_SEED = [
 ];
 
 // ── localStorage-backed word bank ──────────────────────────────
-const VOCAB_STORE_KEY = 'fpl_vocab_bank_v3';
+const VOCAB_STORE_KEY = 'fpl_vocab_bank_v4';
 // ── localStorage-backed word bank ──────────────────────────────
 function vocabLoadBank() {
   try {
@@ -908,7 +907,7 @@ let vocabBank = vocabInitBank();
 // ═══════════════════════════════════════
 
 async function vocabLoadFromSupabase() {
-  const STORE_KEY = 'fpl_vocab_bank_v3';
+  const STORE_KEY = 'fpl_vocab_bank_v4';
   const cached = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
   if (cached.length > 100) return; // already loaded
 
@@ -963,7 +962,7 @@ async function vocabLoadFromSupabase() {
 }
 
 function vocabMaybeGenerate() {
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v4') || '[]');
   if (bank.length <= 100) {
     vocabLoadFromSupabase();
   }
@@ -1062,7 +1061,7 @@ function renderVocabHTML() {
   const deck = getVocabDeck();
   const stats = getVocabStats();
 
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v4') || '[]');
   const isLoading = bank.length <= 100;
   const genStatus = isLoading
     ? `<div id="vocabLoadStatus" style="font-size:12px;color:var(--purple);margin-top:4px">⟳ Loading vocabulary bank from cloud…</div>`
@@ -3742,9 +3741,9 @@ function openAccountModal() {
   if (emailEl) emailEl.textContent = email;
 
   // Build progress stats
-  const state = JSON.parse(localStorage.getItem('fpl_state_v3') || '{}');
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v3') || '[]');
-  const srsRaw = JSON.parse(localStorage.getItem('fpl_state_v3') || '{}');
+  const state = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v4') || '[]');
+  const srsRaw = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
 
   // Vocab stats
   const totalWords = bank.length;
