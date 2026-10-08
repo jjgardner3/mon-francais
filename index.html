@@ -901,7 +901,7 @@ const ANKI_SEED = [
 ];
 
 // ── localStorage-backed word bank ──────────────────────────────
-const VOCAB_STORE_KEY = 'fpl_vocab_bank_v4';
+const VOCAB_STORE_KEY = 'fpl_vocab_bank_v5';
 // ── localStorage-backed word bank ──────────────────────────────
 function vocabLoadBank() {
   try {
@@ -930,7 +930,7 @@ let vocabBank = vocabInitBank();
 // ═══════════════════════════════════════
 
 async function vocabLoadFromSupabase() {
-  const STORE_KEY = 'fpl_vocab_bank_v4';
+  const STORE_KEY = 'fpl_vocab_bank_v5';
   const cached = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
   if (cached.length > 100) return; // already loaded
 
@@ -985,7 +985,7 @@ async function vocabLoadFromSupabase() {
 }
 
 function vocabMaybeGenerate() {
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v4') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v5') || '[]');
   if (bank.length <= 100) {
     vocabLoadFromSupabase();
   }
@@ -1084,7 +1084,7 @@ function renderVocabHTML() {
   const deck = getVocabDeck();
   const stats = getVocabStats();
 
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v4') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v5') || '[]');
   const isLoading = bank.length <= 100;
   const genStatus = isLoading
     ? `<div id="vocabLoadStatus" style="font-size:12px;color:var(--purple);margin-top:4px">⟳ Loading vocabulary bank from cloud…</div>`
@@ -3765,7 +3765,7 @@ function openAccountModal() {
 
   // Build progress stats
   const state = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v4') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v5') || '[]');
   const srsRaw = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
 
   // Vocab stats
