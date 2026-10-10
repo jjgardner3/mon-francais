@@ -901,7 +901,7 @@ const ANKI_SEED = [
 ];
 
 // ── localStorage-backed word bank ──────────────────────────────
-const VOCAB_STORE_KEY = 'fpl_vocab_bank_v7';
+const VOCAB_STORE_KEY = 'fpl_vocab_bank_v8';
 // ── localStorage-backed word bank ──────────────────────────────
 function vocabLoadBank() {
   try {
@@ -930,7 +930,7 @@ let vocabBank = vocabInitBank();
 // ═══════════════════════════════════════
 
 async function vocabLoadFromSupabase() {
-  const STORE_KEY = 'fpl_vocab_bank_v7';
+  const STORE_KEY = 'fpl_vocab_bank_v8';
   const cached = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
   if (cached.length > 100) return; // already loaded
 
@@ -976,7 +976,7 @@ async function vocabLoadFromSupabase() {
     }));
 
     // Clear old versioned caches before writing to avoid exceeding 5MB localStorage quota
-    ['fpl_vocab_bank_v2','fpl_vocab_bank_v3','fpl_vocab_bank_v4','fpl_vocab_bank_v5','fpl_vocab_bank_v6'].forEach(k => localStorage.removeItem(k));
+    ['fpl_vocab_bank_v2','fpl_vocab_bank_v3','fpl_vocab_bank_v4','fpl_vocab_bank_v5','fpl_vocab_bank_v6','fpl_vocab_bank_v7'].forEach(k => localStorage.removeItem(k));
     localStorage.setItem(STORE_KEY, JSON.stringify(words));
     vocabBank = words;
     if (activeTab === 'vocab') renderContent();
@@ -988,7 +988,7 @@ async function vocabLoadFromSupabase() {
 }
 
 function vocabMaybeGenerate() {
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v7') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v8') || '[]');
   if (bank.length <= 100) {
     vocabLoadFromSupabase();
   }
@@ -1146,7 +1146,7 @@ function renderVocabHTML() {
   const deck = getVocabDeck(vocabState.theme);
   const stats = getVocabStats();
 
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v7') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v8') || '[]');
   const isLoading = bank.length <= 100;
   const genStatus = isLoading
     ? `<div id="vocabLoadStatus" style="font-size:12px;color:var(--purple);margin-top:4px">⟳ Loading vocabulary bank from cloud…</div>`
@@ -3837,7 +3837,7 @@ function openAccountModal() {
 
   // Build progress stats
   const state = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v7') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v8') || '[]');
   const srsRaw = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
 
   // Vocab stats
