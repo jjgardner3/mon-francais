@@ -1437,7 +1437,7 @@ function revealVocab() {
   vocabState.timerExpired = false;
   if (_vocabTimerHandle) { clearTimeout(_vocabTimerHandle); _vocabTimerHandle = null; }
   renderContent();
-  const deck = getVocabDeck();
+  const deck = getVocabDeck(vocabState.theme);
   const card = deck[vocabState.cardIndex % deck.length];
   if (card?.french) setTimeout(() => speakFrench(card.french), 300);
 }
@@ -1459,7 +1459,7 @@ function startVocabTimer() {
 }
 
 function rateVocab2(rating) {
-  const deck = getVocabDeck();
+  const deck = getVocabDeck(vocabState.theme);
   const card = deck[vocabState.cardIndex % deck.length];
   if (!card) return;
 
