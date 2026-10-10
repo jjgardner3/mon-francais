@@ -975,6 +975,8 @@ async function vocabLoadFromSupabase() {
       category: w.category || null,
     }));
 
+    // Clear old versioned caches before writing to avoid exceeding 5MB localStorage quota
+    ['fpl_vocab_bank_v2','fpl_vocab_bank_v3','fpl_vocab_bank_v4','fpl_vocab_bank_v5','fpl_vocab_bank_v6'].forEach(k => localStorage.removeItem(k));
     localStorage.setItem(STORE_KEY, JSON.stringify(words));
     vocabBank = words;
     if (activeTab === 'vocab') renderContent();
