@@ -901,7 +901,7 @@ const ANKI_SEED = [
 ];
 
 // ── localStorage-backed word bank ──────────────────────────────
-const VOCAB_STORE_KEY = 'fpl_vocab_bank_v5';
+const VOCAB_STORE_KEY = 'fpl_vocab_bank_v6';
 // ── localStorage-backed word bank ──────────────────────────────
 function vocabLoadBank() {
   try {
@@ -930,7 +930,7 @@ let vocabBank = vocabInitBank();
 // ═══════════════════════════════════════
 
 async function vocabLoadFromSupabase() {
-  const STORE_KEY = 'fpl_vocab_bank_v5';
+  const STORE_KEY = 'fpl_vocab_bank_v6';
   const cached = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
   if (cached.length > 100) return; // already loaded
 
@@ -985,14 +985,14 @@ async function vocabLoadFromSupabase() {
 }
 
 function vocabMaybeGenerate() {
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v5') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v6') || '[]');
   if (bank.length <= 100) {
     vocabLoadFromSupabase();
   }
 }
 
 // ── SRS helpers ─────────────────────────────────────────────────
-let vocabState = { cardIndex: 0, revealed: false, filter: 'due', search: '', timedMode: false, timerExpired: false };
+let vocabState = { cardIndex: 0, revealed: false, filter: 'due', search: '', timedMode: false, timerExpired: false, theme: null, themeView: false };
 
 function getVocabSRS(id) {
   const s = state._vocab2 || {};
@@ -1038,34 +1038,33 @@ function recordNewCardSeen(wordId) {
   saveState(state);
 }
 
-function getVocabDeck() {
+function getVocabDeck(themeFilter) {
   const now = Date.now();
   const srsData = state._vocab2 || {};
   const todayNew = getTodayNewCards();
   const newSlotsLeft = Math.max(0, NEW_CARDS_PER_DAY - todayNew.count);
+  const pool = themeFilter ? vocabBank.filter(w => w.category === themeFilter) : vocabBank;
 
   // Reviews: cards already rated whose due date has passed
-  const reviews = vocabBank
+  const reviews = pool
     .filter(w => srsData[w.id] && srsData[w.id].due <= now)
     .map(w => ({ ...w, srs: getVocabSRS(w.id), isNew: false }))
     .sort((a, b) => a.srs.due - b.srs.due);
 
   // Today's already-introduced cards that haven't been rated yet
-  // (introduced earlier today but session closed before rating)
-  const pendingToday = newSlotsLeft > 0 ? [] : vocabBank
+  const pendingToday = newSlotsLeft > 0 ? [] : pool
     .filter(w => todayNew.ids.has(w.id) && !srsData[w.id])
     .map(w => ({ ...w, srs: getVocabSRS(w.id), isNew: true }));
 
   // Brand new cards: never seen AND not introduced today, up to remaining slots
   const alreadyIntroduced = new Set([...Object.keys(srsData), ...todayNew.ids]);
   const newCards = newSlotsLeft > 0
-    ? vocabBank
+    ? pool
         .filter(w => !alreadyIntroduced.has(w.id))
         .slice(0, newSlotsLeft)
         .map(w => ({ ...w, srs: getVocabSRS(w.id), isNew: true }))
     : [];
 
-  // Reviews first, then pending today's unrated cards, then fresh new cards
   return [...reviews, ...pendingToday, ...newCards];
 }
 
@@ -1079,12 +1078,69 @@ function getVocabStats() {
   return { total, seen, mastered, newSeenToday, newSlotsLeft };
 }
 
+// ── Themes ───────────────────────────────────────────────────────
+const THEMES = [
+  { id: 'clothes',  emoji: '🧥', label: 'Vêtements',        labelEn: 'Clothes' },
+  { id: 'kitchen',  emoji: '🍳', label: 'Cuisine',           labelEn: 'Kitchen' },
+  { id: 'bedroom',  emoji: '🛏', label: 'Chambre',           labelEn: 'Bedroom' },
+  { id: 'bathroom', emoji: '🚿', label: 'Salle de bains',    labelEn: 'Bathroom' },
+  { id: 'city',     emoji: '🏙', label: 'En ville',          labelEn: 'City Life' },
+  { id: 'shopping', emoji: '🛒', label: 'Faire les courses', labelEn: 'Shopping' },
+  { id: 'transport',emoji: '🚇', label: 'Transports',        labelEn: 'Transport' },
+  { id: 'cafe',     emoji: '☕', label: 'Café & Restaurant', labelEn: 'Café & Dining' },
+];
+
+function renderThemesView() {
+  const srsData = state._vocab2 || {};
+  const now = Date.now();
+  const cards = THEMES.map(t => {
+    const words = vocabBank.filter(w => w.category === t.id);
+    const due = words.filter(w => srsData[w.id] && srsData[w.id].due <= now).length;
+    const seen = words.filter(w => srsData[w.id]).length;
+    return { ...t, total: words.length, due, seen };
+  });
+  const hasAny = cards.some(c => c.total > 0);
+  return `<div class="practice-screen">
+    <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="ps-title">Thèmes</div>
+        <div class="ps-sub">Study by category · words also flow into your main SRS</div>
+      </div>
+      <button class="btn" style="font-size:12px" onclick="vocabState.themeView=false;renderContent()">← All words</button>
+    </div>
+    ${!hasAny ? `<div style="padding:2rem;text-align:center;color:var(--text3);font-size:13px">
+      No thematic words loaded yet — run <strong>add_thematic_vocab.sql</strong> in Supabase first, then reload the app.
+    </div>` : ''}
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:1rem">
+      ${cards.map(c => `
+        <div onclick="${c.total > 0 ? `vocabState.theme='${c.id}';vocabState.themeView=false;vocabState.cardIndex=0;vocabState.revealed=false;renderContent()` : ''}"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;
+            cursor:${c.total > 0 ? 'pointer' : 'default'};transition:border-color .15s;opacity:${c.total > 0 ? '1' : '.45'}"
+          onmouseover="if(${c.total}>0)this.style.borderColor='var(--purple)'"
+          onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:26px;margin-bottom:6px">${c.emoji}</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${c.label}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${c.labelEn}</div>
+          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+            <span style="font-size:11px;background:var(--surface3);padding:2px 8px;border-radius:10px;color:var(--text2)">${c.total} words</span>
+            ${c.due > 0 ? `<span style="font-size:11px;background:var(--amber-dim,#3a2e00);padding:2px 8px;border-radius:10px;color:var(--amber)">${c.due} due</span>` : ''}
+            ${c.seen > 0 && c.seen < c.total ? `<span style="font-size:11px;background:var(--blue-dim);padding:2px 8px;border-radius:10px;color:var(--blue)">${c.seen} seen</span>` : ''}
+            ${c.seen === c.total && c.total > 0 ? `<span style="font-size:11px;background:var(--green-dim,#003a1a);padding:2px 8px;border-radius:10px;color:var(--green)">✓ all seen</span>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+}
+
 // ── Render ───────────────────────────────────────────────────────
 function renderVocabHTML() {
-  const deck = getVocabDeck();
+  if (vocabState.themeView) return renderThemesView();
+
+  const activeTheme = vocabState.theme ? THEMES.find(t => t.id === vocabState.theme) : null;
+  const deck = getVocabDeck(vocabState.theme);
   const stats = getVocabStats();
 
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v5') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v6') || '[]');
   const isLoading = bank.length <= 100;
   const genStatus = isLoading
     ? `<div id="vocabLoadStatus" style="font-size:12px;color:var(--purple);margin-top:4px">⟳ Loading vocabulary bank from cloud…</div>`
@@ -1099,7 +1155,13 @@ function renderVocabHTML() {
 
   if (deck.length === 0) {
     return `<div class="practice-screen">
-      <div class="ps-header"><div class="ps-title">Vocabulaire</div><div class="ps-sub">SM-2 spaced repetition · ${stats.total} words</div></div>
+      <div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <div><div class="ps-title">Vocabulaire${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div><div class="ps-sub">SM-2 spaced repetition · ${stats.total} words</div></div>
+        <div style="display:flex;gap:6px">
+          ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;renderContent()">✕ All words</button>` : ''}
+          <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
+        </div>
+      </div>
       ${genStatus}
       ${statsRow}
       <div class="day-panel" style="padding:2rem;text-align:center;margin-bottom:1rem">
@@ -1130,8 +1192,12 @@ function renderVocabHTML() {
   return `<div class="practice-screen">
     <div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
       <div>
-        <div class="ps-title">Vocabulaire</div>
+        <div class="ps-title">Vocabulaire${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div>
         <div class="ps-sub">${deck.length} due · ${stats.mastered} mastered · ${stats.total} words</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;renderContent()">✕ All words</button>` : ''}
+        <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
       </div>
     </div>
     ${genStatus}
@@ -3765,7 +3831,7 @@ function openAccountModal() {
 
   // Build progress stats
   const state = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v5') || '[]');
+  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v6') || '[]');
   const srsRaw = JSON.parse(localStorage.getItem('fpl_state_v4') || '{}');
 
   // Vocab stats
