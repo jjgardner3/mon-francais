@@ -2210,6 +2210,76 @@ const GRAMMAR_TOPICS = [
     ]
   },
   {
+    id:'cod_coi', name:'COD & COI — Combining Pronouns', badge:'tricky', color:'#2dd4bf',
+    desc:'Identify COD vs COI, then stack them: order, agreement, negation, and placement across tenses.',
+    ref:[
+      {label:'1 · Spot the object',text:"<b>COD</b> (complément d'objet direct) takes the action directly, with no preposition. Ask <em>quoi ?</em> or <em>qui ?</em> after the verb.<br><b>COI</b> (complément d'objet indirect) is introduced by <b>à</b>, usually a person. Ask <em>à qui ?</em>",ex:[["Elle lit <u>un livre</u>.","Lit quoi ? → un livre = COD"],["J'ai parlé <u>à mon professeur</u>.","Parlé à qui ? → COI"],["Je donne <u>le livre</u> <u>à Jean</u>.","Both: COD = le livre · COI = à Jean"]]},
+      {label:'Watch out: English ≠ French',text:"Some verbs take a preposition in English but a <b>COD</b> in French: <em>regarder</em> (look at), <em>écouter</em> (listen to), <em>attendre</em> (wait for), <em>chercher</em> (look for). Others take <b>à</b> (a COI) in French but not in English: <em>téléphoner à</em>, <em>répondre à</em>, <em>demander à</em>, <em>dire à</em>, <em>plaire à</em>.",ex:[["J'attends le bus. → Je l'attends.","I'm waiting for it. (COD)"],["Je téléphone à Marie. → Je lui téléphone.","I'm calling her. (COI)"]]},
+      {label:'2 · The pronouns',text:`<table style="width:100%;border-collapse:collapse;font-size:13px;margin:4px 0 2px">
+        <tr style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em"><td style="padding:4px 6px"></td><td style="padding:4px 6px">COD</td><td style="padding:4px 6px">COI</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:4px 6px;color:var(--text3)">je</td><td style="padding:4px 6px">me (m')</td><td style="padding:4px 6px">me (m')</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:4px 6px;color:var(--text3)">tu</td><td style="padding:4px 6px">te (t')</td><td style="padding:4px 6px">te (t')</td></tr>
+        <tr style="border-top:1px solid var(--border);background:rgba(45,212,191,0.08)"><td style="padding:4px 6px;color:var(--text3)">il / elle</td><td style="padding:4px 6px;color:#2dd4bf;font-weight:600">le / la (l')</td><td style="padding:4px 6px;color:#2dd4bf;font-weight:600">lui</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:4px 6px;color:var(--text3)">nous</td><td style="padding:4px 6px">nous</td><td style="padding:4px 6px">nous</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:4px 6px;color:var(--text3)">vous</td><td style="padding:4px 6px">vous</td><td style="padding:4px 6px">vous</td></tr>
+        <tr style="border-top:1px solid var(--border);background:rgba(45,212,191,0.08)"><td style="padding:4px 6px;color:var(--text3)">ils / elles</td><td style="padding:4px 6px;color:#2dd4bf;font-weight:600">les</td><td style="padding:4px 6px;color:#2dd4bf;font-weight:600">leur</td></tr>
+      </table>Only the 3rd person is different. <em>Lui</em> means both "to him" and "to her". <em>Leur</em> never takes an -s when it's a pronoun.`,ex:[["Je mange une pomme. → Je la mange.","COD"],["Je parle à Marie. → Je lui parle.","COI"],["Elle écrit à ses parents. → Elle leur écrit.","COI plural"]]},
+      {label:'3 · Placement: before the conjugated verb',text:"In simple tenses, the pronoun goes right before the verb. With negation, <b>ne</b> goes before the pronoun and <b>pas</b> goes after the verb: <b>ne + pronoun + verb + pas</b>.",ex:[["Elle la regarde.","She watches it."],["Elle ne la regarde pas.","She doesn't watch it."],["Elle ne leur écrit pas.","She doesn't write to them."]]},
+      {label:'4 · Passé composé: before the auxiliary',text:"The pronoun goes before <em>avoir</em>/<em>être</em>, not before the participle.<br>Negative: <b>ne + pronoun + auxiliary + pas + participle</b>.",ex:[["Nous l'avons fini.","We finished it."],["Nous leur avons téléphoné.","We called them."],["Je ne l'ai pas vu.","I didn't see it/him."]]},
+      {label:'5 · Agreement: COD yes, COI never',text:"When a <b>COD</b> pronoun comes before <em>avoir</em>, the past participle agrees with it (+e, +s, +es). A <b>COI</b> never triggers agreement.",ex:[["J'ai vu la voiture. → Je l'ai vu<b>e</b>.","fem. sing."],["Ils ont mangé les gâteaux. → Ils les ont mangé<b>s</b>.","masc. plural"],["Elle a acheté les fleurs. → Elle les a acheté<b>es</b>.","fem. plural"],["Il a téléphoné à ses amies. → Il leur a téléphoné.","COI: no agreement"]]},
+      {label:'6 · Two pronouns: the five slots',text:`When there's more than one pronoun, they go in a fixed order. Each slot holds at most one, filled left to right:
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:10px 0;text-align:center;font-size:12px">
+        <div style="background:var(--surface3);border-radius:6px;padding:8px 2px"><div style="color:var(--text3);font-size:10px">1</div><div style="color:#2dd4bf;font-weight:600">me te se nous vous</div><div style="color:var(--text3);font-size:10px;margin-top:3px">person</div></div>
+        <div style="background:var(--surface3);border-radius:6px;padding:8px 2px"><div style="color:var(--text3);font-size:10px">2</div><div style="color:#2dd4bf;font-weight:600">le la les</div><div style="color:var(--text3);font-size:10px;margin-top:3px">it / them</div></div>
+        <div style="background:var(--surface3);border-radius:6px;padding:8px 2px"><div style="color:var(--text3);font-size:10px">3</div><div style="color:#2dd4bf;font-weight:600">lui leur</div><div style="color:var(--text3);font-size:10px;margin-top:3px">to him/her/them</div></div>
+        <div style="background:var(--surface3);border-radius:6px;padding:8px 2px"><div style="color:var(--text3);font-size:10px">4</div><div style="color:#2dd4bf;font-weight:600">y</div><div style="color:var(--text3);font-size:10px;margin-top:3px">there</div></div>
+        <div style="background:var(--surface3);border-radius:6px;padding:8px 2px"><div style="color:var(--text3);font-size:10px">5</div><div style="color:#2dd4bf;font-weight:600">en</div><div style="color:var(--text3);font-size:10px;margin-top:3px">some / of it</div></div>
+      </div>Mnemonic: <b>"Me Le Lui Y En"</b>, meaning person → it → to him/her → there → some.`,ex:[["Il me le donne.","slots 1+2: he gives it to me"],["Je le lui donne.","slots 2+3: I give it to him"],["Je lui en parle.","slots 3+5: I talk to him about it"],["Il y en a.","slots 4+5: there are some"],["Elle nous en donne.","slots 1+5: she gives us some"]]},
+      {label:'Why "COD before COI" is only half true',text:"With <b>lui/leur</b> (slot 3), the COD comes first: <em>le lui</em>. With <b>me/te/nous/vous</b> (slot 1), the COI comes first: <em>me le</em>. Don't memorize \"COD first\". Memorize the slots.",ex:[["Je le lui donne.","COD → COI"],["Il me l'a dit.","COI → COD"],["Elle vous les a montrées.","COI → COD (+ agreement with les)"]]},
+      {label:'Slots 1 and 3 never combine',text:"You can't say <s>me lui</s>. Keep the slot 1 pronoun before the verb and move the other person after the verb with <b>à + stressed pronoun</b> (moi, toi, lui, elle, eux, elles).",ex:[["Il me présente à son frère. → Il me présente à lui.","not: il me lui présente"]]},
+      {label:'7 · Two pronouns + passé composé + negation',text:"The pronoun block stays together and sits before the auxiliary. <b>ne</b> goes in front of the block and <b>pas</b> goes after the auxiliary.",ex:[["J'ai donné le livre à Marie. → Je le lui ai donné.","I gave it to her."],["J'ai donné la lettre à Marie. → Je la lui ai donnée.","agreement with la"],["Je ne le lui ai pas donné.","I didn't give it to her."],["Il ne me l'a pas dite.","He didn't tell it (la vérité) to me."],["Nous ne les leur avons pas envoyés.","We didn't send them to them."]]},
+      {label:'8 · Futur proche, passé récent, modals: before the infinitive',text:"With <em>aller</em>, <em>venir de</em>, <em>vouloir</em>, <em>pouvoir</em> or <em>devoir</em> + infinitive, the pronouns belong to the <b>infinitive</b>, so they go right before it. <b>ne…pas</b> wraps the conjugated verb (aller, venir…). There's no participle, so there's no agreement.",ex:[["Je vais le lui donner.","I'm going to give it to her."],["Je ne vais pas le lui donner.","I'm not going to give it to her."],["Je viens de le lui donner.","I just gave it to her."],["Elle vient de nous les montrer.","She just showed them to us."],["Je veux le lui dire. · Tu peux m'en donner ?","modals work the same way"]]},
+      {label:'Side by side',text:`<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px">
+        <tr style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:.05em"><td style="padding:5px 6px">Tense</td><td style="padding:5px 6px">Positive</td><td style="padding:5px 6px">Negative</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px;color:var(--text3)">Présent</td><td style="padding:5px 6px;font-family:'Playfair Display',serif;font-style:italic;color:var(--green)">Je <b>le lui</b> donne.</td><td style="padding:5px 6px;font-family:'Playfair Display',serif;font-style:italic;color:var(--green)">Je ne <b>le lui</b> donne pas.</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px;color:var(--text3)">Passé composé</td><td style="padding:5px 6px;font-family:'Playfair Display',serif;font-style:italic;color:var(--green)">Je <b>le lui</b> ai donné.</td><td style="padding:5px 6px;font-family:'Playfair Display',serif;font-style:italic;color:var(--green)">Je ne <b>le lui</b> ai pas donné.</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px;color:var(--text3)">Futur proche</td><td style="padding:5px 6px;font-family:'Playfair Display',serif;font-style:italic;color:var(--green)">Je vais <b>le lui</b> donner.</td><td style="padding:5px 6px;font-family:'Playfair Display',serif;font-style:italic;color:var(--green)">Je ne vais pas <b>le lui</b> donner.</td></tr>
+        <tr style="border-top:1px solid var(--border)"><td style="padding:5px 6px;color:var(--text3)">Passé récent</td><td style="padding:5px 6px;font-family:'Playfair Display',serif;font-style:italic;color:var(--green)">Je viens de <b>le lui</b> donner.</td><td style="padding:5px 6px;color:var(--text3)">(rare)</td></tr>
+      </table>The rule behind all of these: <b>pronouns go in front of the verb they belong to.</b>`,ex:[]},
+      {label:'9 · Positive commands (impératif)',text:"In a positive command the pronouns go <b>after</b> the verb and are joined with hyphens. The COD comes first, and <em>me/te</em> become <em>moi/toi</em>. Negative commands follow the normal order.",ex:[["Regarde le film ! → Regarde-le !","Watch it!"],["Parle à ton frère ! → Parle-lui !","Talk to him!"],["Donne-le-moi !","Give it to me!"],["Ne le lui donne pas !","Don't give it to him! (normal order)"]]},
+    ],
+    questions:[
+      {id:'codcoi_01',q:'"Elle lit <u>un livre</u>." What is <em>un livre</em>?',type:'mc',choices:['COD','COI','Subject','Neither'],answer:0,exp:"Lit <em>quoi ?</em> → un livre. There's no preposition, so it's a <b>COD</b>."},
+      {id:'codcoi_02',q:'"J\'ai parlé <u>à mon professeur</u>." What is <em>à mon professeur</em>?',type:'mc',choices:['COD','COI','Subject','Neither'],answer:1,exp:"Parlé <em>à qui ?</em> → à mon professeur. Introduced by <b>à</b>, so it's a <b>COI</b>."},
+      {id:'codcoi_03',q:'Which verb takes a <b>COI</b> (à + person) in French, even though English uses a direct object?',type:'mc',choices:['regarder','attendre','téléphoner','écouter'],answer:2,exp:"<em>Téléphoner <b>à</b> quelqu'un</em> → <em>je lui téléphone</em>. The others take a COD in French even though English adds a preposition (look <u>at</u>, wait <u>for</u>, listen <u>to</u>)."},
+      {id:'codcoi_04',q:"Présent — J'attends le bus. → J'___ attends.",hint:'attendre takes a COD in French (no preposition)',type:'fill',answer:'l\'',exp:"<em>Attendre</em> = to wait <u>for</u>, but in French it takes a COD → <em>le</em>, which elides to <em>l'</em> before a vowel.<br><em>Je l'attends.</em>"},
+      {id:'codcoi_05',q:'Présent — Je mange une pomme. → Je ___ mange.',hint:'une pomme = feminine COD',type:'fill',answer:'la',exp:"COD feminine singular → <em>la</em>.<br><em>Je la mange.</em>"},
+      {id:'codcoi_06',q:'Présent — Elle écrit à ses parents. → Elle ___ écrit.',hint:'à + plural people',type:'fill',answer:'leur',exp:"COI plural → <em>leur</em> (no -s).<br><em>Elle leur écrit.</em>"},
+      {id:'codcoi_07',q:'Présent, negative — Replace the object with a pronoun: <em>Elle ne regarde pas la télévision.</em>',hint:'ne + pronoun + verb + pas',type:'fill',answer:'Elle ne la regarde pas',exp:"<em>ne</em> goes before the pronoun and <em>pas</em> goes after the verb.<br><em>Elle ne la regarde pas.</em>"},
+      {id:'codcoi_08',q:'Passé composé — Tu as répondu à ta sœur. → Tu ___ as répondu.',hint:'répondre à + person',type:'fill',answer:'lui',exp:"COI → <em>lui</em>, placed before the auxiliary. There's no agreement with a COI.<br><em>Tu lui as répondu.</em>"},
+      {id:'codcoi_09',q:"Passé composé — J'ai vu la voiture. → Je l'ai ___.",hint:'COD before avoir → agreement',type:'fill',answer:'vue',exp:"<em>l'</em> = la voiture (fem. sing.) comes before <em>avoir</em>, so the participle agrees: <b>vue</b>.<br><em>Je l'ai vue.</em>"},
+      {id:'codcoi_10',q:'Passé composé — Elle a acheté les fleurs. → Elle les a ___.',hint:'les fleurs = feminine plural',type:'fill',answer:'achetées',exp:"COD <em>les</em> (fem. plural) comes before <em>avoir</em> → <b>achetées</b>.<br><em>Elle les a achetées.</em>"},
+      {id:'codcoi_11',q:'Passé composé — Il a téléphoné à ses amies. → Il leur a ___.',type:'mc',choices:['téléphoné','téléphonée','téléphonés','téléphonées'],answer:0,exp:"<em>Leur</em> is a <b>COI</b>, and a COI never triggers agreement.<br><em>Il leur a téléphoné.</em>"},
+      {id:'codcoi_12',q:'Présent — Je donne le livre à Jean. → Je ___ donne.',hint:'two pronouns: slot 2 then slot 3',type:'fill',answer:'le lui',exp:"le (slot 2) → lui (slot 3).<br><em>Je le lui donne.</em>"},
+      {id:'codcoi_13',q:'Présent — Tu donnes tes clés à ton voisin. → Tu ___ donnes.',hint:'COD plural + COI singular',type:'fill',answer:'les lui',exp:"les (slot 2) → lui (slot 3).<br><em>Tu les lui donnes.</em>"},
+      {id:'codcoi_14',q:'Présent — Il me donne la clé. → Il ___ donne.',hint:'me is slot 1, so it comes first',type:'fill',answer:'me la',exp:"me (slot 1) → la (slot 2). Here the COI comes <b>before</b> the COD.<br><em>Il me la donne.</em>"},
+      {id:'codcoi_15',q:'Passé composé — "She showed them (the photos) to you." Which is correct?',type:'mc',choices:['Elle vous les a montrées.','Elle les vous a montrées.','Elle vous les a montré.','Elle les leur a montrées.'],answer:0,exp:"vous (slot 1) → les (slot 2). <em>Les</em> = les photos (fem. plural) is a COD before <em>avoir</em>, so the participle is <b>montrées</b>."},
+      {id:'codcoi_16',q:"Passé composé — J'ai donné le livre à Marie. → Je ___ ai donné.",hint:'pronouns go before the auxiliary',type:'fill',answer:'le lui',exp:"Both pronouns go before <em>ai</em>.<br><em>Je le lui ai donné.</em>"},
+      {id:'codcoi_17',q:"Passé composé — J'ai donné la lettre à Marie. → Je la lui ai ___.",hint:'agreement with the COD, not the COI',type:'fill',answer:'donnée',exp:"<em>La</em> (= la lettre) comes before <em>avoir</em>, so the participle agrees: <b>donnée</b>. <em>Lui</em> has no effect.<br><em>Je la lui ai donnée.</em>"},
+      {id:'codcoi_18',q:"Passé composé, negative — Replace both objects: <em>Je n'ai pas donné le livre à Marie.</em>",hint:'ne + [le lui] + ai + pas + donné',type:'fill',answer:'Je ne le lui ai pas donné',exp:"The pronoun block stays together after <em>ne</em>, and <em>pas</em> follows the auxiliary.<br><em>Je ne le lui ai pas donné.</em>"},
+      {id:'codcoi_19',q:"Passé composé, negative — Il ne m'a pas dit la vérité. → Il ne ___ a pas dite.",hint:'slot 1 + slot 2; la elides before a',type:'fill',answer:"me l'",exp:"me (slot 1) → la (slot 2, elided to <em>l'</em>). <em>Dite</em> agrees with <em>la vérité</em>.<br><em>Il ne me l'a pas dite.</em>"},
+      {id:'codcoi_20',q:'Futur proche — Je vais donner le livre à Marie. → Je vais ___ donner.',hint:'pronouns go before the infinitive',type:'fill',answer:'le lui',exp:"With <em>aller</em> + infinitive, the pronouns belong to the infinitive.<br><em>Je vais le lui donner.</em>"},
+      {id:'codcoi_21',q:'Futur proche, negative — "I\'m not going to give it to her."',type:'mc',choices:['Je ne vais pas le lui donner.','Je ne le lui vais pas donner.','Je ne vais le lui pas donner.','Je ne vais pas lui le donner.'],answer:0,exp:"<em>ne…pas</em> wraps <em>vais</em>. The pronoun block (le → lui) stays before the infinitive.<br><em>Je ne vais pas le lui donner.</em>"},
+      {id:'codcoi_22',q:'Passé récent — Elle vient de nous montrer les photos. → Elle vient de ___ montrer.',hint:'venir de + pronouns + infinitive',type:'fill',answer:'nous les',exp:"nous (slot 1) → les (slot 2), placed before the infinitive. There's no participle, so there's no agreement.<br><em>Elle vient de nous les montrer.</em>"},
+      {id:'codcoi_23',q:'Présent (modal) — Je veux dire la vérité à mes parents. → Je veux ___ dire.',hint:'vouloir + infinitive works like aller',type:'fill',answer:'la leur',exp:"la (slot 2) → leur (slot 3), before the infinitive.<br><em>Je veux la leur dire.</em>"},
+      {id:'codcoi_24',q:'Présent — Replace <em>à son frère</em>: "Il me présente à son frère."',type:'mc',choices:['Il me lui présente.','Il me présente à lui.','Il lui me présente.','Il le me présente.'],answer:1,exp:"Slots 1 and 3 can't combine. <em>Me</em> stays before the verb, and the other person moves after it with <em>à + stressed pronoun</em>.<br><em>Il me présente à lui.</em>"},
+      {id:'codcoi_25',q:'Présent — Elle nous donne du pain. → Elle ___ donne.',hint:'du pain → en (slot 5)',type:'fill',answer:'nous en',exp:"nous (slot 1) → en (slot 5).<br><em>Elle nous en donne.</em>"},
+      {id:'codcoi_26',q:'Présent — Il y a des croissants ? → Oui, il ___ a.',hint:'y (slot 4) then en (slot 5)',type:'fill',answer:'y en',exp:"y → en is always the last pair.<br><em>Il y en a.</em>"},
+      {id:'codcoi_27',q:'Impératif — Regarde le film ! → ___ !',hint:'positive command: pronoun after the verb, with a hyphen',type:'fill',answer:'Regarde-le',alts:['regarde le'],exp:"In a positive command, the pronoun follows the verb with a hyphen.<br><em>Regarde-le !</em>"},
+      {id:'codcoi_28',q:'Passé composé, negative — "We didn\'t send them (the letters) to them."',type:'mc',choices:['Nous ne les leur avons pas envoyées.','Nous ne leur les avons pas envoyées.','Nous ne les leur avons pas envoyé.','Nous les leur n\'avons pas envoyées.'],answer:0,exp:"les (slot 2) → leur (slot 3). <em>Ne</em> goes before the block and <em>pas</em> after <em>avons</em>. <em>Les</em> = les lettres (fem. plural) comes before <em>avoir</em> → <b>envoyées</b>."},
+    ]
+  },
+  {
     id:'negation', name:'Negation Patterns', badge:'essential', color:'#3ecf8e',
     desc:'ne…pas, ne…jamais, ne…plus, ne…que — plus the article change trick.',
     ref:[
@@ -2655,8 +2725,8 @@ function gGetDueQuestions() {
 }
 
 function gNormalize(s) {
-  return s.trim().toLowerCase().replace(/['']/g,"'").replace(/\s+/g,' ')
-    .replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a').replace(/[îï]/g,'i').replace(/[ôö]/g,'o').replace(/[ùûü]/g,'u').replace(/ç/g,'c');
+  return s.trim().toLowerCase().replace(/[‘’ʼ']/g,"'").replace(/\s+/g,' ')
+    .replace(/[éèêë]/g,'e').replace(/[àâä]/g,'a').replace(/[îï]/g,'i').replace(/[ôö]/g,'o').replace(/[ùûü]/g,'u').replace(/ç/g,'c').replace(/\s*[.!?]+$/,'');
 }
 
 function gBuildQueue(topicId, includeAll) {
@@ -2757,7 +2827,7 @@ function renderGrammarTopics() {
   return `<div class="practice-screen">
     <div class="ps-header">
       <div class="ps-title">Grammaire</div>
-      <div class="ps-sub">8 topics · fill-in and multiple choice · streak: <span style="color:var(--amber)">${grammarStreak}</span></div>
+      <div class="ps-sub">${GRAMMAR_TOPICS.length} topics · fill-in and multiple choice · streak: <span style="color:var(--amber)">${grammarStreak}</span></div>
     </div>
     ${srsBar}
     ${conjButton}
@@ -3035,11 +3105,10 @@ function gCheckFill() {
     if (norm.endsWith(normTrail)) return s.slice(0, s.length - afterLast.length).trim();
     return s;
   }
-  const normUser=gNormalize(userVal),normAns=gNormalize(q.answer);
-  const correct=normUser===normAns
-    ||gNormalize(stripLeadingPronoun(userVal))===normAns
-    ||gNormalize(stripTrailingContext(userVal))===normAns
-    ||gNormalize(stripLeadingPronoun(stripTrailingContext(userVal)))===normAns;
+  const normUser=gNormalize(userVal);
+  const accepted=[q.answer,...(q.alts||[])].map(gNormalize);
+  const candidates=[normUser,gNormalize(stripLeadingPronoun(userVal)),gNormalize(stripTrailingContext(userVal)),gNormalize(stripLeadingPronoun(stripTrailingContext(userVal)))];
+  const correct=candidates.some(c=>accepted.includes(c));
   if(!correct){ inp.style.borderColor='var(--coral)'; inp.style.color='var(--coral)'; }
   else { inp.style.borderColor='var(--green)'; inp.style.color='var(--green)'; }
   gRecord(correct, userVal);
