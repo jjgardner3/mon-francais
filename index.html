@@ -1081,6 +1081,15 @@ function getVocabStats() {
   return { total, seen, mastered, newSeenToday, newSlotsLeft };
 }
 
+// ── Related verb+preposition lookup ──────────────────────────────
+function getRelatedPreps(card) {
+  const stem = card.french.trim().toLowerCase();
+  return vocabBank.filter(w =>
+    w.id !== card.id &&
+    (w.french.toLowerCase().startsWith(stem + ' ') || w.french.toLowerCase().startsWith(stem + "'"))
+  ).slice(0, 5);
+}
+
 // ── Themes ───────────────────────────────────────────────────────
 const THEMES = [
   { id: 'clothes',  emoji: '🧥', label: 'Vêtements',        labelEn: 'Clothes' },
@@ -1223,6 +1232,18 @@ function renderVocabHTML() {
       ${rev ? `<div class="card-back">
         <div class="card-translation">${card.english}</div>
         ${card.example ? `<div class="card-example">${card.example}</div>` : ''}
+        ${(()=>{
+          const rp = getRelatedPreps(card);
+          if (!rp.length) return '';
+          return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left">
+            <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">With prepositions</div>
+            ${rp.map(r=>`<div style="margin-bottom:5px;font-size:13px;line-height:1.4">
+              <span style="color:var(--blue);font-family:'Playfair Display',serif;font-style:italic">${r.french}</span>
+              <span style="color:var(--text3)"> → </span>
+              <span style="color:var(--text2)">${r.english}</span>
+            </div>`).join('')}
+          </div>`;
+        })()}
       </div>` : ''}
     </div>
     ${rev ? `<div class="btn-row">
@@ -2280,6 +2301,54 @@ const GRAMMAR_TOPICS = [
     ]
   },
   {
+    id:'verb_prep', name:'Verbs + Prepositions: Meaning Shifts', badge:'tricky', color:'#ff6b9d',
+    desc:'Same verb, different preposition, different meaning: penser à/de, jouer à/de, finir de/par, manquer à…',
+    ref:[
+      {label:'Why it matters',text:"Many French verbs change meaning depending on the preposition after them, and some take no preposition where English needs one. Learn each verb <b>with</b> its preposition as a single unit: <em>penser à</em>, not just <em>penser</em>.",ex:[]},
+      {label:'penser à · penser de',text:"<b>penser à</b> = to think <u>about</u>, to have someone or something on your mind.<br><b>penser de</b> = to think <u>of</u>, meaning to have an opinion. It's almost always in a question.",ex:[["Je pense à mes vacances.","I'm thinking about my holiday."],["Qu'est-ce que tu penses de ce vin ?","What do you think of this wine?"],["Je pense partir demain.","penser + infinitive = to plan to"]]},
+      {label:'parler à · parler de · parler avec',text:"<b>parler à</b> = to talk <u>to</u> someone. <b>parler de</b> = to talk <u>about</u> something. <b>parler avec</b> = to talk <u>with</u> someone, as a conversation.",ex:[["Je parle à Marie.","I'm talking to Marie."],["On parle de politique.","We're talking about politics."],["Je parle de Marie à Paul.","I'm talking to Paul about Marie."]]},
+      {label:'jouer à · jouer de',text:"<b>jouer à</b> + sport or game. <b>jouer de</b> + musical instrument.",ex:[["Il joue au tennis.","He plays tennis."],["Elle joue du piano.","She plays the piano."],["On joue aux cartes.","We're playing cards."]]},
+      {label:'manquer · manquer de · manquer à',text:"<b>manquer</b> + COD = to miss (a train, an event). <b>manquer de</b> = to lack. <b>manquer à</b> = to be missed <u>by</u>. Watch out: the subject and object are <b>reversed</b> compared with English.",ex:[["J'ai manqué le train.","I missed the train."],["Ce plat manque de sel.","This dish lacks salt."],["Tu me manques.","I miss you. (lit. you are lacking to me)"],["Paris manque à Jimmy.","Jimmy misses Paris."]]},
+      {label:'finir de · finir par',text:"<b>finir de</b> + infinitive = to finish doing something. <b>finir par</b> + infinitive = to <u>end up</u> doing something.",ex:[["J'ai fini de manger.","I've finished eating."],["Il a fini par accepter.","He ended up accepting."]]},
+      {label:'commencer à · commencer par',text:"<b>commencer à</b> + infinitive = to start doing something. <b>commencer par</b> = to start <u>by</u> or <u>with</u>, as the first step.",ex:[["Il commence à pleuvoir.","It's starting to rain."],["Commençons par l'entrée.","Let's start with the starter."]]},
+      {label:'venir · venir de',text:"<b>venir</b> + infinitive = to come (in order) to do something. <b>venir de</b> + infinitive = to have <u>just</u> done something (passé récent).",ex:[["Il vient dîner ce soir.","He's coming to dinner tonight."],["Il vient de dîner.","He has just had dinner."]]},
+      {label:'tenir à · tenir de',text:"<b>tenir à</b> = to value, be attached to, or insist on. <b>tenir de</b> = to take after (a relative).",ex:[["Je tiens à cette montre.","This watch means a lot to me."],["Je tiens à payer.","I insist on paying."],["Elle tient de sa mère.","She takes after her mother."]]},
+      {label:'servir à · servir de · se servir de',text:"<b>servir à</b> = to be used <u>for</u>. <b>servir de</b> = to serve <u>as</u>. <b>se servir de</b> = to use.",ex:[["Ça sert à ouvrir les bouteilles.","It's used for opening bottles."],["Le canapé sert de lit.","The sofa serves as a bed."],["Je me sers d'un tire-bouchon.","I use a corkscrew."]]},
+      {label:'croire · croire à · croire en',text:"<b>croire</b> + COD = to believe (a person or a statement). <b>croire à</b> = to believe something exists or will work. <b>croire en</b> = to have faith in (a person, God, yourself).",ex:[["Je te crois.","I believe you."],["Tu crois aux fantômes ?","Do you believe in ghosts?"],["Je crois en toi.","I believe in you."]]},
+      {label:'s\'attendre à · attendre',text:"<b>attendre</b> + COD = to wait <u>for</u> (no preposition in French). <b>s'attendre à</b> = to <u>expect</u>.",ex:[["J'attends le bus.","I'm waiting for the bus."],["Je ne m'attendais pas à ça.","I didn't expect that."]]},
+      {label:'décider de · se décider à',text:"<b>décider de</b> = to decide to. <b>se décider à</b> = to finally make up your mind to, after hesitating.",ex:[["J'ai décidé de partir.","I decided to leave."],["Il s'est enfin décidé à appeler.","He finally made up his mind to call."]]},
+      {label:'changer · changer de',text:"<b>changer</b> + COD = to alter or transform something. <b>changer de</b> + noun with no article = to switch one thing for another.",ex:[["Elle a changé la déco.","She changed (redid) the decor."],["J'ai changé d'avis.","I changed my mind."],["On change de train à Dijon.","We change trains in Dijon."]]},
+      {label:'More useful pairs',text:"<b>profiter de</b> = to enjoy or make the most of · <b>se passer de</b> = to do without · <b>donner sur</b> = to look out onto · <b>s'occuper de</b> = to take care of · <b>rêver de</b> = to dream of",ex:[["Profite de ton séjour !","Enjoy your stay!"],["Je peux me passer de café.","I can do without coffee."],["La chambre donne sur les vignes.","The room looks out onto the vineyards."],["Je m'occupe des billets.","I'll take care of the tickets."]]},
+      {label:'Link to pronouns',text:"The preposition decides the pronoun:<br>• <b>à + person</b> → usually <em>lui/leur</em>: <em>je lui parle</em><br>• <b>à + thing</b> → <em>y</em>: <em>j'y pense</em>, <em>j'y tiens</em><br>• <b>de + thing</b> → <em>en</em>: <em>j'en parle</em>, <em>il en manque</em><br>• <b>de + person</b> → <em>de lui / d'elle</em>: <em>je parle d'elle</em><br><b>Exception:</b> <em>penser à</em>, <em>tenir à</em> and <em>s'intéresser à</em> + person use <b>à + stressed pronoun</b>, not <em>lui</em>: <em>je pense à elle</em> (<s>je lui pense</s>).",ex:[["Tu penses à ton voyage ? → Oui, j'y pense.","à + thing → y"],["Tu penses à Marie ? → Oui, je pense à elle.","penser à + person → à elle"],["Tu as besoin de ton passeport ? → Oui, j'en ai besoin.","de + thing → en"]]},
+    ],
+    questions:[
+      {id:'vprep_01',q:'"What do you think of this restaurant?" → Qu\'est-ce que tu penses ___ ce restaurant ?',hint:'asking for an opinion',type:'fill',answer:'de',exp:"<b>penser de</b> = to have an opinion of.<br><em>Qu'est-ce que tu penses de ce restaurant ?</em>"},
+      {id:'vprep_02',q:'"I\'m thinking about you." → Je pense ___ toi.',hint:'on my mind',type:'fill',answer:'à',alts:['a'],exp:"<b>penser à</b> = to think about.<br><em>Je pense à toi.</em>"},
+      {id:'vprep_03',q:'Présent — "She plays the violin." → Elle joue ___ violon.',hint:'instrument → de + article',type:'fill',answer:'du',exp:"<b>jouer de</b> + instrument. de + le = <b>du</b>.<br><em>Elle joue du violon.</em>"},
+      {id:'vprep_04',q:'Présent — "We play football on Sundays." → On joue ___ foot le dimanche.',hint:'sport → à + article',type:'fill',answer:'au',exp:"<b>jouer à</b> + sport/game. à + le = <b>au</b>.<br><em>On joue au foot le dimanche.</em>"},
+      {id:'vprep_05',q:'"I miss you." Which is correct?',type:'mc',choices:['Je te manque.','Tu me manques.','Je manque de toi.','Je manque toi.'],answer:1,exp:"With <b>manquer à</b>, the person who is missed is the <b>subject</b>. Literally, \"you are lacking to me\".<br><em>Tu me manques.</em> (<em>Je te manque</em> = you miss me.)"},
+      {id:'vprep_06',q:'Présent — "Jimmy misses France." → La France manque ___ Jimmy.',hint:'manquer à = to be missed by',type:'fill',answer:'à',alts:['a'],exp:"The thing missed is the subject, and the person who misses it follows <b>à</b>.<br><em>La France manque à Jimmy.</em> → <em>La France lui manque.</em>"},
+      {id:'vprep_07',q:'Présent — "This sauce lacks salt." → Cette sauce manque ___ sel.',hint:'to lack = manquer + ?',type:'fill',answer:'de',exp:"<b>manquer de</b> = to lack. No article after <em>de</em> here.<br><em>Cette sauce manque de sel.</em>"},
+      {id:'vprep_08',q:'Passé composé — "He ended up saying yes." → Il a fini ___ dire oui.',hint:'end up doing',type:'fill',answer:'par',exp:"<b>finir par</b> = to end up doing.<br><em>Il a fini par dire oui.</em> (Compare: <em>Il a fini de parler</em> = he finished talking.)"},
+      {id:'vprep_09',q:'Passé composé — "I\'ve finished working." → J\'ai fini ___ travailler.',hint:'finish doing',type:'fill',answer:'de',exp:"<b>finir de</b> = to finish doing.<br><em>J'ai fini de travailler.</em>"},
+      {id:'vprep_10',q:'"Let\'s start with the cheese." → Commençons ___ le fromage.',hint:'start with / by',type:'fill',answer:'par',exp:"<b>commencer par</b> = to start with or by.<br><em>Commençons par le fromage.</em>"},
+      {id:'vprep_11',q:'"Il vient de manger." means:',type:'mc',choices:['He is coming to eat.','He has just eaten.','He comes from eating.','He is going to eat.'],answer:1,exp:"<b>venir de</b> + infinitive = passé récent, \"to have just done\".<br>Compare: <em>Il vient manger</em> = he's coming to eat."},
+      {id:'vprep_12',q:'"Elle tient de son père." means:',type:'mc',choices:['She is holding her father.','She insists on her father.','She takes after her father.','She depends on her father.'],answer:2,exp:"<b>tenir de</b> = to take after a relative.<br>Compare: <em>Elle tient à son père</em> = her father means a lot to her."},
+      {id:'vprep_13',q:'Présent — "I insist on paying." → Je tiens ___ payer.',hint:'tenir + ? = to insist on / value',type:'fill',answer:'à',alts:['a'],exp:"<b>tenir à</b> + infinitive = to insist on.<br><em>Je tiens à payer.</em>"},
+      {id:'vprep_14',q:'Présent — "This box serves as a table." → Cette boîte sert ___ table.',hint:'serve AS',type:'fill',answer:'de',exp:"<b>servir de</b> = to serve as. No article.<br><em>Cette boîte sert de table.</em>"},
+      {id:'vprep_15',q:'Présent — "What is this tool used for?" → À quoi sert cet outil ?<br>"It\'s used for cutting." → Il sert ___ couper.',hint:'be used FOR',type:'fill',answer:'à',alts:['a'],exp:"<b>servir à</b> = to be used for.<br><em>Il sert à couper.</em>"},
+      {id:'vprep_16',q:'"Do you believe in ghosts?" Which is correct?',type:'mc',choices:['Tu crois les fantômes ?','Tu crois en fantômes ?','Tu crois aux fantômes ?','Tu crois de fantômes ?'],answer:2,exp:"<b>croire à</b> = to believe something exists. à + les = <b>aux</b>.<br><em>Tu crois aux fantômes ?</em> (Use <em>croire en</em> for faith in a person: <em>je crois en toi</em>.)"},
+      {id:'vprep_17',q:'Imparfait — "I wasn\'t expecting that." → Je ne m\'attendais pas ___ ça.',hint:"s'attendre + ?",type:'fill',answer:'à',alts:['a'],exp:"<b>s'attendre à</b> = to expect. Different from <em>attendre</em> (to wait for).<br><em>Je ne m'attendais pas à ça.</em>"},
+      {id:'vprep_18',q:'Passé composé — "I changed my mind." → J\'ai changé ___ avis.',hint:'switch one thing for another → de, no article',type:'fill',answer:"d'",alts:['de'],exp:"<b>changer de</b> + noun without article = to switch.<br><em>J'ai changé d'avis.</em>"},
+      {id:'vprep_19',q:'Présent — "The room looks out onto the garden." → La chambre donne ___ le jardin.',hint:'donner + ?',type:'fill',answer:'sur',exp:"<b>donner sur</b> = to look out onto, to face.<br><em>La chambre donne sur le jardin.</em>"},
+      {id:'vprep_20',q:'Présent — "Tu penses à ton examen ?" → "Oui, j\'___ pense."',hint:'à + thing → ?',type:'fill',answer:'y',exp:"<b>à + thing</b> → <b>y</b>.<br><em>Oui, j'y pense.</em>"},
+      {id:'vprep_21',q:'"Tu penses à ta sœur ?" → Which answer is correct?',type:'mc',choices:['Oui, je lui pense.','Oui, j\'y pense.','Oui, je pense à elle.','Oui, j\'en pense.'],answer:2,exp:"<b>penser à + person</b> is an exception: it doesn't use <em>lui</em>. Keep <em>à</em> + stressed pronoun.<br><em>Oui, je pense à elle.</em>"},
+      {id:'vprep_22',q:'Présent — "Tu parles de ton travail ?" → "Oui, j\'___ parle."',hint:'de + thing → ?',type:'fill',answer:'en',exp:"<b>de + thing</b> → <b>en</b>.<br><em>Oui, j'en parle.</em>"},
+      {id:'vprep_23',q:'Présent — "I can do without sugar." → Je peux me passer ___ sucre.',hint:'se passer + ? (general noun, no article)',type:'fill',answer:'de',alts:['du'],exp:"<b>se passer de</b> = to do without. With a general noun, <em>de</em> stands alone: <em>je peux me passer de sucre</em>. (<em>du sucre</em> is also heard, but <em>de</em> is standard.)"},
+      {id:'vprep_24',q:'Présent — "Make the most of the sun!" → Profite ___ soleil !',hint:'profiter de; de + le = ?',type:'fill',answer:'du',exp:"<b>profiter de</b> = to enjoy or make the most of. de + le = <b>du</b>.<br><em>Profite du soleil !</em>"},
+    ]
+  },
+  {
     id:'negation', name:'Negation Patterns', badge:'essential', color:'#3ecf8e',
     desc:'ne…pas, ne…jamais, ne…plus, ne…que — plus the article change trick.',
     ref:[
@@ -2831,8 +2900,8 @@ function renderGrammarTopics() {
     </div>
     ${srsBar}
     ${conjButton}
-    ${notesPanel}
     ${cards}
+    ${notesPanel}
   </div>`;
 }
 
