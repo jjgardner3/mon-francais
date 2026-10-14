@@ -1128,7 +1128,7 @@ function renderThemesView() {
     </div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:1rem">
       ${cards.map(c => `
-        <div onclick="${c.total > 0 ? `vocabState.theme='${c.id}';vocabState.themeView=false;vocabState.cardIndex=0;vocabState.revealed=false;renderContent()` : ''}"
+        <div onclick="${c.total > 0 ? `vocabState.theme='${c.id}';vocabState.themeView=false;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='all';renderContent()` : ''}"
           style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;
             cursor:${c.total > 0 ? 'pointer' : 'default'};transition:border-color .15s;opacity:${c.total > 0 ? '1' : '.45'}"
           onmouseover="if(${c.total}>0)this.style.borderColor='var(--purple)'"
@@ -1173,7 +1173,7 @@ function renderVocabHTML() {
       <div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
         <div><div class="ps-title">Vocabulaire${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div><div class="ps-sub">SM-2 spaced repetition · ${stats.total} words</div></div>
         <div style="display:flex;gap:6px">
-          ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;renderContent()">✕ All words</button>` : ''}
+          ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='due';renderContent()">✕ All words</button>` : ''}
           <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
         </div>
       </div>
@@ -1211,7 +1211,7 @@ function renderVocabHTML() {
         <div class="ps-sub">${deck.length} due · ${stats.mastered} mastered · ${stats.total} words</div>
       </div>
       <div style="display:flex;gap:6px">
-        ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;renderContent()">✕ All words</button>` : ''}
+        ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='due';renderContent()">✕ All words</button>` : ''}
         <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
       </div>
     </div>
@@ -1261,6 +1261,103 @@ function renderVocabHTML() {
     </div>`}
     <div style="margin-top:1.5rem">${renderVocabList(stats)}</div>
   </div>`;
+}
+
+// ── Verb endings reference modal (tabbed, mobile-friendly) ───────
+const VEND_DATA = {
+  er: { verb:'parler', pp:'-é → parlé', aux:'avoir', tenses:[
+    { label:'Présent', sub:'Present', color:'#90caf9', bg:'#1e3a5f', note:'stem = infinitive − er',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-e','-es','-e','-ons','-ez','-ent'], ex:['parle','parles','parle','parlons','parlez','parlent'] },
+    { label:'Imparfait', sub:'Imperfect', color:'#80cbc4', bg:'#1a3d2e', note:'stem = nous (présent) − ons',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ais','-ais','-ait','-ions','-iez','-aient'], ex:['portais','portais','portait','portions','portiez','portaient'] },
+    { label:'Futur simple', sub:'Future', color:'#ffcc80', bg:'#4a2e0a', note:'stem = infinitive (garder-)',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ai','-as','-a','-ons','-ez','-ont'], ex:['garderai','garderas','gardera','garderons','garderez','garderont'] },
+    { label:'Conditionnel', sub:'Would', color:'#f48fb1', bg:'#3d1f3f', note:'futur stem + imparfait endings',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ais','-ais','-ait','-ions','-iez','-aient'], ex:['garderais','garderais','garderait','garderions','garderiez','garderaient'] },
+    { label:'Subjonctif', sub:'Subjunctive', color:'#a5d6a7', bg:'#1a3520', note:'stem = ils (présent) − ent',
+      pro:["Que je","Que tu","Qu'il/elle","Que nous","Que vous","Qu'ils/elles"],
+      end:['-e','-es','-e','-ions','-iez','-ent'], ex:['parle','parles','parle','parlions','parliez','parlent'] },
+  ]},
+  ir: { verb:'finir', pp:'-i → fini', aux:'avoir', tenses:[
+    { label:'Présent', sub:'Present', color:'#90caf9', bg:'#1e3a5f', note:'stem = infinitive − ir, add -iss- (plural)',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-is','-is','-it','-issons','-issez','-issent'], ex:['finis','finis','finit','finissons','finissez','finissent'] },
+    { label:'Imparfait', sub:'Imperfect', color:'#80cbc4', bg:'#1a3d2e', note:'stem = nous (présent) − ons → finiss-',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ais','-ais','-ait','-ions','-iez','-aient'], ex:['finissais','finissais','finissait','finissions','finissiez','finissaient'] },
+    { label:'Futur simple', sub:'Future', color:'#ffcc80', bg:'#4a2e0a', note:'stem = infinitive (finir-)',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ai','-as','-a','-ons','-ez','-ont'], ex:['finirai','finiras','finira','finirons','finirez','finiront'] },
+    { label:'Conditionnel', sub:'Would', color:'#f48fb1', bg:'#3d1f3f', note:'futur stem + imparfait endings',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ais','-ais','-ait','-ions','-iez','-aient'], ex:['finirais','finirais','finirait','finirions','finiriez','finiraient'] },
+    { label:'Subjonctif', sub:'Subjunctive', color:'#a5d6a7', bg:'#1a3520', note:'stem = ils (présent) − ent → finiss-',
+      pro:["Que je","Que tu","Qu'il/elle","Que nous","Que vous","Qu'ils/elles"],
+      end:['-isse','-isses','-isse','-issions','-issiez','-issent'], ex:['finisse','finisses','finisse','finissions','finissiez','finissent'] },
+  ]},
+  re: { verb:'vendre', pp:'-u → vendu', aux:'avoir', tenses:[
+    { label:'Présent', sub:'Present', color:'#90caf9', bg:'#1e3a5f', note:'stem = infinitive − re',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-s','-s','—','-ons','-ez','-ent'], ex:['vends','vends','vend','vendons','vendez','vendent'] },
+    { label:'Imparfait', sub:'Imperfect', color:'#80cbc4', bg:'#1a3d2e', note:'stem = nous (présent) − ons → vend-',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ais','-ais','-ait','-ions','-iez','-aient'], ex:['vendais','vendais','vendait','vendions','vendiez','vendaient'] },
+    { label:'Futur simple', sub:'Future', color:'#ffcc80', bg:'#4a2e0a', note:'stem = infinitive − e → vendr-',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ai','-as','-a','-ons','-ez','-ont'], ex:['vendrai','vendras','vendra','vendrons','vendrez','vendront'] },
+    { label:'Conditionnel', sub:'Would', color:'#f48fb1', bg:'#3d1f3f', note:'futur stem + imparfait endings',
+      pro:["Je/J'","Tu","Il/Elle/On","Nous","Vous","Ils/Elles"],
+      end:['-ais','-ais','-ait','-ions','-iez','-aient'], ex:['vendrais','vendrais','vendrait','vendrions','vendriez','vendraient'] },
+    { label:'Subjonctif', sub:'Subjunctive', color:'#a5d6a7', bg:'#1a3520', note:'stem = ils (présent) − ent → vend-',
+      pro:["Que je","Que tu","Qu'il/elle","Que nous","Que vous","Qu'ils/elles"],
+      end:['-e','-es','-e','-ions','-iez','-ent'], ex:['vende','vendes','vende','vendions','vendiez','vendent'] },
+  ]},
+};
+let _vendType = 'er';
+function openVerbEndingsModal(type) {
+  _vendType = type || _vendType;
+  document.getElementById('verbEndingsModal').style.display = 'flex';
+  renderVerbEndingsContent(_vendType);
+}
+function renderVerbEndingsContent(type) {
+  _vendType = type;
+  const d = VEND_DATA[type];
+  const tabBtn = (t) => {
+    const active = t === type;
+    return `<button onclick="renderVerbEndingsContent('${t}')" style="flex:1;padding:9px 0;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:${active?'700':'400'};background:${active?'#3b6fce':'#1e2130'};color:${active?'#fff':'#888'};transition:background .15s">-${t.toUpperCase()}</button>`;
+  };
+  let html = `<div style="display:flex;gap:8px;margin-bottom:14px">${['er','ir','re'].map(tabBtn).join('')}</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px;padding:8px 10px;background:#1e2130;border-radius:6px">
+      Example: <em style="color:#e8dcc8;font-size:13px">${d.verb}</em>
+      &nbsp;·&nbsp; Passé composé: <span style="color:#ce93d8">${d.pp}</span>
+      &nbsp;·&nbsp; Auxiliary: <em style="color:#c8c0b0">${d.aux}</em>
+    </div>`;
+  for (const t of d.tenses) {
+    html += `<div style="margin-bottom:14px;border-radius:8px;overflow:hidden">
+      <div style="background:${t.bg};padding:8px 12px">
+        <span style="color:${t.color};font-weight:600;font-size:13px">${t.label}</span>
+        <span style="color:${t.color};opacity:.7;font-size:11px;margin-left:6px">${t.sub}</span>
+        <div style="color:${t.color};opacity:.6;font-size:10px;font-family:monospace;margin-top:2px">${t.note}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;background:#151820">
+        ${t.pro.map((p,i)=>`<tr style="border-bottom:1px solid #1e2130">
+          <td style="padding:7px 10px;color:#c8c0b0;font-size:13px;width:38%">${p}</td>
+          <td style="padding:7px 10px"><span style="color:${t.color};font-weight:700;font-size:14px">${t.end[i]}</span><em style="color:#777;font-size:12px;margin-left:8px">${t.ex[i]}</em></td>
+        </tr>`).join('')}
+      </table>
+    </div>`;
+  }
+  html += `<div style="background:#1e2130;border-radius:8px;padding:12px 14px;font-size:11px;color:#888;line-height:1.7">
+    <div style="font-weight:600;color:#c8c0b0;margin-bottom:5px">Key notes</div>
+    <div style="margin-bottom:4px"><span style="color:#c8c0b0">Futur/Conditionnel irregulars:</span> aller→ir-, avoir→aur-, être→ser-, faire→fer-, pouvoir→pourr-, venir→viendr-, voir→verr-, vouloir→voudr-</div>
+    <div style="margin-bottom:4px"><span style="color:#c8c0b0">Subjonctif irregulars:</span> être→sois/soit · avoir→aie/ait · aller→aille · faire→fasse · pouvoir→puisse · vouloir→veuille</div>
+    <div><span style="color:#c8c0b0">Passé composé with être:</span> Motion verbs &amp; reflexives — participle agrees in gender/number (<em>elle est allée</em>)</div>
+  </div>`;
+  document.getElementById('verbEndingsContent').innerHTML = html;
 }
 
 // ── Vocab card conjugation modal ────────────────────────────────
@@ -3346,7 +3443,7 @@ function renderVMList(){
     <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div><div class="ps-title">Conjugaison</div><div class="ps-sub">${filtered.length} of ${vmVerbs.length} verbs</div></div>
       <div style="display:flex;gap:6px">
-        <button class="btn" style="font-size:12px" onclick="document.getElementById('verbEndingsModal').style.display='flex'">📋 Endings</button>
+        <button class="btn" style="font-size:12px" onclick="openVerbEndingsModal()">📋 Endings</button>
         <button class="btn btn-primary" style="font-size:12px" onclick="vmState.view='quiz';renderContent()">Quiz mode →</button>
       </div>
     </div>
@@ -4128,166 +4225,21 @@ renderContent();
 
 <!-- Verb endings reference modal -->
 <div id="verbEndingsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
-  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;width:95%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;width:95%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;">
     <div style="padding:16px 20px 12px;border-bottom:1px solid #2a2d3a;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div>
-        <div style="font-family:'Playfair Display',serif;font-size:17px;color:#e8dcc8">French Verb Endings</div>
-        <div style="font-size:11px;color:#666;margin-top:2px">Regular -er · -ir · -re</div>
+        <div style="font-family:'Playfair Display',serif;font-size:17px;color:#e8dcc8">Verb Endings</div>
+        <div style="font-size:11px;color:#666;margin-top:2px">Regular -ER · -IR · -RE</div>
       </div>
       <button onclick="document.getElementById('verbEndingsModal').style.display='none'" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer">✕</button>
     </div>
-    <div style="overflow-y:auto;padding:16px 20px 24px;flex:1;font-size:12px">
-
-      <!-- Présent -->
-      <div style="margin-bottom:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:#1e3a5f;border-radius:8px 8px 0 0;padding:8px 12px;margin-bottom:0">
-          <span style="font-weight:600;color:#90caf9;font-size:13px">Présent <span style="font-style:italic;font-weight:400;font-size:11px;color:#7bb3e0">Present tense</span></span>
-          <span style="font-size:10px;font-family:monospace;color:#7bb3e0">Stem = infinitive − er/ir/re</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a">
-            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
-            <th style="padding:5px 8px;text-align:center;color:#90caf9;font-size:10px;font-weight:600">-ER (parler)</th>
-            <th style="padding:5px 8px;text-align:center;color:#90caf9;font-size:10px;font-weight:600">-IR (finir)</th>
-            <th style="padding:5px 8px;text-align:center;color:#90caf9;font-size:10px;font-weight:600">-RE (vendre)</th>
-          </tr>
-          ${[['Je/J\'','-e','parle','-is','finis','-s','vends'],['Tu','-es','parles','-is','finis','-s','vends'],['Il/Elle/On','-e','parle','-it','finit','—','vend'],['Nous','-ons','parlons','-issons','finissons','-ons','vendons'],['Vous','-ez','parlez','-issez','finissez','-ez','vendez'],['Ils/Elles','-ent','parlent','-issent','finissent','-ent','vendent']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
-            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#90caf9;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
-          </tr>`).join('')}
-        </table>
-      </div>
-
-      <!-- Passé composé -->
-      <div style="margin-bottom:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:#3b1f6e;border-radius:8px 8px 0 0;padding:8px 12px">
-          <span style="font-weight:600;color:#ce93d8;font-size:13px">Passé composé <span style="font-style:italic;font-weight:400;font-size:11px;color:#b07acc">Past tense (compound)</span></span>
-          <span style="font-size:10px;font-family:monospace;color:#b07acc">avoir/être + past participle</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a">
-            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%"></th>
-            <th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-ER</th>
-            <th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-IR</th>
-            <th style="padding:5px 8px;text-align:center;color:#ce93d8;font-size:10px;font-weight:600">-RE</th>
-          </tr>
-          <tr style="border-bottom:1px solid #1e2130">
-            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Past participle</td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-é</span><br><em style="color:#666;font-size:11px">parlé</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-i</span><br><em style="color:#666;font-size:11px">fini</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#ce93d8;font-weight:600">-u</span><br><em style="color:#666;font-size:11px">vendu</em></td>
-          </tr>
-          <tr>
-            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">Example (je)</td>
-            <td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai parlé</td>
-            <td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai fini</td>
-            <td style="padding:6px 8px;text-align:center;font-style:italic;color:#888;font-size:11px">j'ai vendu</td>
-          </tr>
-        </table>
-      </div>
-
-      <!-- Imparfait -->
-      <div style="margin-bottom:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:#1a3d2e;border-radius:8px 8px 0 0;padding:8px 12px">
-          <span style="font-weight:600;color:#80cbc4;font-size:13px">Imparfait <span style="font-style:italic;font-weight:400;font-size:11px;color:#60a99e">Imperfect tense</span></span>
-          <span style="font-size:10px;font-family:monospace;color:#60a99e">Stem = nous (présent) − ons</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a">
-            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
-            <th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-ER (porter)</th>
-            <th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-IR (finir)</th>
-            <th style="padding:5px 8px;text-align:center;color:#80cbc4;font-size:10px;font-weight:600">-RE (vendre)</th>
-          </tr>
-          ${[['Je/J\'','-ais','portais','-ais','finissais','-ais','vendais'],['Tu','-ais','portais','-ais','finissais','-ais','vendais'],['Il/Elle/On','-ait','portait','-ait','finissait','-ait','vendait'],['Nous','-ions','portions','-ions','finissions','-ions','vendions'],['Vous','-iez','portiez','-iez','finissiez','-iez','vendiez'],['Ils/Elles','-aient','portaient','-aient','finissaient','-aient','vendaient']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
-            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#80cbc4;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
-          </tr>`).join('')}
-        </table>
-      </div>
-
-      <!-- Futur simple -->
-      <div style="margin-bottom:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:#4a2e0a;border-radius:8px 8px 0 0;padding:8px 12px">
-          <span style="font-weight:600;color:#ffcc80;font-size:13px">Futur simple <span style="font-style:italic;font-weight:400;font-size:11px;color:#e0a84a">Simple future</span></span>
-          <span style="font-size:10px;font-family:monospace;color:#e0a84a">Stem = infinitive (−e for -re)</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a">
-            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
-            <th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-ER (chanter)</th>
-            <th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-IR (finir)</th>
-            <th style="padding:5px 8px;text-align:center;color:#ffcc80;font-size:10px;font-weight:600">-RE (vendr-)</th>
-          </tr>
-          ${[['Je/J\'','-ai','chanterai','-ai','finirai','-ai','vendrai'],['Tu','-as','chanteras','-as','finiras','-as','vendras'],['Il/Elle/On','-a','chantera','-a','finira','-a','vendra'],['Nous','-ons','chanterons','-ons','finirons','-ons','vendrons'],['Vous','-ez','chanterez','-ez','finirez','-ez','vendrez'],['Ils/Elles','-ont','chanteront','-ont','finiront','-ont','vendront']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
-            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#ffcc80;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
-          </tr>`).join('')}
-        </table>
-      </div>
-
-      <!-- Conditionnel -->
-      <div style="margin-bottom:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:#3d1f3f;border-radius:8px 8px 0 0;padding:8px 12px">
-          <span style="font-weight:600;color:#f48fb1;font-size:13px">Conditionnel présent <span style="font-style:italic;font-weight:400;font-size:11px;color:#cc7090">Conditional (would)</span></span>
-          <span style="font-size:10px;font-family:monospace;color:#cc7090">Stem = futur + imparfait endings</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a">
-            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
-            <th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-ER (chanter)</th>
-            <th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-IR (finir)</th>
-            <th style="padding:5px 8px;text-align:center;color:#f48fb1;font-size:10px;font-weight:600">-RE (vendr-)</th>
-          </tr>
-          ${[['Je/J\'','-ais','chanterais','-ais','finirais','-ais','vendrais'],['Tu','-ais','chanterais','-ais','finirais','-ais','vendrais'],['Il/Elle/On','-ait','chanterait','-ait','finirait','-ait','vendrait'],['Nous','-ions','chanterions','-ions','finirions','-ions','vendrions'],['Vous','-iez','chanteriez','-iez','finiriez','-iez','vendriez'],['Ils/Elles','-aient','chanteraient','-aient','finiraient','-aient','vendraient']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
-            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#f48fb1;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
-          </tr>`).join('')}
-        </table>
-      </div>
-
-      <!-- Subjonctif -->
-      <div style="margin-bottom:18px">
-        <div style="display:flex;align-items:center;justify-content:space-between;background:#1a3520;border-radius:8px 8px 0 0;padding:8px 12px">
-          <span style="font-weight:600;color:#a5d6a7;font-size:13px">Subjonctif présent <span style="font-style:italic;font-weight:400;font-size:11px;color:#7baa7d">Present subjunctive</span></span>
-          <span style="font-size:10px;font-family:monospace;color:#7baa7d">Stem = ils/elles (présent) − ent</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;background:#151820">
-          <tr style="border-bottom:1px solid #2a2d3a">
-            <th style="padding:5px 8px;text-align:left;color:#666;font-size:10px;font-weight:600;width:22%">PRONOUN</th>
-            <th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-ER (chercher)</th>
-            <th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-IR (finir)</th>
-            <th style="padding:5px 8px;text-align:center;color:#a5d6a7;font-size:10px;font-weight:600">-RE (attendre)</th>
-          </tr>
-          ${[['Que je','-e','cherche','-e','finisse','-e','attende'],['Que tu','-es','cherches','-es','finisses','-es','attendes'],['Qu\'il/elle','-e','cherche','-e','finisse','-e','attende'],['Que nous','-ions','cherchions','-ions','finissions','-ions','attendions'],['Que vous','-iez','cherchiez','-iez','finissiez','-iez','attendiez'],['Qu\'ils/elles','-ent','cherchent','-ent','finissent','-ent','attendent']].map(r=>`<tr style="border-bottom:1px solid #1e2130">
-            <td style="padding:6px 8px;font-weight:500;color:#c8c0b0">${r[0]}</td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">${r[1]}</span><br><em style="color:#666;font-size:11px">${r[2]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">${r[3]}</span><br><em style="color:#666;font-size:11px">${r[4]}</em></td>
-            <td style="padding:6px 8px;text-align:center"><span style="color:#a5d6a7;font-weight:600">${r[5]}</span><br><em style="color:#666;font-size:11px">${r[6]}</em></td>
-          </tr>`).join('')}
-        </table>
-      </div>
-
-      <!-- Key notes -->
-      <div style="background:#1e2130;border-radius:8px;padding:12px 14px;font-size:11px;color:#888;line-height:1.7">
-        <div style="font-weight:600;color:#c8c0b0;margin-bottom:6px;font-size:12px">Key notes</div>
-        <div style="margin-bottom:5px"><span style="color:#c8c0b0;font-weight:500">Être (imparfait):</span> Only irregular stem — <em>ét-</em> → j'étais, tu étais, il était, nous étions, vous étiez, ils étaient</div>
-        <div style="margin-bottom:5px"><span style="color:#c8c0b0;font-weight:500">Futur &amp; Conditionnel irregulars:</span> aller→ir-, avoir→aur-, être→ser-, faire→fer-, pouvoir→pourr-, venir→viendr-, voir→verr-, vouloir→voudr-</div>
-        <div style="margin-bottom:5px"><span style="color:#c8c0b0;font-weight:500">Subjonctif irregulars:</span> être→sois/soit/soyons/soyez/soient · avoir→aie/aies/ait/ayons/ayez/aient · aller→aille · faire→fasse · pouvoir→puisse · vouloir→veuille</div>
-        <div><span style="color:#c8c0b0;font-weight:500">Passé composé with être:</span> Verbs of motion &amp; reflexives — past participle agrees in gender &amp; number (e.g. <em>elle est allée</em>)</div>
-      </div>
-
+    <div id="verbEndingsContent" style="overflow-y:auto;padding:16px 20px 24px;flex:1;font-size:12px">
+      <!-- rendered by renderVerbEndingsContent() -->
     </div>
   </div>
 </div>
+
+
 
 <!-- Vocab card conjugation modal -->
 <div id="vocabConjModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeVocabConjModal()">
