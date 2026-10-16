@@ -1723,11 +1723,48 @@ function speakFrench(text) {
   if (!text) return;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'fr-FR'; utterance.rate = 0.82; utterance.pitch = 1;
-  const voices = window.speechSynthesis.getVoices();
-  const frVoice = voices.find(v => v.lang.startsWith('fr'));
+  const frVoice = bestFrenchVoice();
   if (frVoice) utterance.voice = frVoice;
+  if (_hqAudio) { try { _hqAudio.pause(); } catch {} }
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
+}
+// Prefer the most natural French voice the browser/OS offers (fr-FR, then
+// "Premium"/"Enhanced"/"Natural"/Google voices) instead of the first one found.
+function bestFrenchVoice() {
+  const vs = window.speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+  const score = v => (/fr[-_]FR/i.test(v.lang) ? 4 : 0) + (/premium|enhanced|natural|neural/i.test(v.name) ? 3 : 0) + (/google/i.test(v.name) ? 2 : 0) + (/amélie|amelie|thomas|audrey|aurélie|marie|denise/i.test(v.name) ? 1 : 0);
+  return vs.sort((a, b) => score(b) - score(a))[0] || null;
+}
+// Lifelike voice (OpenAI TTS via /tts) for model paragraphs and corrections.
+// Cached per text for the session; falls back to the browser voice on error.
+const _hqCache = new Map();
+let _hqAudio = null;
+async function speakFrenchHQ(text, btn) {
+  if (!text) return;
+  window.speechSynthesis.cancel();
+  if (_hqAudio) { try { _hqAudio.pause(); } catch {} }
+  const label = btn ? btn.textContent : '';
+  try {
+    let url = _hqCache.get(text);
+    if (!url) {
+      if (btn) btn.textContent = '⟳';
+      const res = await fetch('/.netlify/functions/tts', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ text }) });
+      const d = await res.json();
+      if (!res.ok || d.error) throw new Error(d.error?.message || 'HTTP ' + res.status);
+      const bin = atob(d.audio), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      url = URL.createObjectURL(new Blob([bytes], { type: d.mime || 'audio/mpeg' }));
+      _hqCache.set(text, url);
+    }
+    _hqAudio = new Audio(url);
+    await _hqAudio.play();
+  } catch (e) {
+    console.log('HQ voice unavailable, using browser voice:', e.message || e);
+    speakFrench(text);
+  } finally {
+    if (btn) btn.textContent = label;
+  }
 }
 window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 window.speechSynthesis.getVoices();
@@ -3976,7 +4013,7 @@ async function parlerStartRec() {
     const blob = new Blob(_parlerChunks, { type });
     const ext = type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm';
     const lv = PARLER_LEVELS.find(l => l.id === parlerState.level);
-    parlerState.recordings.unshift({ id:'rec_' + Date.now(), url:URL.createObjectURL(blob), blob, secs:parlerState.elapsed, label:lv ? lv.label : '', title:parlerState.prompt?.title_fr || '', prompt:parlerState.prompt?.prompt_fr || parlerState.prompt?.title_fr || '', at:Date.now(), ext });
+    parlerState.recordings.unshift({ id:'rec_' + Date.now(), url:URL.createObjectURL(blob), blob, secs:parlerState.elapsed, label:lv ? lv.label : '', title:parlerState.prompt?.title_fr || '', prompt:parlerState.prompt?.prompt_fr || parlerState.prompt?.title_fr || '', passage:parlerCurrentPassage(), at:Date.now(), ext });
     if (_parlerStream) _parlerStream.getTracks().forEach(t => t.stop());
     parlerLogSecs(parlerState.elapsed);
     renderContent();
@@ -4206,7 +4243,7 @@ function parlerSegments(text, maxWords) {
 async function parlerAnalyze(id) {
   const r = parlerState.recordings.find(x => x.id === id);
   if (!r || !r.blob || parlerState.review?.busy) return;
-  parlerState.review = { busy:true, status:'Preparing the audio…', title:r.title || r.label || '', prompt:r.prompt || '', at:r.at, transcript:'', corrections:[], stuck:[], good:[], focus:[], overall:'', error:'' };
+  parlerState.review = { busy:true, status:'Preparing the audio…', title:r.title || r.label || '', prompt:r.prompt || '', passage:r.passage || '', at:r.at, transcript:'', corrections:[], stuck:[], good:[], focus:[], overall:'', error:'' };
   parlerRenderReview();
   try {
     const { data, rate } = await parlerDecode(r.blob);
@@ -4221,7 +4258,7 @@ async function parlerAnalyze(id) {
     const transcript = texts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
     if (!transcript) throw new Error('No speech found in that recording.');
     parlerState.review.transcript = transcript;
-    await parlerCorrect();
+    await (parlerState.review.passage ? parlerAccentReview() : parlerCorrect());
   } catch (e) {
     let msg = e.message || String(e);
     if (/OPENAI_API_KEY/.test(msg)) msg = 'The OpenAI key isn’t set up yet — add OPENAI_API_KEY in Netlify (Site configuration → Environment variables), then redeploy.';
@@ -4299,6 +4336,41 @@ Respond ONLY with valid JSON, no markdown:
     parlerRenderReview();
   }
 }
+function parlerCurrentPassage() {
+  const P = parlerState.prompt;
+  return parlerState.level === 'accent' && P?.paragraphs?.length ? P.paragraphs.join('\n\n') : '';
+}
+// Accent mode: compare what the transcriber heard with the passage that was read.
+// Where they differ, a French ear most likely heard a different sound.
+async function parlerAccentReview(fromEdit) {
+  const R = parlerState.review;
+  if (!R || !R.transcript || !R.passage) return;
+  if (fromEdit) { const ta = document.getElementById('parlerTranscript'); if (ta) R.transcript = ta.value.trim(); }
+  Object.assign(R, { busy:true, error:'', corrections:[], stuck:[], good:[], focus:[], overall:'', status:'Comparing what was heard with the text…' });
+  parlerRenderReview();
+  const p = `You are a French pronunciation coach for an American adult (B1–B2). They read the ORIGINAL passage aloud. A speech-to-text system that only knows French then transcribed the recording — the HEARD text.
+The transcriber tends to "repair" sounds into plausible French, so every place where HEARD differs from ORIGINAL (a different word, a wrong ending, a missing or extra word) is a strong sign that the word was pronounced unclearly or with an English sound. Ignore differences in punctuation, capitals, numbers written as digits, and obvious hesitations/repeats.
+
+ORIGINAL:
+"""${R.passage}"""
+
+HEARD:
+"""${R.transcript}"""
+
+For each meaningful difference, explain the most likely pronunciation cause, with a concrete tip aimed at an English speaker (e.g. the French R in the throat, u vs ou, nasal vowels an/on/in, silent final consonants, é vs è, closed o, liaison, stress on the last syllable). Then name the 3 patterns most worth practising.
+Respond ONLY with valid JSON, no markdown:
+{"overall":"2 honest, encouraging sentences in English about how intelligible the reading was","focus":[{"title":"short name of the sound or pattern","detail":"1–2 sentences: how to make the sound, with a French example word"}],"corrections":[{"said":"what the transcriber heard (short excerpt)","better":"the original word(s) from the passage","english":"English meaning","why":"likely pronunciation cause + tip, max 25 words","kind":"pronunciation","misheard":false}],"good":["up to 3 tricky words or phrases from the passage that came through perfectly"]}`;
+  try {
+    const s = parlerParseJSON(await parlerStreamAI(p, 3500), '{', '}');
+    Object.assign(R, { corrections:s.corrections || [], focus:s.focus || [], overall:s.overall || '', good:(s.good || []).slice(0, 4), busy:false, status:'' });
+    state._parler_reviews = [{ at:R.at || Date.now(), title:R.title, prompt:R.prompt, passage:R.passage, transcript:R.transcript, corrections:R.corrections, stuck:[], good:R.good, focus:R.focus, overall:R.overall },
+      ...(state._parler_reviews || []).filter(x => x.at !== R.at)].slice(0, 8);
+    saveState(state);
+  } catch (e) {
+    Object.assign(R, { busy:false, status:'', error:'Couldn’t compare the reading — ' + (e.message || e) + '. Use “Re-correct” to try again.' });
+  }
+  parlerRenderReview();
+}
 function parlerOpenReview(i) {
   const r = (state._parler_reviews || [])[i];
   if (r) { parlerState.review = { ...r, busy:false, status:'', error:'' }; parlerRenderReview(); }
@@ -4314,7 +4386,8 @@ function parlerLoadFile(input) {
   const f = input.files && input.files[0];
   if (!f) return;
   const ext = (f.name.split('.').pop() || 'webm').toLowerCase();
-  parlerState.recordings.unshift({ id:'rec_' + Date.now(), url:URL.createObjectURL(f), blob:f, secs:0, label:'File', title:f.name, prompt:'', at:f.lastModified || Date.now(), ext });
+  // In Accent mode, a loaded file is assumed to be a reading of the passage on screen
+  parlerState.recordings.unshift({ id:'rec_' + Date.now(), url:URL.createObjectURL(f), blob:f, secs:0, label:'File', title:f.name, prompt:'', passage:parlerCurrentPassage(), at:f.lastModified || Date.now(), ext });
   input.value = '';
   renderContent();
 }
@@ -4336,11 +4409,11 @@ function renderParlerReview() {
     </div>` : '';
   const list = (R.corrections || []).map((c, i) => `<div style="padding:10px 0;border-top:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
-        <div style="font-size:13px;color:var(--coral)"><span style="font-size:10px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase">You said</span> ${parlerEsc(c.said)}</div>
+        <div style="font-size:13px;color:var(--coral)"><span style="font-size:10px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase">${R.passage ? 'Heard as' : 'You said'}</span> ${parlerEsc(c.said)}</div>
         <span style="font-size:10px;color:${kindColor[c.kind] || 'var(--text3)'};white-space:nowrap">${parlerEsc(c.kind || '')}</span>
       </div>
       <div style="font-size:16px;color:var(--green);font-family:'Playfair Display',serif;font-style:italic;margin-top:3px">${parlerEsc(c.better)}
-        <span style="cursor:pointer;font-style:normal;font-size:12px" data-speak="${parlerEsc(c.better)}" onclick="speakFrench(this.dataset.speak)">🔊</span></div>
+        <span style="cursor:pointer;font-style:normal;font-size:12px" data-speak="${parlerEsc(c.better)}" onclick="speakFrenchHQ(this.dataset.speak, this)">🔊</span></div>
       ${c.english ? `<div style="font-size:12px;color:var(--text3)">${parlerEsc(c.english)}</div>` : ''}
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-top:3px">
         <div style="font-size:12px;color:var(--text2);line-height:1.45">${parlerEsc(c.why)}${c.misheard ? ` <span style="color:var(--amber)">· The transcriber may have mis-heard this — worth checking your pronunciation.</span>` : ''}</div>
@@ -4354,6 +4427,7 @@ function renderParlerReview() {
         ${R.title ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">${parlerEsc(R.title)}</div>` : ''}</div>
       ${R.busy ? '' : `<button onclick="parlerCloseReview()" title="Close" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px">✕</button>`}
     </div>
+    ${R.passage ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">Accent check: compares what a French transcriber heard with the text you read. It shows which words weren't clear — it can't rate rhythm, intonation or how French you sound overall.</div>` : ''}
     ${R.busy ? `<div style="font-size:13px;color:var(--purple);margin-top:10px">⟳ <span id="parlerRevStatus">${parlerEsc(R.status)}</span></div>` : ''}
     ${R.error ? `<div style="font-size:12px;color:var(--coral);margin-top:10px">${parlerEsc(R.error)}</div>` : ''}
     ${focus}
@@ -4362,7 +4436,7 @@ function renderParlerReview() {
     ${stuckNote}
     ${R.transcript ? `<details style="margin-top:12px"><summary style="font-size:12px;color:var(--text3);cursor:pointer">Transcript — fix anything the transcriber mis-heard, then re-correct</summary>
       <textarea id="parlerTranscript" style="width:100%;min-height:140px;margin-top:8px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-family:Inter,sans-serif;font-size:13px;line-height:1.5;box-sizing:border-box;resize:vertical">${parlerEsc(R.transcript)}</textarea>
-      <div class="btn-row" style="justify-content:flex-start;margin-top:6px"><button class="btn" onclick="parlerCorrect(true)" ${R.busy ? 'disabled' : ''}>↻ Re-correct</button></div>
+      <div class="btn-row" style="justify-content:flex-start;margin-top:6px"><button class="btn" onclick="${R.passage ? 'parlerAccentReview(true)' : 'parlerCorrect(true)'}" ${R.busy ? 'disabled' : ''}>↻ Re-correct</button></div>
     </details>` : ''}
   </div>`;
 }
@@ -4406,7 +4480,7 @@ function renderParlerPrompt() {
   if (lv === 'libre' || lv === 'histoire') {
     return box(`${head}
       <div style="font-size:16px;color:var(--text);margin-top:10px;line-height:1.5">${parlerEsc(P.prompt_fr)}
-        <button class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px" data-speak="${parlerEsc(P.prompt_fr)}" onclick="speakFrench(this.dataset.speak)">🔊</button></div>
+        <button class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px" data-speak="${parlerEsc(P.prompt_fr)}" onclick="speakFrenchHQ(this.dataset.speak, this)">🔊</button></div>
       <details style="margin-top:6px"><summary style="font-size:12px;color:var(--text3);cursor:pointer">English</summary><div style="font-size:13px;color:var(--text2);margin-top:4px">${parlerEsc(P.prompt_en)}</div></details>
       ${(P.ideas || []).length ? `<div style="margin-top:10px;font-size:13px;color:var(--text2);line-height:1.7">${P.ideas.map(q => '→ ' + parlerEsc(q)).join('<br>')}</div>` : ''}
       ${useful}`);
@@ -4419,7 +4493,7 @@ function renderParlerPrompt() {
     return box(`${head}
       <div style="font-size:12px;color:var(--text3);margin:6px 0 10px">Tap a word to hear it. After each paragraph, play the model, then carry on reading.</div>
       ${paras.map((t, i) => `<div style="font-size:17px;line-height:1.75;color:var(--text);margin-bottom:6px">${wordify(t)}</div>
-        <div style="margin-bottom:14px"><button class="btn" style="font-size:11px;padding:3px 10px" data-speak="${parlerEsc(t)}" onclick="speakFrench(this.dataset.speak)">▶ Model ¶${i + 1}</button></div>`).join('')}
+        <div style="margin-bottom:14px"><button class="btn" style="font-size:11px;padding:3px 10px" data-speak="${parlerEsc(t)}" onclick="speakFrenchHQ(this.dataset.speak, this)">▶ Model ¶${i + 1}</button></div>`).join('')}
       ${useful}`);
   }
 
