@@ -150,6 +150,11 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .badge-vocab { background: var(--blue-dim); color: var(--blue); }
 .badge-grammar { background: var(--purple-dim); color: var(--purple); }
 .badge-speaking { background: var(--green-dim); color: var(--green); }
+.badge-parler { background: var(--coral-dim); color: var(--coral); }
+.parler-w { cursor: pointer; border-radius: 3px; }
+.parler-w:hover { background: var(--blue-dim); }
+.parler-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--coral); margin-right:6px; animation: parlerPulse 1s infinite; }
+@keyframes parlerPulse { 50% { opacity: .25; } }
 .badge-verbs { background: var(--coral-dim); color: var(--coral); }
 .badge-listen { background: var(--amber-dim); color: var(--amber); }
 .badge-review { background: rgba(255,255,255,0.07); color: var(--text2); }
@@ -537,6 +542,7 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 const TABS = [
   { id:'schedule', label:'Schedule',        dot:'#4f8ef7' },
   { id:'vocab',    label:'Vocabulary',      dot:'#4f8ef7' },
+  { id:'parler',   label:'Parler',          dot:'#ff6b9d' },
   { id:'speaking', label:'Speaking',        dot:'#3ecf8e' },
   { id:'grammar',  label:'Grammar',         dot:'#a78bfa' },
   { id:'verbs',    label:'Verb Conjugation',dot:'#f97066' },
@@ -556,6 +562,7 @@ const DAY_SCHEDULES = {
     { id:'listen',      name:'Listening input',   badge:'listen',  badgeLabel:'Listen',  time:'20 min', desc:'Podcast or video — passive relaxed listening.', tab:null },
   ],
   1: [ // Monday — Grammar + Speaking
+    { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
     { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
     { id:'grammar',     name:'Grammar drill',     badge:'grammar', badgeLabel:'Grammar', time:'15 min', desc:'One grammar topic — read rules then practice.', tab:'grammar' },
     { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'10 English→French sentences. Self-rate each one.', tab:'speaking' },
@@ -566,6 +573,7 @@ const DAY_SCHEDULES = {
     { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Focus on past tenses today.', tab:'speaking' },
   ],
   3: [ // Wednesday — Grammar
+    { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
     { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
     { id:'grammar',     name:'Grammar drill',     badge:'grammar', badgeLabel:'Grammar', time:'15 min', desc:'New grammar topic — build on Monday\'s work.', tab:'grammar' },
     { id:'listen',      name:'Listening input',   badge:'listen',  badgeLabel:'Listen',  time:'15 min', desc:'Podcast episode, focus on sentences you understand.', tab:null },
@@ -576,11 +584,13 @@ const DAY_SCHEDULES = {
     { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Mix tenses — present, passé composé, futur proche.', tab:'speaking' },
   ],
   5: [ // Friday — Grammar + Review
+    { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
     { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
     { id:'grammar',     name:'Grammar drill',     badge:'grammar', badgeLabel:'Grammar', time:'15 min', desc:'Third grammar session this week — object pronouns, negation, etc.', tab:'grammar' },
     { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Longer answers — practice 3-4 sentence responses.', tab:'speaking' },
   ],
   6: [ // Saturday — Light + Fun
+    { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
     { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
     { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Free practice — any topic you enjoy.', tab:'speaking' },
     { id:'listen',      name:'Listening input',   badge:'listen',  badgeLabel:'Listen',  time:'20 min', desc:'Something fun — a French film, song, or YouTube video.', tab:null },
@@ -595,7 +605,7 @@ function getTasksForDate(d) {
 // ═══════════════════════════════════════
 // RENDER NAV
 // ═══════════════════════════════════════
-const TAB_ICONS = { schedule:'\u{1F4C5}', vocab:'\u{1F4DA}', grammar:'\u270F\uFE0F', speaking:'\u{1F399}\uFE0F', verbs:'\u{1F504}', progress:'\u{1F4CA}' };
+const TAB_ICONS = { schedule:'\u{1F4C5}', vocab:'\u{1F4DA}', grammar:'\u270F\uFE0F', speaking:'\u{1F399}\uFE0F', parler:'\u{1F5E3}\uFE0F', verbs:'\u{1F504}', progress:'\u{1F4CA}' };
 
 function renderNav() {
   const c = document.getElementById('navTabs');
@@ -635,6 +645,7 @@ function renderContent() {
   const c = document.getElementById('content');
   if (activeTab === 'schedule') c.innerHTML = renderScheduleHTML();
   else if (activeTab === 'vocab') c.innerHTML = renderVocabHTML();
+  else if (activeTab === 'parler') c.innerHTML = renderParlerHTML();
   else if (activeTab === 'speaking') c.innerHTML = renderSpeakingHTML();
   else if (activeTab === 'grammar') c.innerHTML = renderGrammarHTML();
   else if (activeTab === 'verbs') c.innerHTML = renderVerbsHTML();
@@ -1046,7 +1057,9 @@ function getVocabDeck(themeFilter) {
   const srsData = state._vocab2 || {};
   const todayNew = getTodayNewCards();
   const newSlotsLeft = Math.max(0, NEW_CARDS_PER_DAY - todayNew.count);
-  const pool = themeFilter ? vocabBank.filter(w => w.category === themeFilter) : vocabBank;
+  const mined = getMinedWords();
+  const pool = themeFilter === 'mine' ? mined : themeFilter ? vocabBank.filter(w => w.category === themeFilter) : [...mined, ...vocabBank];
+  const minRank = state._vocab_minRank || 0;
 
   // Reviews: cards already rated whose due date has passed
   const reviews = pool
@@ -1063,12 +1076,17 @@ function getVocabDeck(themeFilter) {
   const alreadyIntroduced = new Set([...Object.keys(srsData), ...todayNew.ids]);
   const newCards = newSlotsLeft > 0
     ? pool
-        .filter(w => !alreadyIntroduced.has(w.id))
+        .filter(w => w.category !== 'mine' && !alreadyIntroduced.has(w.id) && (w.rank ?? 9999) >= minRank)
         .slice(0, newSlotsLeft)
         .map(w => ({ ...w, srs: getVocabSRS(w.id), isNew: true }))
     : [];
 
-  return [...reviews, ...pendingToday, ...newCards];
+  // Words mined from Parler: always available, outside the daily cap
+  const minedNew = pool
+    .filter(w => w.category === 'mine' && !srsData[w.id])
+    .map(w => ({ ...w, srs: getVocabSRS(w.id), isNew: true }));
+
+  return [...reviews, ...minedNew, ...pendingToday, ...newCards];
 }
 
 function getVocabStats() {
@@ -1092,6 +1110,7 @@ function getRelatedPreps(card) {
 
 // ── Themes ───────────────────────────────────────────────────────
 const THEMES = [
+  { id: 'mine',     emoji: '🎙', label: 'Mes mots',          labelEn: 'Words you needed (Parler)' },
   { id: 'clothes',  emoji: '🧥', label: 'Vêtements',        labelEn: 'Clothes' },
   { id: 'kitchen',  emoji: '🍳', label: 'Cuisine',           labelEn: 'Kitchen' },
   { id: 'bedroom',  emoji: '🛏', label: 'Chambre',           labelEn: 'Bedroom' },
@@ -1109,7 +1128,7 @@ function renderThemesView() {
   const srsData = state._vocab2 || {};
   const now = Date.now();
   const cards = THEMES.map(t => {
-    const words = vocabBank.filter(w => w.category === t.id);
+    const words = t.id === 'mine' ? getMinedWords() : vocabBank.filter(w => w.category === t.id);
     const due = words.filter(w => srsData[w.id] && srsData[w.id].due <= now).length;
     const seen = words.filter(w => srsData[w.id]).length;
     return { ...t, total: words.length, due, seen };
@@ -1157,10 +1176,25 @@ function renderVocabHTML() {
 
   const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v8') || '[]');
   const isLoading = bank.length <= 100;
-  const genStatus = isLoading
+  let genStatus = isLoading
     ? `<div id="vocabLoadStatus" style="font-size:12px;color:var(--purple);margin-top:4px">⟳ Loading vocabulary bank from cloud…</div>`
     : `<div style="font-size:11px;color:var(--green);margin-top:4px">✓ ${bank.length} words loaded</div>`;
 
+  {
+    const srsAll = state._vocab2 || {};
+    const reached = Math.max(0, ...vocabBank.filter(w => srsAll[w.id] && (w.rank ?? 9999) < 9000).map(w => w.rank || 0));
+    const cur = state._vocab_minRank || 0;
+    const opts = [[0,'the start (most common)'],[500,'word #500'],[1000,'#1,000'],[1500,'#1,500'],[2000,'#2,000'],[3000,'#3,000'],[4000,'#4,000'],[5000,'#5,000']];
+    genStatus += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;font-size:11px;color:var(--text3)">
+      New bank words from
+      <select onchange="state._vocab_minRank=+this.value;saveState(state);vocabState.cardIndex=0;vocabState.revealed=false;renderContent()"
+        style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);border-radius:6px;font-size:11px;padding:2px 6px">
+        ${opts.map(([v,l]) => `<option value="${v}" ${cur===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+      ${reached ? `<span>· you've reached ~#${reached.toLocaleString()}</span>` : ''}
+      <span>· 🎙 ${getMinedWords().length} from Parler</span>
+    </div>`;
+  }
   const statsRow = `<div class="stats-row" style="margin-bottom:1rem">
     <div class="stat-card"><div class="stat-lbl">Bank size</div><div class="stat-val">${stats.total}</div><div class="stat-sub">words total</div></div>
     <div class="stat-card"><div class="stat-lbl">New today</div><div class="stat-val" style="color:var(--blue)">${stats.newSeenToday}/${NEW_CARDS_PER_DAY}</div><div class="stat-sub">of daily limit</div></div>
@@ -1226,12 +1260,19 @@ function renderVocabHTML() {
     </div>` : ''}
     <div class="card-area" onclick="${rev ? '' : 'revealVocab()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem">
       ${card.isNew ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--blue);background:var(--blue-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin-bottom:8px">NEW</div>` : ''}
-      <div class="card-front french">${card.french}</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px">${card.type || ''}</div>
-      ${!rev ? `<div class="card-sub" style="margin-top:12px">Click to reveal · tap 🔊 to hear</div>` : ''}
+      ${card.category === 'mine' ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--coral);background:var(--coral-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin:0 0 8px 6px">🎙 MES MOTS</div>` : ''}
+      ${card.reverse
+        ? `<div class="card-front" style="font-size:22px">${card.english}</div>
+           <div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${card.type ? ' · ' + card.type : ''}</div>`
+        : `<div class="card-front french">${card.french}</div>
+           <div style="font-size:11px;color:var(--text3);margin-top:4px">${card.type || ''}</div>`}
+      ${!rev ? `<div class="card-sub" style="margin-top:12px">${card.reverse ? 'Say it aloud, then click to check' : 'Click to reveal · tap 🔊 to hear'}</div>` : ''}
       ${rev ? `<div class="card-back">
-        <div class="card-translation">${card.english}</div>
+        ${card.reverse
+          ? `<div class="card-front french" style="margin-bottom:6px">${card.french}</div>`
+          : `<div class="card-translation">${card.english}</div>`}
         ${card.example ? `<div class="card-example">${card.example}</div>` : ''}
+        ${card.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${card.note}</div>` : ''}
         ${(()=>{
           const rp = getRelatedPreps(card);
           if (!rp.length) return '';
@@ -1256,7 +1297,7 @@ function renderVocabHTML() {
     </div>
     <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">
       Interval: ${getVocabSRS(card.id).interval}d · Reviews: ${getVocabSRS(card.id).seen}
-    </div>` : `<div class="btn-row" style="justify-content:center;margin-top:0">
+    </div>` : card.reverse ? '' : `<div class="btn-row" style="justify-content:center;margin-top:0">
       <button class="btn" data-speak="${card.french}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊 Hear it</button>
     </div>`}
     <div style="margin-top:1.5rem">${renderVocabList(stats)}</div>
@@ -1585,7 +1626,7 @@ function rateVocab2(rating) {
   if (!card) return;
 
   // Track new card introduction — store the word ID so we don't re-introduce it tomorrow
-  if (card.isNew) recordNewCardSeen(card.id);
+  if (card.isNew && card.category !== 'mine') recordNewCardSeen(card.id);
 
   const s = getVocabSRS(card.id);
   let { interval, ef, seen } = { interval: s.interval || 1, ef: s.ef || 2.5, seen: s.seen || 0 };
@@ -3812,6 +3853,403 @@ const READING_TOPICS = [
   "a news story about weather","a letter to a friend","a description of a neighbourhood",
   "a story about a family reunion","talking about hobbies","a short travel diary",
 ];
+
+
+// ═══════════════════════════════════════
+// PARLER — speak, record, mine your gaps
+// Speak first, notice where you get stuck, then SRS exactly those words.
+// ═══════════════════════════════════════
+const PARLER_LEVELS = [
+  { id:'libre',    n:1, emoji:'💬', label:'Libre',      en:'Talk freely',              desc:"Read the prompt, start recording and keep talking. Don't stop to look things up — when you get stuck, say it any way you can (even in English) and move on." },
+  { id:'histoire', n:2, emoji:'📖', label:'Histoires',  en:'Stories from your life',   desc:'Tell a true story from your life: passé composé for what happened, imparfait for the background and how things were.' },
+  { id:'resume',   n:3, emoji:'📰', label:'Résumé',     en:'Read, then summarise',     desc:'Read two paragraphs, hide the text, then summarise them aloud in your own words. Repeat to the end.' },
+  { id:'discuss',  n:4, emoji:'🎬', label:'Discussion', en:'Discuss what you watched', desc:'Watch a French video or podcast segment, jot notes below, then talk about it from your notes only.' },
+  { id:'accent',   n:0, emoji:'👄', label:'Accent',     en:'Read aloud for accent',    desc:"Read the passage aloud with your best accent. Tap any word to hear it; play the model after each paragraph, then continue." },
+];
+const PARLER_TOPICS = ['wine and the Burgundy region','food, markets and cooking in France','everyday life in Paris','buying or renting an apartment','building or renovating a house','contemporary art, artists and museums','travel and holidays','technology and business','family and friends','daily routines and habits','life in the countryside vs the city','cars and driving','sport and staying in shape','differences between French and American culture','a recent news story','a favourite film, series or book','a plan for the weekend','investing and starting a company','architecture and design','restaurants and eating out'];
+const PARLER_WATCH_IDEAS = ['A short news report (France Info, France 24, Arte)','An episode of a learner podcast or YouTube channel in French','A scene from a French series or film — French subtitles on','A wine-tasting or cooking video in French'];
+
+let parlerState = { level:'libre', prompt:null, loading:false, error:'', minutes:10, recording:false, startedAt:0, elapsed:0, timeUp:false, recordings:[], chunk:0, hidden:false, notes:'', gapsText:'', gapsLoading:false, gapsResult:null, savedMsg:'' };
+let _parlerRec = null, _parlerStream = null, _parlerChunks = [], _parlerTick = null;
+
+function getMinedWords() { return state._mined || []; }
+function parlerEsc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function parlerFmt(s) { s = Math.max(0, Math.round(s)); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+function parlerLogSecs(secs) {
+  if (!secs) return;
+  if (!state._parler_log) state._parler_log = {};
+  const k = dateKey(new Date());
+  state._parler_log[k] = (state._parler_log[k] || 0) + secs;
+  saveState(state);
+}
+function parlerStats() {
+  const log = state._parler_log || {};
+  let week = 0;
+  for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); week += log[dateKey(d)] || 0; }
+  return { today: Math.round((log[dateKey(new Date())] || 0) / 60), week: Math.round(week / 60) };
+}
+
+async function parlerCallAI(prompt, maxTokens) {
+  let lastErr = '';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(ANTHROPIC_API_URL, {
+        method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:maxTokens || 1500, messages:[{ role:'user', content:prompt }] })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || 'API error');
+      return (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    } catch (e) {
+      lastErr = e.message || String(e);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1200));
+    }
+  }
+  throw new Error(lastErr);
+}
+function parlerParseJSON(text, open, close) {
+  return JSON.parse(text.slice(text.indexOf(open), text.lastIndexOf(close) + 1));
+}
+
+function parlerSetLevel(id) {
+  if (parlerState.recording) return;
+  parlerState = { ...parlerState, level:id, prompt:null, error:'', chunk:0, hidden:false };
+  renderContent();
+}
+
+async function parlerNewPrompt() {
+  const lv = parlerState.level;
+  if (lv === 'discuss') return;
+  parlerState = { ...parlerState, loading:true, error:'', prompt:null, chunk:0, hidden:false };
+  renderContent();
+  const topic = PARLER_TOPICS[Math.floor(Math.random() * PARLER_TOPICS.length)];
+  const recent = (state._parler_prompts || []).slice(-12).join(' | ');
+  let p;
+  if (lv === 'libre' || lv === 'histoire') {
+    p = `You are a French conversation coach for an intermediate (B1–B2) adult learner who wants to speak fluently about real adult topics.
+Create ONE ${lv === 'libre'
+      ? 'open-ended speaking prompt that invites opinions, descriptions, comparisons and explanations'
+      : 'prompt asking the learner to tell a true story from their own life (something that actually happened to them), which naturally requires the passé composé and the imparfait'}.
+Loose theme: "${topic}". It must be personal and easy to keep talking about for 5–10 minutes.
+Do not repeat or closely echo these recent prompts: ${recent || 'none'}.
+Respond ONLY with valid JSON, no markdown:
+{"title_fr":"short title in French","prompt_fr":"the prompt in natural French, addressed with vous, 1–2 sentences","prompt_en":"English translation","ideas":["4 short follow-up questions in French to keep the learner talking"],"useful":[{"fr":"word or expression (nouns with article)","en":"meaning"}]}
+"useful" = 6 words or expressions that this topic needs and that are ABOVE beginner level — the kind of thing an intermediate learner reaches for and can't find. No basic words.`;
+  } else {
+    p = `Write a short ${lv === 'accent' ? 'passage to read aloud for pronunciation practice' : 'magazine-style article for read-and-summarise practice'} in natural, contemporary French for an intermediate (B1–B2) adult learner.
+Topic: "${topic}".
+${lv === 'accent'
+      ? '3 paragraphs of 50–70 words each, with plenty of liaisons, nasal vowels, the French R and the u/ou contrast.'
+      : '4 paragraphs of 60–90 words each, informative and concrete.'}
+Use real-world vocabulary above beginner level. Do not repeat these recent titles: ${recent || 'none'}.
+Respond ONLY with valid JSON, no markdown:
+{"title_fr":"title","paragraphs":["paragraph 1","..."],"useful":[{"fr":"word or expression from the text (nouns with article)","en":"meaning"}]}
+"useful" = 6 key words or expressions from the text that are above beginner level.`;
+  }
+  try {
+    const text = await parlerCallAI(p, 1600);
+    parlerState.prompt = parlerParseJSON(text, '{', '}');
+    state._parler_prompts = [...(state._parler_prompts || []), parlerState.prompt.title_fr].slice(-20);
+    saveState(state);
+  } catch (e) {
+    parlerState.error = "Couldn't get a prompt — " + (e.message || e);
+  }
+  parlerState.loading = false;
+  renderContent();
+}
+
+// ── Recorder ─────────────────────────────────────────────────────
+async function parlerStartRec() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    parlerState.error = "Recording isn't supported in this browser."; renderContent(); return;
+  }
+  try {
+    _parlerStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+  } catch (e) {
+    parlerState.error = 'Microphone access was blocked — allow it for this site in your browser settings, then try again.'; renderContent(); return;
+  }
+  _parlerChunks = [];
+  _parlerRec = new MediaRecorder(_parlerStream);
+  _parlerRec.ondataavailable = e => { if (e.data && e.data.size) _parlerChunks.push(e.data); };
+  _parlerRec.onstop = () => {
+    const type = _parlerRec.mimeType || 'audio/webm';
+    const blob = new Blob(_parlerChunks, { type });
+    const ext = type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm';
+    const lv = PARLER_LEVELS.find(l => l.id === parlerState.level);
+    parlerState.recordings.unshift({ url:URL.createObjectURL(blob), secs:parlerState.elapsed, label:lv ? lv.label : '', title:parlerState.prompt?.title_fr || '', at:Date.now(), ext });
+    if (_parlerStream) _parlerStream.getTracks().forEach(t => t.stop());
+    parlerLogSecs(parlerState.elapsed);
+    renderContent();
+  };
+  _parlerRec.start(1000);
+  parlerState = { ...parlerState, recording:true, startedAt:Date.now(), elapsed:0, error:'', timeUp:false, savedMsg:'' };
+  clearInterval(_parlerTick);
+  _parlerTick = setInterval(parlerTick, 500);
+  renderContent();
+}
+function parlerTick() {
+  parlerState.elapsed = Math.floor((Date.now() - parlerState.startedAt) / 1000);
+  const lim = parlerState.minutes * 60;
+  const el = document.getElementById('parlerClock');
+  if (el) el.textContent = parlerFmt(lim - parlerState.elapsed);
+  const bar = document.getElementById('parlerBar');
+  if (bar) bar.style.width = Math.min(100, parlerState.elapsed / lim * 100) + '%';
+  if (parlerState.elapsed >= lim) parlerStopRec(true);
+}
+function parlerStopRec(timeUp) {
+  clearInterval(_parlerTick);
+  parlerState.recording = false;
+  parlerState.timeUp = !!timeUp;
+  if (timeUp) { try { const a = new (window.AudioContext || window.webkitAudioContext)(); const o = a.createOscillator(); o.frequency.value = 880; o.connect(a.destination); o.start(); o.stop(a.currentTime + 0.25); } catch {} }
+  if (_parlerRec && _parlerRec.state !== 'inactive') _parlerRec.stop(); else renderContent();
+}
+function parlerSetMinutes(m) { if (!parlerState.recording) { parlerState.minutes = m; renderContent(); } }
+
+// ── Gap mining → SRS ─────────────────────────────────────────────
+async function parlerMineGaps() {
+  const ta = document.getElementById('parlerGaps');
+  if (ta) parlerState.gapsText = ta.value;
+  const raw = parlerState.gapsText.trim();
+  if (!raw) return;
+  parlerState = { ...parlerState, gapsLoading:true, gapsResult:null, savedMsg:'', error:'' };
+  renderContent();
+  const p = `You are helping an intermediate (B1–B2) English-speaking learner of French. During a speaking session they got stuck. Below, one per line, is what they wanted to say — in English, franglais, or broken French.
+
+For each line, give the natural French a native speaker would actually say in conversation (not stiff textbook French).
+- If the line is a single word or idea, give the word or expression (nouns WITH their article, e.g. "le permis de construire"; verbs in the infinitive).
+- If it's a whole sentence, give the full natural French sentence.
+- If the line already contains a French attempt, give the corrected version.
+
+Lines:
+${raw}
+
+Respond ONLY with a valid JSON array, no markdown:
+[{"input":"the original line","french":"...","english":"concise English meaning","type":"noun|verb|adjective|adverb|expression|sentence","example":"a short natural French example sentence using it (for full sentences, a useful variation)","note":"max 15 words: gender, register, false friend or structure tip — or empty string"}]`;
+  try {
+    const text = await parlerCallAI(p, 2500);
+    parlerState.gapsResult = parlerParseJSON(text, '[', ']').map(x => ({ ...x, keep:true }));
+  } catch (e) {
+    parlerState.error = "Couldn't translate those — " + (e.message || e);
+  }
+  parlerState.gapsLoading = false;
+  renderContent();
+}
+function parlerAddMined(items, source) {
+  if (!state._mined) state._mined = [];
+  const have = new Set([...state._mined, ...vocabBank].map(w => (w.french || '').toLowerCase().trim()));
+  let added = 0;
+  items.forEach((x, i) => {
+    const fr = (x.french || '').trim();
+    if (!fr || have.has(fr.toLowerCase())) return;
+    have.add(fr.toLowerCase());
+    state._mined.unshift({ id:'mine_' + Date.now() + '_' + i, french:fr, english:x.english || '', type:x.type || '', example:x.example || '', note:x.note || '', category:'mine', reverse:true, rank:0, addedAt:Date.now(), source:source || 'Parler' });
+    myWordsAdd(fr, x.english || '', source || 'Parler');
+    added++;
+  });
+  saveState(state);
+  return added;
+}
+function parlerSaveGaps() {
+  const items = (parlerState.gapsResult || []).filter(x => x.keep);
+  const n = parlerAddMined(items, 'Parler');
+  const skipped = items.length - n;
+  parlerState = { ...parlerState, gapsResult:null, gapsText:'', savedMsg:`✓ ${n} added to your SRS${skipped ? ` (${skipped} already there)` : ''} — they come up first in Vocabulary, English side first.` };
+  renderContent();
+}
+function parlerAddUseful(i, btn) {
+  const u = parlerState.prompt?.useful?.[i];
+  if (!u) return;
+  const n = parlerAddMined([{ french:u.fr, english:u.en, type:'' }], 'Parler prompt');
+  if (btn) { btn.textContent = n ? '✓ Added' : '✓ Already in SRS'; btn.disabled = true; }
+}
+function parlerImportMyWords() {
+  const items = myWordList.filter(w => w.english).map(w => ({ french:w.french, english:w.english, type:'' }));
+  const n = parlerAddMined(items, 'My words');
+  parlerState.savedMsg = `✓ ${n} saved word${n === 1 ? '' : 's'} moved into your SRS.`;
+  renderContent();
+}
+function parlerDeleteMined(id) {
+  state._mined = getMinedWords().filter(w => w.id !== id);
+  if (state._vocab2) delete state._vocab2[id];
+  saveState(state);
+  renderContent();
+}
+function parlerReviewMine() {
+  vocabState = { ...vocabState, theme:'mine', themeView:false, cardIndex:0, revealed:false, filter:'all' };
+  switchTab('vocab');
+}
+
+// ── Render ───────────────────────────────────────────────────────
+function renderParlerPrompt() {
+  const lv = parlerState.level;
+  const box = (inner) => `<div class="day-panel" style="padding:1.1rem 1.2rem;margin-bottom:1rem">${inner}</div>`;
+  if (lv === 'discuss') {
+    return box(`
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Ideas: ${PARLER_WATCH_IDEAS.map(parlerEsc).join(' · ')}</div>
+      <textarea id="parlerNotes" oninput="parlerState.notes=this.value" placeholder="Your notes while watching — key points, names, words you heard…"
+        style="width:100%;min-height:110px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-family:Inter,sans-serif;font-size:13px;box-sizing:border-box;resize:vertical">${parlerEsc(parlerState.notes)}</textarea>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px">When you're ready, record yourself explaining what it was about and what you thought of it.</div>`);
+  }
+  if (parlerState.loading) return box(`<div style="text-align:center;color:var(--purple);font-size:13px;padding:1rem">⟳ Writing your ${lv === 'resume' || lv === 'accent' ? 'text' : 'prompt'}…</div>`);
+  const P = parlerState.prompt;
+  if (!P) return box(`<div style="text-align:center;padding:.5rem">
+      <button class="btn btn-primary" onclick="parlerNewPrompt()">✨ ${lv === 'resume' || lv === 'accent' ? 'Generate a text' : 'Give me a prompt'}</button>
+      ${lv === 'libre' || lv === 'histoire' ? `<div style="font-size:12px;color:var(--text3);margin-top:8px">…or skip it and talk about anything.</div>` : ''}
+    </div>`);
+
+  const useful = (P.useful || []).length ? `<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+      <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">Useful here</div>
+      ${P.useful.map((u, i) => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:13px">
+        <span style="color:var(--blue);font-family:'Playfair Display',serif;font-style:italic;cursor:pointer" onclick="speakFrench(this.textContent)">${parlerEsc(u.fr)}</span>
+        <span style="color:var(--text3)">→</span><span style="color:var(--text2);flex:1">${parlerEsc(u.en)}</span>
+        <button class="btn" style="font-size:10px;padding:2px 8px" onclick="parlerAddUseful(${i},this)">+ SRS</button>
+      </div>`).join('')}
+    </div>` : '';
+  const head = `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+      <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--text)">${parlerEsc(P.title_fr)}</div>
+      <button class="btn" style="font-size:11px;padding:3px 10px" onclick="parlerNewPrompt()" ${parlerState.recording ? 'disabled' : ''}>↻ New</button>
+    </div>`;
+
+  if (lv === 'libre' || lv === 'histoire') {
+    return box(`${head}
+      <div style="font-size:16px;color:var(--text);margin-top:10px;line-height:1.5">${parlerEsc(P.prompt_fr)}
+        <button class="btn" style="font-size:11px;padding:2px 8px;margin-left:4px" data-speak="${parlerEsc(P.prompt_fr)}" onclick="speakFrench(this.dataset.speak)">🔊</button></div>
+      <details style="margin-top:6px"><summary style="font-size:12px;color:var(--text3);cursor:pointer">English</summary><div style="font-size:13px;color:var(--text2);margin-top:4px">${parlerEsc(P.prompt_en)}</div></details>
+      ${(P.ideas || []).length ? `<div style="margin-top:10px;font-size:13px;color:var(--text2);line-height:1.7">${P.ideas.map(q => '→ ' + parlerEsc(q)).join('<br>')}</div>` : ''}
+      ${useful}`);
+  }
+
+  const paras = P.paragraphs || [];
+  if (lv === 'accent') {
+    const wordify = t => parlerEsc(t).split(/(\s+)/).map(tok => /\S/.test(tok)
+      ? `<span class="parler-w" data-w="${tok.replace(/[.,;:!?«»"()…]/g, '')}" onclick="speakFrench(this.dataset.w)">${tok}</span>` : tok).join('');
+    return box(`${head}
+      <div style="font-size:12px;color:var(--text3);margin:6px 0 10px">Tap a word to hear it. After each paragraph, play the model, then carry on reading.</div>
+      ${paras.map((t, i) => `<div style="font-size:17px;line-height:1.75;color:var(--text);margin-bottom:6px">${wordify(t)}</div>
+        <div style="margin-bottom:14px"><button class="btn" style="font-size:11px;padding:3px 10px" data-speak="${parlerEsc(t)}" onclick="speakFrench(this.dataset.speak)">▶ Model ¶${i + 1}</button></div>`).join('')}
+      ${useful}`);
+  }
+
+  // résumé — two paragraphs at a time, hide to summarise
+  const start = parlerState.chunk * 2, part = paras.slice(start, start + 2), more = start + 2 < paras.length;
+  return box(`${head}
+    <div style="font-size:12px;color:var(--text3);margin:6px 0 10px">Paragraphs ${start + 1}–${Math.min(start + 2, paras.length)} of ${paras.length}</div>
+    ${parlerState.hidden
+      ? `<div style="padding:1.5rem;text-align:center;color:var(--text2);font-size:14px;background:var(--surface2);border-radius:var(--radius-sm)">Text hidden — summarise it aloud in your own words.</div>`
+      : part.map(t => `<p style="font-size:15px;line-height:1.7;color:var(--text);margin:0 0 10px">${parlerEsc(t)}</p>`).join('')}
+    <div class="btn-row" style="justify-content:flex-start;margin-top:10px">
+      <button class="btn" onclick="parlerState.hidden=!parlerState.hidden;renderContent()">${parlerState.hidden ? '👁 Show text' : '🙈 Hide & summarise'}</button>
+      ${more ? `<button class="btn" onclick="parlerState.chunk++;parlerState.hidden=false;renderContent()">Next 2 paragraphs →</button>` : `<span style="font-size:12px;color:var(--green);align-self:center">Last section</span>`}
+    </div>
+    ${useful}`);
+}
+
+function renderParlerHTML() {
+  const L = PARLER_LEVELS.find(l => l.id === parlerState.level) || PARLER_LEVELS[0];
+  const st = parlerStats();
+  const mined = getMinedWords();
+  const srs = state._vocab2 || {}, now = Date.now();
+  const minedDue = mined.filter(w => !srs[w.id] || srs[w.id].due <= now).length;
+  const lim = parlerState.minutes * 60;
+
+  const levelTabs = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-bottom:.75rem">
+    ${PARLER_LEVELS.map(l => { const a = l.id === parlerState.level; return `<button onclick="parlerSetLevel('${l.id}')"
+      style="text-align:left;padding:10px 12px;border-radius:var(--radius-sm);border:1.5px solid ${a ? 'var(--green)' : 'var(--border)'};background:${a ? 'var(--green-dim)' : 'var(--surface2)'};color:var(--text);cursor:pointer;font-family:Inter,sans-serif;opacity:${parlerState.recording && !a ? '.5' : '1'}">
+      <div style="font-size:18px">${l.emoji}</div>
+      <div style="font-size:13px;font-weight:600;margin-top:4px">${l.n ? l.n + ' · ' : ''}${l.label}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">${l.en}</div></button>`; }).join('')}
+  </div>
+  <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.5">${L.desc}</div>`;
+
+  const minuteBtns = [5, 10, 15, 30].map(m => `<button onclick="parlerSetMinutes(${m})" style="padding:5px 12px;border-radius:16px;font-size:12px;font-family:Inter,sans-serif;cursor:pointer;
+      border:1px solid ${parlerState.minutes === m ? 'var(--green)' : 'var(--border)'};background:${parlerState.minutes === m ? 'var(--green-dim)' : 'transparent'};color:${parlerState.minutes === m ? 'var(--green)' : 'var(--text3)'}">${m} min</button>`).join('');
+
+  const recorder = `<div class="day-panel" style="padding:1.1rem 1.2rem;margin-bottom:1rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${minuteBtns}</div>
+      <div id="parlerClock" style="font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;color:${parlerState.recording ? 'var(--coral)' : 'var(--text2)'}">${parlerFmt(parlerState.recording ? lim - parlerState.elapsed : lim)}</div>
+    </div>
+    <div style="margin-top:10px;background:var(--surface2);border-radius:4px;overflow:hidden;height:5px">
+      <div id="parlerBar" style="height:100%;background:var(--coral);width:${parlerState.recording ? Math.min(100, parlerState.elapsed / lim * 100) : 0}%;transition:width .5s linear"></div>
+    </div>
+    <div style="text-align:center;margin-top:14px">
+      ${parlerState.recording
+        ? `<button class="btn" style="background:var(--coral-dim);border-color:var(--coral);color:var(--coral);font-size:14px;padding:10px 22px" onclick="parlerStopRec(false)">■ Stop</button>
+           <div style="font-size:12px;color:var(--text3);margin-top:8px"><span class="parler-dot"></span>Recording — keep talking. Stuck? Say it any way you can and keep going.</div>`
+        : `<button class="btn btn-primary" style="font-size:14px;padding:10px 22px" onclick="parlerStartRec()">● Start speaking</button>
+           ${parlerState.timeUp ? `<div style="font-size:12px;color:var(--green);margin-top:8px">⏱ Time! Listen back below and note where you got stuck.</div>` : ''}`}
+    </div>
+    ${parlerState.error ? `<div style="font-size:12px;color:var(--coral);margin-top:10px;text-align:center">${parlerEsc(parlerState.error)}</div>` : ''}
+    ${parlerState.recordings.length ? `<div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+      <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">Listen back (this session only — download to keep)</div>
+      ${parlerState.recordings.map(r => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <audio controls src="${r.url}" style="height:34px;flex:1;min-width:200px"></audio>
+        <span style="font-size:11px;color:var(--text3)">${parlerFmt(r.secs)} · ${parlerEsc(r.label)}${r.title ? ' · ' + parlerEsc(r.title) : ''}</span>
+        <a href="${r.url}" download="parler-${dateKey(new Date(r.at))}-${new Date(r.at).getHours()}h${String(new Date(r.at).getMinutes()).padStart(2,'0')}.${r.ext}" style="font-size:11px;color:var(--blue)">⬇</a>
+      </div>`).join('')}
+    </div>` : ''}
+  </div>`;
+
+  const gaps = `<div class="day-panel" style="padding:1.1rem 1.2rem;margin-bottom:1rem">
+    <div style="font-size:15px;font-weight:600;color:var(--text)">Où j'ai bloqué</div>
+    <div style="font-size:12px;color:var(--text3);margin:3px 0 10px">Listening back, write one thing per line that you couldn't say — a word, an idea, or the whole sentence. English, franglais or broken French all work.</div>
+    <textarea id="parlerGaps" oninput="parlerState.gapsText=this.value" placeholder="the tannins are really soft&#10;building permit&#10;I was going to say that we ended up changing the plan&#10;je suis habitué à…?"
+      style="width:100%;min-height:110px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-family:Inter,sans-serif;font-size:13px;box-sizing:border-box;resize:vertical">${parlerEsc(parlerState.gapsText)}</textarea>
+    <div class="btn-row" style="justify-content:flex-start;margin-top:8px">
+      <button class="btn btn-primary" onclick="parlerMineGaps()" ${parlerState.gapsLoading ? 'disabled' : ''}>${parlerState.gapsLoading ? '⟳ Translating…' : 'Translate →'}</button>
+    </div>
+    ${parlerState.gapsResult ? `<div style="margin-top:12px">
+      ${parlerState.gapsResult.map((g, i) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border);cursor:pointer">
+        <input type="checkbox" ${g.keep ? 'checked' : ''} onchange="parlerState.gapsResult[${i}].keep=this.checked" style="margin-top:4px">
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text3)">${parlerEsc(g.input)}</div>
+          <div style="font-size:15px;color:var(--blue);font-family:'Playfair Display',serif;font-style:italic;margin-top:2px">${parlerEsc(g.french)}
+            <span style="cursor:pointer;font-style:normal;font-size:12px" data-speak="${parlerEsc(g.french)}" onclick="event.preventDefault();speakFrench(this.dataset.speak)">🔊</span></div>
+          <div style="font-size:12px;color:var(--text2)">${parlerEsc(g.english)}${g.type ? ` <span style="color:var(--text3)">· ${parlerEsc(g.type)}</span>` : ''}</div>
+          ${g.example ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:2px">${parlerEsc(g.example)}</div>` : ''}
+          ${g.note ? `<div style="font-size:11px;color:var(--amber);margin-top:2px">${parlerEsc(g.note)}</div>` : ''}
+        </div></label>`).join('')}
+      <div class="btn-row" style="justify-content:flex-start;margin-top:8px">
+        <button class="btn btn-good" onclick="parlerSaveGaps()">Add checked to my SRS</button>
+        <button class="btn" onclick="parlerState.gapsResult=null;renderContent()">Discard</button>
+      </div>
+    </div>` : ''}
+    ${parlerState.savedMsg ? `<div style="font-size:12px;color:var(--green);margin-top:10px">${parlerEsc(parlerState.savedMsg)}</div>` : ''}
+  </div>`;
+
+  const importable = myWordList.filter(w => w.english && !mined.some(m => m.french.toLowerCase() === w.french.toLowerCase())).length;
+  const mine = `<div class="day-panel" style="padding:1.1rem 1.2rem;margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div><div style="font-size:15px;font-weight:600;color:var(--text)">🎙 Mes mots</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:2px">${mined.length} words you needed · ${minedDue} to review now</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${importable ? `<button class="btn" style="font-size:11px;padding:4px 10px" onclick="parlerImportMyWords()" title="Copy words saved elsewhere in the app into this SRS deck">+ ${importable} from my saved words</button>` : ''}
+        ${mined.length ? `<button class="btn btn-primary" style="font-size:12px" onclick="parlerReviewMine()">Review →</button>` : ''}
+      </div>
+    </div>
+    ${mined.length ? `<div style="margin-top:10px;max-height:240px;overflow:auto">
+      ${mined.slice(0, 60).map(w => `<div style="display:flex;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--border);font-size:13px">
+        <span style="color:var(--blue);font-family:'Playfair Display',serif;font-style:italic">${parlerEsc(w.french)}</span>
+        <span style="color:var(--text2);flex:1">${parlerEsc(w.english)}</span>
+        <span style="font-size:10px;color:var(--text3)">${srs[w.id] ? srs[w.id].interval + 'd' : 'new'}</span>
+        <button onclick="parlerDeleteMined('${w.id}')" title="Remove" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px">✕</button>
+      </div>`).join('')}
+    </div>` : `<div style="font-size:12px;color:var(--text3);margin-top:8px">Words you add from your sessions land here and go straight into your Vocabulary SRS — ahead of the general word bank, and outside the 20-new-a-day cap.</div>`}
+  </div>`;
+
+  return `<div class="practice-screen">
+    <div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <div><div class="ps-title">Parler</div>
+        <div class="ps-sub">Speak → listen back → note where you got stuck → SRS those words</div></div>
+      <div style="font-size:12px;color:var(--text3)">Today <strong style="color:var(--green)">${st.today} min</strong> · 7 days <strong style="color:var(--text2)">${st.week} min</strong></div>
+    </div>
+    ${levelTabs}
+    ${renderParlerPrompt()}
+    ${recorder}
+    ${gaps}
+    ${mine}
+  </div>`;
+}
 
 async function generateReading() {
 
