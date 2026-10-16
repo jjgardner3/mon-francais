@@ -3869,7 +3869,7 @@ const PARLER_LEVELS = [
 const PARLER_TOPICS = ['wine and the Burgundy region','food, markets and cooking in France','everyday life in Paris','buying or renting an apartment','building or renovating a house','contemporary art, artists and museums','travel and holidays','technology and business','family and friends','daily routines and habits','life in the countryside vs the city','cars and driving','sport and staying in shape','differences between French and American culture','a recent news story','a favourite film, series or book','a plan for the weekend','investing and starting a company','architecture and design','restaurants and eating out'];
 const PARLER_WATCH_IDEAS = ['A short news report (France Info, France 24, Arte)','An episode of a learner podcast or YouTube channel in French','A scene from a French series or film — French subtitles on','A wine-tasting or cooking video in French'];
 
-let parlerState = { level:'libre', prompt:null, loading:false, error:'', minutes:10, recording:false, startedAt:0, elapsed:0, timeUp:false, recordings:[], chunk:0, hidden:false, notes:'', gapsText:'', gapsLoading:false, gapsResult:null, savedMsg:'' };
+let parlerState = { level:'libre', prompt:null, loading:false, error:'', minutes:10, recording:false, startedAt:0, elapsed:0, timeUp:false, recordings:[], chunk:0, hidden:false, notes:'', gapsText:'', gapsLoading:false, gapsResult:null, savedMsg:'', review:null };
 let _parlerRec = null, _parlerStream = null, _parlerChunks = [], _parlerTick = null;
 
 function getMinedWords() { return state._mined || []; }
@@ -3976,7 +3976,7 @@ async function parlerStartRec() {
     const blob = new Blob(_parlerChunks, { type });
     const ext = type.includes('mp4') ? 'm4a' : type.includes('ogg') ? 'ogg' : 'webm';
     const lv = PARLER_LEVELS.find(l => l.id === parlerState.level);
-    parlerState.recordings.unshift({ url:URL.createObjectURL(blob), secs:parlerState.elapsed, label:lv ? lv.label : '', title:parlerState.prompt?.title_fr || '', at:Date.now(), ext });
+    parlerState.recordings.unshift({ id:'rec_' + Date.now(), url:URL.createObjectURL(blob), blob, secs:parlerState.elapsed, label:lv ? lv.label : '', title:parlerState.prompt?.title_fr || '', prompt:parlerState.prompt?.prompt_fr || parlerState.prompt?.title_fr || '', at:Date.now(), ext });
     if (_parlerStream) _parlerStream.getTracks().forEach(t => t.stop());
     parlerLogSecs(parlerState.elapsed);
     renderContent();
@@ -4074,6 +4074,299 @@ function parlerDeleteMined(id) {
   saveState(state);
   renderContent();
 }
+// ── Corriger: transcribe a recording, then line-by-line corrections ──
+// Audio is decoded in the browser, cut into ~1-minute WAV pieces at quiet
+// points (keeps each upload small), transcribed by OpenAI whisper-1 via
+// /transcribe, then corrected by Claude via the streaming proxy.
+const PARLER_STT_URL = '/.netlify/functions/transcribe';
+const PARLER_STREAM_URL = '/.netlify/functions/claude-stream';
+const PARLER_STT_PROMPT = "Transcription mot à mot d'un apprenant américain qui parle français, avec ses fautes, ses hésitations et quelques mots en anglais. Euh… alors, hier je suis allé au marché et, um, j'ai acheté des… how do you say… des poireaux. Le prix était trop cher, mais c'était bon.";
+const PARLER_HALLUCINATIONS = /(sous-titr[^.!?]*amara\.org[^.!?]*[.!?]?|sous-titrage[^.!?]*[.!?]?|merci d'avoir regardé[^.!?]*[.!?]?|abonnez-vous[^.!?]*[.!?]?)/gi;
+
+function parlerRenderReview() {
+  if (activeTab !== 'parler') return;
+  const el = document.getElementById('parlerReview');
+  if (el) el.outerHTML = renderParlerReview(); else renderContent();
+}
+function parlerReviewStatus(msg) {
+  if (!parlerState.review) return;
+  parlerState.review.status = msg;
+  const el = document.getElementById('parlerRevStatus');
+  if (el) el.textContent = msg; else parlerRenderReview();
+}
+async function parlerPool(tasks, n) {
+  let i = 0;
+  const run = async () => { while (i < tasks.length) { const t = tasks[i++]; await t(); } };
+  await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, run));
+}
+
+async function parlerDecode(blob) {
+  const buf = await blob.arrayBuffer();
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  let ctx;
+  try { ctx = new Ctx({ sampleRate:16000 }); } catch { ctx = new Ctx(); }
+  try {
+    const audio = await new Promise((res, rej) => { const p = ctx.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+    const n = audio.length, ch = audio.numberOfChannels;
+    let data = new Float32Array(audio.getChannelData(0));
+    for (let c = 1; c < ch; c++) { const d = audio.getChannelData(c); for (let i = 0; i < n; i++) data[i] += d[i]; }
+    if (ch > 1) for (let i = 0; i < n; i++) data[i] /= ch;
+    let rate = audio.sampleRate;
+    if (rate > 16000) {
+      const r = rate / 16000, m = Math.floor(n / r), o = new Float32Array(m);
+      for (let i = 0; i < m; i++) { const s = Math.floor(i * r), e = Math.min(n, Math.floor((i + 1) * r)); let sum = 0; for (let j = s; j < e; j++) sum += data[j]; o[i] = sum / Math.max(1, e - s); }
+      data = o; rate = 16000;
+    }
+    return { data, rate };
+  } finally { try { ctx.close(); } catch {} }
+}
+function parlerSplit(data, rate) {
+  const target = 60 * rate, win = 6 * rate, frame = Math.round(0.1 * rate), out = [];
+  let start = 0;
+  while (data.length - start > target + 10 * rate) {
+    let best = start + target, bestE = Infinity;
+    for (let p = start + target - win; p < start + target + win; p += frame) {
+      let e = 0; for (let i = p; i < p + frame; i++) e += data[i] * data[i];
+      if (e < bestE) { bestE = e; best = p + (frame >> 1); }
+    }
+    out.push(data.subarray(start, best)); start = best;
+  }
+  out.push(data.subarray(start));
+  return out;
+}
+function parlerRms(d) { let s = 0, k = 0; for (let i = 0; i < d.length; i += 4) { s += d[i] * d[i]; k++; } return Math.sqrt(s / Math.max(1, k)); }
+function parlerWavB64(d, rate) {
+  const n = d.length, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0,'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8,'WAVE'); w(12,'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36,'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) { const s = Math.max(-1, Math.min(1, d[i])); v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true); }
+  const bytes = new Uint8Array(buf); let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+async function parlerTranscribeChunk(b64) {
+  let last = '';
+  for (let a = 1; a <= 2; a++) {
+    try {
+      const res = await fetch(PARLER_STT_URL, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ audio:b64, mime:'audio/wav', prompt:PARLER_STT_PROMPT }) });
+      const data = await res.json().catch(() => ({ error:{ message:'HTTP ' + res.status } }));
+      if (!res.ok || data.error) throw new Error(data.error?.message || 'HTTP ' + res.status);
+      return (data.text || '').replace(PARLER_HALLUCINATIONS, '').trim();
+    } catch (e) {
+      last = e.message || String(e);
+      if (/OPENAI_API_KEY|api key/i.test(last)) break;
+      if (a < 2) await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  throw new Error(last);
+}
+async function parlerStreamAI(prompt, maxTokens) {
+  let lastErr = '';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(PARLER_STREAM_URL, { method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:maxTokens || 3000, messages:[{ role:'user', content:prompt }] }) });
+      if (!res.ok || !res.body) { const d = await res.json().catch(() => ({})); throw new Error(d.error?.message || 'HTTP ' + res.status); }
+      const reader = res.body.getReader(), dec = new TextDecoder();
+      let buf = '', text = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+          if (!line.startsWith('data:')) continue;
+          let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
+          if (ev.type === 'content_block_delta' && ev.delta?.text) text += ev.delta.text;
+          else if (ev.type === 'error') throw new Error(ev.error?.message || 'Stream error');
+        }
+      }
+      return text.replace(/```json|```/g, '').trim();
+    } catch (e) {
+      lastErr = e.message || String(e);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1200));
+    }
+  }
+  throw new Error(lastErr);
+}
+function parlerSegments(text, maxWords) {
+  const sents = text.split(/(?<=[.!?…])\s+/), out = [];
+  let cur = [], words = 0;
+  sents.forEach(s => {
+    const w = s.split(/\s+/).length;
+    if (words && words + w > maxWords) { out.push(cur.join(' ')); cur = []; words = 0; }
+    cur.push(s); words += w;
+  });
+  if (cur.length) out.push(cur.join(' '));
+  return out;
+}
+
+async function parlerAnalyze(id) {
+  const r = parlerState.recordings.find(x => x.id === id);
+  if (!r || !r.blob || parlerState.review?.busy) return;
+  parlerState.review = { busy:true, status:'Preparing the audio…', title:r.title || r.label || '', prompt:r.prompt || '', at:r.at, transcript:'', corrections:[], stuck:[], good:[], focus:[], overall:'', error:'' };
+  parlerRenderReview();
+  try {
+    const { data, rate } = await parlerDecode(r.blob);
+    const pieces = parlerSplit(data, rate), texts = new Array(pieces.length).fill('');
+    let done = 0;
+    const mins = Math.max(1, Math.round(data.length / rate / 60));
+    parlerReviewStatus(`Listening to ${mins} minute${mins > 1 ? 's' : ''} of French… 0/${pieces.length}`);
+    await parlerPool(pieces.map((p, i) => async () => {
+      if (parlerRms(p) >= 0.003) texts[i] = await parlerTranscribeChunk(parlerWavB64(p, rate));
+      done++; parlerReviewStatus(`Listening to ${mins} minute${mins > 1 ? 's' : ''} of French… ${done}/${pieces.length}`);
+    }), 3);
+    const transcript = texts.filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    if (!transcript) throw new Error('No speech found in that recording.');
+    parlerState.review.transcript = transcript;
+    await parlerCorrect();
+  } catch (e) {
+    let msg = e.message || String(e);
+    if (/OPENAI_API_KEY/.test(msg)) msg = 'The OpenAI key isn’t set up yet — add OPENAI_API_KEY in Netlify (Site configuration → Environment variables), then redeploy.';
+    else if (/decod|EncodingError|Unable to decode/i.test(msg)) msg = 'Couldn’t read that audio file — try a recording made here, or an .m4a/.mp3/.webm file.';
+    parlerState.review = { ...parlerState.review, busy:false, status:'', error:msg };
+    parlerRenderReview();
+  }
+}
+
+async function parlerCorrect(fromEdit) {
+  const R = parlerState.review;
+  if (!R || !R.transcript) return;
+  if (fromEdit) { const ta = document.getElementById('parlerTranscript'); if (ta) R.transcript = ta.value.trim(); }
+  Object.assign(R, { busy:true, error:'', corrections:[], stuck:[], good:[], focus:[], overall:'' });
+  const segs = parlerSegments(R.transcript, 170), results = new Array(segs.length).fill(null);
+  let done = 0;
+  R.status = `Correcting… 0/${segs.length} part${segs.length > 1 ? 's' : ''}`;
+  parlerRenderReview();
+  const topic = R.prompt ? ` They were answering this prompt: "${R.prompt}".` : '';
+  const merge = () => {
+    const ok = results.filter(Boolean);
+    R.corrections = ok.flatMap(x => x.corrections || []);
+    R.stuck = ok.flatMap(x => x.stuck || []);
+    R.good = ok.flatMap(x => x.good || []).filter(Boolean).slice(0, 6);
+  };
+  try {
+    await parlerPool(segs.map((seg, k) => async () => {
+      const p = `You are an expert, encouraging French tutor. Below is an automatic transcript of an intermediate (B1–B2) American adult speaking French aloud.${topic}${segs.length > 1 ? ` This is part ${k + 1} of ${segs.length}.` : ''}
+The transcript is verbatim: it keeps their mistakes, hesitations (euh, um) and any English they used when stuck. Speech-to-text can also mis-hear words.
+
+Go through it in order and find every place where a native speaker would say it differently:
+- grammar: agreement, gender, tense or mood choice, prepositions, articles, pronouns, word order, negation
+- vocabulary, anglicisms and false friends
+- phrasing that is understandable but not how a French person would put it
+Skip pure hesitations, false starts the speaker fixed themselves, and tiny style preferences. Relaxed spoken French (on, dropping "ne") is fine — don't correct it.
+If something looks like the speech-to-text mis-hearing a correct phrase rather than the speaker's own mistake (a sound-alike word that makes no sense), set "misheard": true — it may point to a pronunciation issue.
+Wherever the speaker switched to English or was clearly searching for a word, add an entry to "stuck".
+
+Transcript:
+"""${seg}"""
+
+Respond ONLY with valid JSON, no markdown:
+{"corrections":[{"said":"the exact words from the transcript — a short excerpt, just enough for context","better":"how a native speaker would say it","english":"English meaning of the corrected version","why":"one short explanation in English, max 20 words","kind":"grammar|vocab|gender|agreement|tense|preposition|word order|anglicism|phrasing","misheard":false}],"stuck":[{"input":"what they said or tried (incl. English)","french":"natural French (nouns with article, verbs in the infinitive)","english":"meaning","type":"noun|verb|adjective|adverb|expression|sentence","example":"short natural French example sentence","note":"max 15 words, or empty"}],"good":["up to 2 exact phrases from this part they said well, or none"]}`;
+      const text = await parlerStreamAI(p, 4000);
+      results[k] = parlerParseJSON(text, '{', '}');
+      done++; merge();
+      R.status = `Correcting… ${done}/${segs.length} part${segs.length > 1 ? 's' : ''}`;
+      parlerRenderReview();
+    }), 3);
+
+    if (R.corrections.length) {
+      R.status = 'Picking out what to focus on…'; parlerReviewStatus(R.status);
+      try {
+        const list = R.corrections.slice(0, 60).map(c => `- [${c.kind}] "${c.said}" → "${c.better}"`).join('\n');
+        const t = await parlerStreamAI(`An intermediate learner of French just spoke for a few minutes. Here are the corrections a tutor made:\n${list}\n\nIdentify the 3 most useful patterns to work on (recurring or high-impact), and write a short, honest, encouraging overall comment.\nRespond ONLY with valid JSON, no markdown:\n{"overall":"2 sentences in English","focus":[{"title":"short name of the pattern","detail":"1–2 sentences in English with a correct French example"}]}`, 900);
+        const s = parlerParseJSON(t, '{', '}');
+        R.overall = s.overall || ''; R.focus = s.focus || [];
+      } catch {}
+    }
+
+    // Words they reached for go into "Où j'ai bloqué" for review → SRS
+    if (R.stuck.length) {
+      const have = new Set((parlerState.gapsResult || []).map(g => (g.french || '').toLowerCase()));
+      const add = R.stuck.filter(g => g.french && !have.has(g.french.toLowerCase())).map(g => ({ ...g, keep:true }));
+      parlerState.gapsResult = [...(parlerState.gapsResult || []), ...add];
+    }
+    R.busy = false; R.status = '';
+    state._parler_reviews = [{ at:R.at || Date.now(), title:R.title, prompt:R.prompt, transcript:R.transcript, corrections:R.corrections, stuck:R.stuck, good:R.good, focus:R.focus, overall:R.overall },
+      ...(state._parler_reviews || []).filter(x => x.at !== R.at)].slice(0, 8);
+    saveState(state);
+    renderContent();
+  } catch (e) {
+    merge();
+    R.busy = false; R.status = ''; R.error = 'Corrections stopped part-way — ' + (e.message || e) + '. Use “Re-correct” to try again.';
+    parlerRenderReview();
+  }
+}
+function parlerOpenReview(i) {
+  const r = (state._parler_reviews || [])[i];
+  if (r) { parlerState.review = { ...r, busy:false, status:'', error:'' }; parlerRenderReview(); }
+}
+function parlerCloseReview() { parlerState.review = null; parlerRenderReview(); }
+function parlerAddCorrection(i, btn) {
+  const c = parlerState.review?.corrections?.[i];
+  if (!c) return;
+  const n = parlerAddMined([{ french:c.better, english:c.english || '', type:'sentence', note:c.why || '' }], 'Parler correction');
+  if (btn) { btn.textContent = n ? '✓ Added' : '✓ In SRS'; btn.disabled = true; }
+}
+function parlerLoadFile(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const ext = (f.name.split('.').pop() || 'webm').toLowerCase();
+  parlerState.recordings.unshift({ id:'rec_' + Date.now(), url:URL.createObjectURL(f), blob:f, secs:0, label:'File', title:f.name, prompt:'', at:f.lastModified || Date.now(), ext });
+  input.value = '';
+  renderContent();
+}
+
+function renderParlerReview() {
+  const R = parlerState.review;
+  const past = state._parler_reviews || [];
+  if (!R) {
+    if (!past.length) return '<div id="parlerReview"></div>';
+    return `<div id="parlerReview" class="day-panel" style="padding:.9rem 1.2rem;margin-bottom:1rem">
+      <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">Past corrections</div>
+      ${past.map((p, i) => `<button class="btn" style="font-size:11px;padding:3px 10px;margin:0 6px 6px 0" onclick="parlerOpenReview(${i})">${new Date(p.at).toLocaleDateString('fr-FR', { day:'numeric', month:'short' })} · ${parlerEsc((p.title || 'Parler').slice(0, 40))} · ${p.corrections.length} ✎</button>`).join('')}
+    </div>`;
+  }
+  const kindColor = { grammar:'var(--purple)', agreement:'var(--purple)', gender:'var(--purple)', tense:'var(--purple)', preposition:'var(--purple)', 'word order':'var(--purple)', vocab:'var(--blue)', anglicism:'var(--amber)', phrasing:'var(--text3)' };
+  const focus = (R.focus || []).length || R.overall ? `<div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;margin:12px 0">
+      ${R.overall ? `<div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:${(R.focus || []).length ? '10px' : '0'}">${parlerEsc(R.overall)}</div>` : ''}
+      ${(R.focus || []).map((f, i) => `<div style="font-size:13px;margin-top:6px;line-height:1.5"><strong style="color:var(--green)">${i + 1}. ${parlerEsc(f.title)}</strong> <span style="color:var(--text2)">— ${parlerEsc(f.detail)}</span></div>`).join('')}
+    </div>` : '';
+  const list = (R.corrections || []).map((c, i) => `<div style="padding:10px 0;border-top:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+        <div style="font-size:13px;color:var(--coral)"><span style="font-size:10px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase">You said</span> ${parlerEsc(c.said)}</div>
+        <span style="font-size:10px;color:${kindColor[c.kind] || 'var(--text3)'};white-space:nowrap">${parlerEsc(c.kind || '')}</span>
+      </div>
+      <div style="font-size:16px;color:var(--green);font-family:'Playfair Display',serif;font-style:italic;margin-top:3px">${parlerEsc(c.better)}
+        <span style="cursor:pointer;font-style:normal;font-size:12px" data-speak="${parlerEsc(c.better)}" onclick="speakFrench(this.dataset.speak)">🔊</span></div>
+      ${c.english ? `<div style="font-size:12px;color:var(--text3)">${parlerEsc(c.english)}</div>` : ''}
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-top:3px">
+        <div style="font-size:12px;color:var(--text2);line-height:1.45">${parlerEsc(c.why)}${c.misheard ? ` <span style="color:var(--amber)">· The transcriber may have mis-heard this — worth checking your pronunciation.</span>` : ''}</div>
+        <button class="btn" style="font-size:10px;padding:2px 8px;white-space:nowrap" onclick="parlerAddCorrection(${i},this)">+ SRS</button>
+      </div></div>`).join('');
+  const good = (R.good || []).length ? `<div style="margin-top:10px;font-size:12px;color:var(--text3)">Bien dit : ${R.good.map(g => `<span style="color:var(--green);font-style:italic">« ${parlerEsc(g)} »</span>`).join(' · ')}</div>` : '';
+  const stuckNote = !R.busy && (R.stuck || []).length ? `<div style="font-size:12px;color:var(--blue);margin-top:10px">↓ ${R.stuck.length} word${R.stuck.length > 1 ? 's' : ''} you reached for ${R.stuck.length > 1 ? 'are' : 'is'} waiting in “Où j'ai bloqué” below — tick and add to your SRS.</div>` : '';
+  return `<div id="parlerReview" class="day-panel" style="padding:1.1rem 1.2rem;margin-bottom:1rem">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+      <div><div style="font-size:15px;font-weight:600;color:var(--text)">✍️ Corrections${(R.corrections || []).length ? ` <span style="font-weight:400;color:var(--text3);font-size:12px">· ${R.corrections.length}</span>` : ''}</div>
+        ${R.title ? `<div style="font-size:12px;color:var(--text3);margin-top:2px">${parlerEsc(R.title)}</div>` : ''}</div>
+      ${R.busy ? '' : `<button onclick="parlerCloseReview()" title="Close" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px">✕</button>`}
+    </div>
+    ${R.busy ? `<div style="font-size:13px;color:var(--purple);margin-top:10px">⟳ <span id="parlerRevStatus">${parlerEsc(R.status)}</span></div>` : ''}
+    ${R.error ? `<div style="font-size:12px;color:var(--coral);margin-top:10px">${parlerEsc(R.error)}</div>` : ''}
+    ${focus}
+    ${list ? `<div style="margin-top:8px">${list}</div>` : (!R.busy && R.transcript && !R.error ? `<div style="font-size:13px;color:var(--green);margin-top:10px">Nothing to correct — très bien !</div>` : '')}
+    ${good}
+    ${stuckNote}
+    ${R.transcript ? `<details style="margin-top:12px"><summary style="font-size:12px;color:var(--text3);cursor:pointer">Transcript — fix anything the transcriber mis-heard, then re-correct</summary>
+      <textarea id="parlerTranscript" style="width:100%;min-height:140px;margin-top:8px;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-family:Inter,sans-serif;font-size:13px;line-height:1.5;box-sizing:border-box;resize:vertical">${parlerEsc(R.transcript)}</textarea>
+      <div class="btn-row" style="justify-content:flex-start;margin-top:6px"><button class="btn" onclick="parlerCorrect(true)" ${R.busy ? 'disabled' : ''}>↻ Re-correct</button></div>
+    </details>` : ''}
+  </div>`;
+}
+
 function parlerReviewMine() {
   vocabState = { ...vocabState, theme:'mine', themeView:false, cardIndex:0, revealed:false, filter:'all' };
   switchTab('vocab');
@@ -4184,10 +4477,13 @@ function renderParlerHTML() {
       <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">Listen back (this session only — download to keep)</div>
       ${parlerState.recordings.map(r => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
         <audio controls src="${r.url}" style="height:34px;flex:1;min-width:200px"></audio>
-        <span style="font-size:11px;color:var(--text3)">${parlerFmt(r.secs)} · ${parlerEsc(r.label)}${r.title ? ' · ' + parlerEsc(r.title) : ''}</span>
-        <a href="${r.url}" download="parler-${dateKey(new Date(r.at))}-${new Date(r.at).getHours()}h${String(new Date(r.at).getMinutes()).padStart(2,'0')}.${r.ext}" style="font-size:11px;color:var(--blue)">⬇</a>
+        <span style="font-size:11px;color:var(--text3)">${r.secs ? parlerFmt(r.secs) + ' · ' : ''}${parlerEsc(r.label)}${r.title ? ' · ' + parlerEsc(r.title) : ''}</span>
+        ${r.label === 'File' ? '' : `<a href="${r.url}" download="parler-${dateKey(new Date(r.at))}-${new Date(r.at).getHours()}h${String(new Date(r.at).getMinutes()).padStart(2,'0')}.${r.ext}" style="font-size:11px;color:var(--blue)" title="Download">⬇</a>`}
+        ${r.blob ? `<button class="btn btn-primary" style="font-size:11px;padding:4px 10px" onclick="parlerAnalyze('${r.id}')" ${parlerState.review?.busy || parlerState.recording ? 'disabled' : ''} title="Transcribe this recording and get corrections">✍️ Corriger</button>` : ''}
       </div>`).join('')}
     </div>` : ''}
+    ${parlerState.recording ? '' : `<div style="margin-top:10px;text-align:center"><label style="font-size:11px;color:var(--text3);cursor:pointer">📂 Or load a saved recording to correct
+      <input type="file" accept="audio/*,video/webm,.webm,.m4a,.mp3,.wav,.ogg" style="display:none" onchange="parlerLoadFile(this)"></label></div>`}
   </div>`;
 
   const gaps = `<div class="day-panel" style="padding:1.1rem 1.2rem;margin-bottom:1rem">
@@ -4246,6 +4542,7 @@ function renderParlerHTML() {
     ${levelTabs}
     ${renderParlerPrompt()}
     ${recorder}
+    ${renderParlerReview()}
     ${gaps}
     ${mine}
   </div>`;
