@@ -1066,7 +1066,7 @@ function vocabMaybeGenerate() {
 }
 
 // ── SRS helpers ─────────────────────────────────────────────────
-let vocabState = { cardIndex: 0, revealed: false, filter: 'due', search: '', timedMode: false, timerExpired: false, theme: null, themeView: false };
+let vocabState = { cardIndex: 0, revealed: false, filter: 'due', search: '', timedMode: false, timerExpired: false, theme: null, themeView: false, genderDrill: false, gdrillIdx: 0, gdrillScore: 0, gdrillTotal: 0, gdrillStreak: 0, gdrillResult: null };
 
 function getVocabSRS(id) {
   const s = state._vocab2 || {};
@@ -1159,6 +1159,76 @@ function getVocabStats() {
   return { total, seen, mastered, newSeenToday, newSlotsLeft };
 }
 
+// ── Article colour helper (for gender colour-coding) ─────────────
+function getArticleInfo(french) {
+  const f = (french || '').trim();
+  const fl = f.toLowerCase();
+  if (fl.startsWith('le '))  return { article: 'le',  rest: f.slice(3),  color: '#7ecfff', label: 'masc.' };
+  if (fl.startsWith('la '))  return { article: 'la',  rest: f.slice(3),  color: '#ff8fab', label: 'fém.' };
+  if (fl.startsWith("l'"))   return { article: "l'",  rest: f.slice(2),  color: '#ce93d8', label: 'masc./fém.' };
+  if (fl.startsWith('les ')) return { article: 'les', rest: f.slice(4),  color: '#80cbc4', label: 'pl.' };
+  return null;
+}
+
+// ── Gender drill ──────────────────────────────────────────────────
+function getGenderDrillDeck() {
+  return vocabBank.filter(w => {
+    const fl = (w.french || '').trim().toLowerCase();
+    return fl.startsWith('le ') || fl.startsWith('la ');
+  });
+}
+function renderGenderDrill() {
+  const deck = getGenderDrillDeck();
+  if (!deck.length) return '<div style="padding:2rem;text-align:center;color:var(--text3)">No nouns found — vocab not loaded yet.</div>';
+  const card = deck[vocabState.gdrillIdx % deck.length];
+  const isLe = card.french.trim().toLowerCase().startsWith('le ');
+  const noun = card.french.trim().slice(3);
+  const correctColor = isLe ? '#7ecfff' : '#ff8fab';
+  const correctArticle = isLe ? 'LE' : 'LA';
+  const result = vocabState.gdrillResult;
+  const streakFire = vocabState.gdrillStreak >= 3 ? ' 🔥' : '';
+  return `<div class="practice-screen">
+    <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div><div class="ps-title">Genre Drill</div>
+      <div class="ps-sub">✓ ${vocabState.gdrillScore}/${vocabState.gdrillTotal} · Streak: ${vocabState.gdrillStreak}${streakFire}</div></div>
+      <button class="btn" style="font-size:12px" onclick="vocabState.genderDrill=false;renderContent()">✕ Exit</button>
+    </div>
+    <div style="text-align:center;padding:2.5rem 1rem 1.5rem">
+      <div style="font-size:11px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:1rem">masculine or feminine?</div>
+      <div style="font-family:'Playfair Display',serif;font-size:42px;color:var(--text);margin-bottom:.5rem">${noun}</div>
+      <div style="font-size:13px;color:var(--text3);font-style:italic;margin-bottom:2rem">${card.english}</div>
+      ${result ? `
+        <div style="font-size:20px;font-weight:700;color:${result === 'correct' ? 'var(--green)' : 'var(--coral)'};margin-bottom:1.2rem">
+          ${result === 'correct' ? '✓ ' : '✗ '}<span style="color:${correctColor}">${correctArticle}</span> ${noun}
+        </div>
+        ${card.example ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-bottom:1.2rem">${card.example}</div>` : ''}
+        <button class="btn btn-primary" onclick="gdrillNext()">Next →</button>
+      ` : `
+        <div style="display:flex;gap:14px;justify-content:center">
+          <button onclick="gdrillAnswer('le')" style="flex:1;max-width:130px;padding:18px 0;border-radius:14px;border:2px solid #7ecfff;background:rgba(126,207,255,0.08);color:#7ecfff;font-size:26px;font-weight:700;cursor:pointer;transition:background .1s" onmouseover="this.style.background='rgba(126,207,255,0.18)'" onmouseout="this.style.background='rgba(126,207,255,0.08)'">LE</button>
+          <button onclick="gdrillAnswer('la')" style="flex:1;max-width:130px;padding:18px 0;border-radius:14px;border:2px solid #ff8fab;background:rgba(255,143,171,0.08);color:#ff8fab;font-size:26px;font-weight:700;cursor:pointer;transition:background .1s" onmouseover="this.style.background='rgba(255,143,171,0.18)'" onmouseout="this.style.background='rgba(255,143,171,0.08)'">LA</button>
+        </div>
+      `}
+    </div>
+  </div>`;
+}
+function gdrillAnswer(chosen) {
+  const deck = getGenderDrillDeck();
+  const card = deck[vocabState.gdrillIdx % deck.length];
+  const isLe = card.french.trim().toLowerCase().startsWith('le ');
+  const correct = (isLe && chosen === 'le') || (!isLe && chosen === 'la');
+  vocabState.gdrillTotal++;
+  if (correct) { vocabState.gdrillScore++; vocabState.gdrillStreak++; }
+  else { vocabState.gdrillStreak = 0; }
+  vocabState.gdrillResult = correct ? 'correct' : 'wrong';
+  renderContent();
+}
+function gdrillNext() {
+  vocabState.gdrillIdx++;
+  vocabState.gdrillResult = null;
+  renderContent();
+}
+
 // ── Related verb+preposition lookup ──────────────────────────────
 function getRelatedPreps(card) {
   const stem = card.french.trim().toLowerCase();
@@ -1182,6 +1252,7 @@ const THEMES = [
   { id: 'home',     emoji: '🏠', label: 'Maison',            labelEn: 'Home & Apartment' },
   { id: 'family',   emoji: '👪', label: 'Famille',           labelEn: 'Family & People' },
   { id: 'navigate', emoji: '🗺️', label: 'Se repérer',        labelEn: 'Getting Around' },
+  { id: 'coffee',   emoji: '🫘', label: 'Café spécialisé',   labelEn: 'Coffee & Brewing' },
 ];
 
 function renderThemesView() {
@@ -1228,6 +1299,7 @@ function renderThemesView() {
 
 // ── Render ───────────────────────────────────────────────────────
 function renderVocabHTML() {
+  if (vocabState.genderDrill) return renderGenderDrill();
   if (vocabState.themeView) return renderThemesView();
 
   const activeTheme = vocabState.theme ? THEMES.find(t => t.id === vocabState.theme) : null;
@@ -1266,9 +1338,10 @@ function renderVocabHTML() {
     return `<div class="practice-screen">
       <div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
         <div><div class="ps-title">Vocabulaire${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div><div class="ps-sub">SM-2 spaced repetition · ${stats.total} words</div></div>
-        <div style="display:flex;gap:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='due';renderContent()">✕ All words</button>` : ''}
           <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
+          <button class="btn" style="font-size:11px;padding:4px 10px;color:#ff8fab;border-color:#ff8fab" onclick="vocabState.genderDrill=true;vocabState.gdrillIdx=Math.floor(Math.random()*getGenderDrillDeck().length);vocabState.gdrillScore=0;vocabState.gdrillTotal=0;vocabState.gdrillStreak=0;vocabState.gdrillResult=null;renderContent()">🎯 Genre</button>
         </div>
       </div>
       ${genStatus}
@@ -1324,8 +1397,16 @@ function renderVocabHTML() {
       ${card.reverse
         ? `<div class="card-front" style="font-size:22px">${card.english}</div>
            <div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${card.type ? ' · ' + card.type : ''}</div>`
-        : `<div class="card-front french">${card.french}</div>
-           <div style="font-size:11px;color:var(--text3);margin-top:4px">${card.type || ''}</div>`}
+        : (()=>{
+            const ai = getArticleInfo(card.french);
+            if (ai) return `<div style="display:flex;align-items:baseline;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:2px">
+              <span style="font-family:'Playfair Display',serif;font-style:italic;font-size:26px;font-weight:700;color:${ai.color}">${ai.article}</span>
+              <span class="card-front french" style="display:inline;margin:0">${ai.rest}</span>
+            </div>
+            <div style="font-size:10px;color:${ai.color};letter-spacing:.05em;margin-top:1px">${ai.label}${card.type ? ' · ' + card.type : ''}</div>`;
+            return `<div class="card-front french">${card.french}</div>
+           <div style="font-size:11px;color:var(--text3);margin-top:4px">${card.type || ''}</div>`;
+          })()}
       ${!rev ? `<div class="card-sub" style="margin-top:12px">${card.reverse ? 'Say it aloud, then click to check' : 'Click to reveal · tap 🔊 to hear'}</div>` : ''}
       ${rev ? `<div class="card-back">
         ${card.reverse
