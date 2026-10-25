@@ -1399,11 +1399,31 @@ function renderVocabHTML() {
            <div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${card.type ? ' · ' + card.type : ''}</div>`
         : (()=>{
             const ai = getArticleInfo(card.french);
-            if (ai) return `<div style="display:flex;align-items:baseline;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:2px">
-              <span style="font-family:'Playfair Display',serif;font-style:italic;font-size:26px;font-weight:700;color:${ai.color}">${ai.article}</span>
-              <span class="card-front french" style="display:inline;margin:0">${ai.rest}</span>
-            </div>
-            <div style="font-size:10px;color:${ai.color};letter-spacing:.05em;margin-top:1px">${ai.label}${card.type ? ' · ' + card.type : ''}</div>`;
+            if (ai) return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+              <span style="
+                font-family:'Playfair Display',serif;
+                font-style:italic;
+                font-size:52px;
+                font-weight:700;
+                color:${ai.color};
+                text-shadow:0 0 28px ${ai.color}70, 0 0 60px ${ai.color}35;
+                line-height:1;
+                letter-spacing:.02em;
+              ">${ai.article}</span>
+              <span class="card-front french" style="display:inline;margin:0;font-size:30px">${ai.rest}</span>
+              <span style="
+                font-size:10px;
+                font-weight:600;
+                letter-spacing:.12em;
+                text-transform:uppercase;
+                color:${ai.color};
+                background:${ai.color}18;
+                border:1px solid ${ai.color}50;
+                padding:2px 12px;
+                border-radius:20px;
+                margin-top:2px;
+              ">${ai.label}${card.type ? ' · ' + card.type : ''}</span>
+            </div>`;
             return `<div class="card-front french">${card.french}</div>
            <div style="font-size:11px;color:var(--text3);margin-top:4px">${card.type || ''}</div>`;
           })()}
