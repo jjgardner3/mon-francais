@@ -1392,7 +1392,7 @@ function renderVocabHTML() {
       <div id="vocabTimerBar" class="vocab-timer-bar ${vocabState.timerExpired?'urgent':''}"
         style="width:${vocabState.timerExpired?'0':'100'}%"></div>
     </div>` : ''}
-    <div class="card-area" onclick="${rev ? '' : 'revealVocab()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem">
+    <div class="card-area" onclick="${rev ? '' : 'revealVocab()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem;${(()=>{const ai=getArticleInfo(card.french);return ai?`border-color:${ai.color}60;background:linear-gradient(160deg,${ai.color}0a 0%,var(--surface) 50%);box-shadow:0 0 24px ${ai.color}20`:''})()}">
       ${card.isNew ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--blue);background:var(--blue-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin-bottom:8px">NEW</div>` : ''}
       ${card.category === 'mine' ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--coral);background:var(--coral-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin:0 0 8px 6px">🎙 MES MOTS</div>` : ''}
       ${card.reverse
