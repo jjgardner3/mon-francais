@@ -1889,7 +1889,7 @@ function speakFrench(text) {
   utterance.lang = 'fr-FR'; utterance.rate = 0.82; utterance.pitch = 1;
   const frVoice = bestFrenchVoice();
   if (frVoice) utterance.voice = frVoice;
-  if (_hqAudio) { try { _hqAudio.pause(); } catch {} }
+  try { _hqAudio.pause(); } catch {}
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
 }
@@ -1900,14 +1900,32 @@ function bestFrenchVoice() {
   const score = v => (/fr[-_]FR/i.test(v.lang) ? 4 : 0) + (/premium|enhanced|natural|neural/i.test(v.name) ? 3 : 0) + (/google/i.test(v.name) ? 2 : 0) + (/amélie|amelie|thomas|audrey|aurélie|marie|denise/i.test(v.name) ? 1 : 0);
   return vs.sort((a, b) => score(b) - score(a))[0] || null;
 }
-// Lifelike voice (OpenAI TTS via /tts) for model paragraphs and corrections.
-// Cached per text for the session; falls back to the browser voice on error.
+// Lifelike voice (Google/OpenAI TTS via /tts) for words, model paragraphs and corrections.
+// iPhone Safari only lets audio start inside the tap itself, and the fetch below
+// breaks that link — so ONE shared <audio> element is "unlocked" synchronously
+// on every tap (silent clip), then reused once the voice arrives. Cached per
+// text for the session; falls back to the browser voice on error.
 const _hqCache = new Map();
-let _hqAudio = null;
+const _hqAudio = new Audio();
+_hqAudio.setAttribute('playsinline', '');
+const _HQ_SILENT = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YSADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+let _hqUnlocked = false, _ttsPrimed = false;
+function hqUnlockAudio() {
+  if (!_hqUnlocked) {
+    try { _hqAudio.src = _HQ_SILENT; const pr = _hqAudio.play(); if (pr) pr.then(() => { _hqUnlocked = true; }).catch(() => {}); } catch {}
+  }
+  // Prime the browser voice too, so the fallback is also allowed to speak later.
+  if (!_ttsPrimed && window.speechSynthesis) {
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); _ttsPrimed = true; } catch {}
+  }
+}
+document.addEventListener('touchend', hqUnlockAudio, { capture:true, passive:true });
+document.addEventListener('click', hqUnlockAudio, { capture:true });
 async function speakFrenchHQ(text, btn) {
   if (!text) return;
+  hqUnlockAudio();
   window.speechSynthesis.cancel();
-  if (_hqAudio) { try { _hqAudio.pause(); } catch {} }
+  try { _hqAudio.pause(); } catch {}
   const label = btn ? btn.textContent : '';
   try {
     let url = _hqCache.get(text);
@@ -1916,12 +1934,11 @@ async function speakFrenchHQ(text, btn) {
       const res = await fetch('/.netlify/functions/tts', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ text }) });
       const d = await res.json();
       if (!res.ok || d.error) throw new Error(d.error?.message || 'HTTP ' + res.status);
-      const bin = atob(d.audio), bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      url = URL.createObjectURL(new Blob([bytes], { type: d.mime || 'audio/mpeg' }));
+      url = 'data:' + (d.mime || 'audio/mpeg') + ';base64,' + d.audio;
       _hqCache.set(text, url);
     }
-    _hqAudio = new Audio(url);
+    _hqAudio.src = url;
+    _hqAudio.currentTime = 0;
     await _hqAudio.play();
   } catch (e) {
     console.log('HQ voice unavailable, using browser voice:', e.message || e);
