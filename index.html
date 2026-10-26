@@ -1120,7 +1120,7 @@ function getVocabDeck(themeFilter) {
   const todayNew = getTodayNewCards();
   const newSlotsLeft = Math.max(0, NEW_CARDS_PER_DAY - todayNew.count);
   const mined = getMinedWords();
-  const pool = themeFilter === 'mine' ? mined : themeFilter ? vocabBank.filter(w => w.category === themeFilter) : [...mined, ...vocabBank];
+  const pool = themeFilter === 'mine' ? mined : themeFilter ? getThemeWords(themeFilter) : [...mined, ...vocabBank];
   const minRank = state._vocab_minRank || 0;
 
   // Reviews: cards already rated whose due date has passed
@@ -1138,7 +1138,7 @@ function getVocabDeck(themeFilter) {
   const alreadyIntroduced = new Set([...Object.keys(srsData), ...todayNew.ids]);
   const newCards = newSlotsLeft > 0
     ? pool
-        .filter(w => w.category !== 'mine' && !alreadyIntroduced.has(w.id) && (w.rank ?? 9999) >= minRank)
+        .filter(w => w.category !== 'mine' && !alreadyIntroduced.has(w.id) && ((w.rank ?? 9999) >= minRank || (themeFilter === 'idioms' && (state._idiomPins || {})[w.id])))
         .slice(0, newSlotsLeft)
         .map(w => ({ ...w, srs: getVocabSRS(w.id), isNew: true }))
     : [];
@@ -1231,6 +1231,28 @@ function gdrillNext() {
   renderContent();
 }
 
+// ── Phrases seen on vocab cards → 💬 Expressions deck ────────────
+// state._idiomPins = { wordId: timestamp }. Pinned phrases join the
+// Expressions theme (even if their bank category isn't 'idioms') and
+// are introduced first among its new cards.
+function pinRelatedToIdioms(card) {
+  const rp = getRelatedPreps(card);
+  if (!rp.length) return 0;
+  if (!state._idiomPins) state._idiomPins = {};
+  let n = 0;
+  rp.forEach(r => { if (!state._idiomPins[r.id]) { state._idiomPins[r.id] = Date.now(); n++; } });
+  return n;
+}
+function getThemeWords(themeId) {
+  if (themeId === 'mine') return getMinedWords();
+  const words = vocabBank.filter(w => w.category === themeId);
+  if (themeId !== 'idioms') return words;
+  const pins = state._idiomPins || {};
+  const extra = vocabBank.filter(w => pins[w.id] && w.category !== 'idioms');
+  // pinned phrases first (most recently spotted first), then the rest in rank order
+  return [...words, ...extra].sort((a, b) => (pins[b.id] || 0) - (pins[a.id] || 0));
+}
+
 // ── Related verb+preposition lookup ──────────────────────────────
 function getRelatedPreps(card) {
   const stem = card.french.trim().toLowerCase();
@@ -1262,7 +1284,7 @@ function renderThemesView() {
   const srsData = state._vocab2 || {};
   const now = Date.now();
   const cards = THEMES.map(t => {
-    const words = t.id === 'mine' ? getMinedWords() : vocabBank.filter(w => w.category === t.id);
+    const words = getThemeWords(t.id);
     const due = words.filter(w => srsData[w.id] && srsData[w.id].due <= now).length;
     const seen = words.filter(w => srsData[w.id]).length;
     return { ...t, total: words.length, due, seen };
@@ -1441,7 +1463,7 @@ function renderVocabHTML() {
           const rp = getRelatedPreps(card);
           if (!rp.length) return '';
           return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left">
-            <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">With prepositions</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:7px"><span style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase">With prepositions</span><span style="color:var(--purple);font-size:10px">💬 → Expressions deck</span></div>
             ${rp.map(r=>`<div style="margin-bottom:5px;font-size:13px;line-height:1.4">
               <span style="color:var(--blue);font-family:'Playfair Display',serif;font-style:italic">${r.french}</span>
               <span style="color:var(--text3)"> → </span>
@@ -1823,6 +1845,7 @@ function rateVocab2(rating) {
     ef = Math.min(3.0, ef + 0.15);
   }
 
+  pinRelatedToIdioms(card);
   setVocabSRS(card.id, { interval, ef, due: Date.now() + interval * 86400000, seen: seen + 1 });
   vocabState = { ...vocabState, cardIndex: 0, revealed: false };
   renderContent();
