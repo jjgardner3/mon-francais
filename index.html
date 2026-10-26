@@ -601,6 +601,7 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 // ═══════════════════════════════════════
 const TABS = [
   { id:'schedule', label:'Schedule',        dot:'#4f8ef7' },
+  { id:'traduire', label:'Traduire',        dot:'#4ecdc4', noBottom:true },
   { id:'vocab',    label:'Vocabulary',      dot:'#4f8ef7' },
   { id:'parler',   label:'Parler',          dot:'#ff6b9d' },
   { id:'speaking', label:'Speaking',        dot:'#3ecf8e' },
@@ -665,7 +666,7 @@ function getTasksForDate(d) {
 // ═══════════════════════════════════════
 // RENDER NAV
 // ═══════════════════════════════════════
-const TAB_ICONS = { schedule:'\u{1F4C5}', vocab:'\u{1F4DA}', grammar:'\u270F\uFE0F', speaking:'\u{1F399}\uFE0F', parler:'\u{1F5E3}\uFE0F', verbs:'\u{1F504}', progress:'\u{1F4CA}' };
+const TAB_ICONS = { traduire:'\u{1F50D}', schedule:'\u{1F4C5}', vocab:'\u{1F4DA}', grammar:'\u270F\uFE0F', speaking:'\u{1F399}\uFE0F', parler:'\u{1F5E3}\uFE0F', verbs:'\u{1F504}', progress:'\u{1F4CA}' };
 
 function renderNav() {
   const c = document.getElementById('navTabs');
@@ -677,7 +678,7 @@ function renderNav() {
   // Bottom nav (mobile)
   const bn = document.getElementById('bottomNavInner');
   if (bn) {
-    bn.innerHTML = TABS.map(t => `
+    bn.innerHTML = TABS.filter(t => !t.noBottom).map(t => `
       <button class="bnav-tab ${activeTab===t.id?'active':''}" onclick="switchTab('${t.id}')">
         <span class="bnav-icon">${TAB_ICONS[t.id]||'\u2022'}</span>
         <span>${t.label}</span>
@@ -704,6 +705,7 @@ function switchTab(id) { activeTab = id; renderNav(); renderContent(); if (id ==
 function renderContent() {
   const c = document.getElementById('content');
   if (activeTab === 'schedule') c.innerHTML = renderScheduleHTML();
+  else if (activeTab === 'traduire') c.innerHTML = renderTraduireHTML();
   else if (activeTab === 'vocab') c.innerHTML = renderVocabHTML();
   else if (activeTab === 'parler') c.innerHTML = renderParlerHTML();
   else if (activeTab === 'speaking') c.innerHTML = renderSpeakingHTML();
@@ -5757,5 +5759,309 @@ renderContent();
     <div id="vocabConjBody" style="overflow-y:auto;padding:16px 24px 24px;flex:1"></div>
   </div>
 </div>
+<script>
+// ═══════════════════════════════════════
+// TRADUIRE — quick look-up (type or photo) → personal SRS
+// Every look-up is added to "Mes mots" (state._mined), English side first,
+// so words met in the wild (menus, signs, labels) come up in Vocabulary.
+// ═══════════════════════════════════════
+let trState = { query:'', loading:false, error:'', result:null, preview:null, fromPhoto:false };
+const TR_GENDER = {
+  m: { color:'#7ecfff', label:'Masculin', short:'masc.' },
+  f: { color:'#ff8fab', label:'Féminin',  short:'fém.' },
+};
+function trEsc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function trLookups() { if (!state._lookups) state._lookups = []; return state._lookups; }
+
+function trOpen() {
+  switchTab('traduire');
+  setTimeout(() => { const i = document.getElementById('trInput'); if (i) i.focus(); }, 60);
+}
+
+const TR_RULES = `For EVERY entry:
+- "french": nouns ALWAYS with the definite article (le / la / l' / les). Adjectives in the masculine singular. Verbs in the infinitive (reflexive with se/s').
+- "gender": "m" or "f" for every noun — including l' and les words, where the article hides it. null for anything that isn't a noun.
+- "plural": true only if the noun is normally used in the plural (les pâtes).
+- "forms": feminine / plural forms for adjectives and irregular nouns (e.g. "bon, bonne, bons, bonnes"; "un œil → des yeux"); for verbs, the past participle and auxiliary (e.g. "pris · avoir"); otherwise "".
+- "english": concise, natural English. For food, wine or anything a menu might hold, say what it actually is ("pike-perch, a freshwater fish"; "slow-cooked beef stew in red wine").
+- "type": noun | verb | adjective | adverb | expression | sentence.
+- "pronunciation": an easy English-speaker respelling, syllables split by hyphens, liaisons shown (e.g. "luh sahn-druh", "lay-z-ah-mee").
+- "ipa": IPA without slashes.
+- "example": one short, natural French sentence using it — something you'd actually hear in France. "example_en": its English.
+- "note": max 20 words of what an intermediate learner most needs — a false friend, a gender trap, register, a regional or culinary detail, or a more common synonym. "" if nothing useful.`;
+
+function trTextPrompt(q) {
+  return `You are a precise French–English dictionary for an intermediate (B1–B2) English-speaking adult learner who lives part of the year in France.
+
+Look up: "${q}"
+
+Detect whether it is French or English (or franglais / misspelled French — correct it silently).
+- French word → explain it. If it has two very different common meanings, give one entry per meaning (max 3).
+- English word → give the French a native speaker would actually say; put up to two alternatives in "note".
+- A phrase or sentence → translate it as a single entry of type "expression" or "sentence", gender null.
+
+${TR_RULES}
+
+Respond ONLY with JSON, no markdown:
+{"detected":"fr|en","entries":[{"french":"","gender":"m|f|null","plural":false,"forms":"","english":"","type":"","pronunciation":"","ipa":"","example":"","example_en":"","note":""}]}`;
+}
+function trImagePrompt(hint) {
+  return `You are a precise French–English dictionary for an intermediate (B1–B2) English-speaking adult learner who lives part of the year in France. They photographed something — usually a menu, sign, label, wine list or page — to learn its words.
+
+${hint
+  ? `They are asking specifically about: "${hint}". Return that word or phrase as it appears in the image (corrected if they misspelled it), plus at most 2 other words inside it that are worth knowing.`
+  : `Pick out the French words and dish names worth learning — at most 12. For a multi-word dish ("filet de sandre au beurre blanc"), give the full dish as one entry (type "expression") AND the non-obvious individual nouns (le sandre, le beurre blanc) as their own entries. Skip prices, numbers, brand and people's names, and basic words (et, de, avec, le, très).`}
+If the photo shows no French text, name the main object(s) in French instead (max 3).
+
+${TR_RULES}
+
+Respond ONLY with JSON, no markdown:
+{"detected":"fr","entries":[{"french":"","gender":"m|f|null","plural":false,"forms":"","english":"","type":"","pronunciation":"","ipa":"","example":"","example_en":"","note":""}]}`;
+}
+
+// Streaming proxy (60 s limit) so photo reads never hit the short timeout.
+async function trCallAI(content, maxTokens) {
+  let lastErr = '';
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch('/.netlify/functions/claude-stream', { method:'POST', headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:maxTokens || 2500, messages:[{ role:'user', content }] }) });
+      if (!res.ok || !res.body) { const d = await res.json().catch(() => ({})); throw new Error(d.error?.message || 'HTTP ' + res.status); }
+      const reader = res.body.getReader(), dec = new TextDecoder();
+      let buf = '', text = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+          if (!line.startsWith('data:')) continue;
+          let ev; try { ev = JSON.parse(line.slice(5)); } catch { continue; }
+          if (ev.type === 'content_block_delta' && ev.delta?.text) text += ev.delta.text;
+          else if (ev.type === 'error') throw new Error(ev.error?.message || 'Stream error');
+        }
+      }
+      text = text.replace(/```json|```/g, '').trim();
+      return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+    } catch (e) {
+      lastErr = e.message || String(e);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1200));
+    }
+  }
+  throw new Error(lastErr);
+}
+
+// Shrink photos in the browser (long edge 1600 px, JPEG) — phone shots are 3–8 MB.
+function trImageToJpeg(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("couldn't open that image — try a screenshot or a JPEG")); };
+    img.src = url;
+  });
+}
+
+async function trLookupText() {
+  const inp = document.getElementById('trInput');
+  const q = (inp ? inp.value : trState.query).trim();
+  if (!q || trState.loading) return;
+  trState = { ...trState, query:q, loading:true, error:'', result:null, preview:null, fromPhoto:false };
+  renderContent();
+  try { trFinish(await trCallAI(trTextPrompt(q), 2000), q, false); trState.query = ''; }
+  catch (e) { trState.error = "Couldn't look that up — " + (e.message || e); }
+  trState.loading = false;
+  renderContent();
+}
+
+async function trLookupPhoto(fileOrInput) {
+  const file = fileOrInput?.files ? fileOrInput.files[0] : fileOrInput;
+  if (!file || trState.loading) return;
+  const inp = document.getElementById('trInput');
+  const hint = (inp ? inp.value : trState.query).trim();
+  trState = { ...trState, query:hint, loading:true, error:'', result:null, fromPhoto:true };
+  try {
+    const dataUrl = await trImageToJpeg(file);
+    trState.preview = dataUrl;
+    renderContent();
+    const content = [
+      { type:'image', source:{ type:'base64', media_type:'image/jpeg', data:dataUrl.split(',')[1] } },
+      { type:'text', text:trImagePrompt(hint) },
+    ];
+    trFinish(await trCallAI(content, 4000), hint || '📷 photo', true);
+    trState.query = '';
+  } catch (e) {
+    trState.error = "Couldn't read that photo — " + (e.message || e);
+  }
+  trState.loading = false;
+  renderContent();
+}
+
+function trPaste(ev) {
+  const item = [...(ev.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
+  if (item) { ev.preventDefault(); trLookupPhoto(item.getAsFile()); }
+}
+
+// Save the result, add every entry to the personal SRS, log the look-up.
+function trFinish(data, query, fromPhoto) {
+  const entries = (data.entries || []).filter(e => e && e.french);
+  if (!entries.length) throw new Error('no French found');
+  if (!state._mined) state._mined = [];
+  const mine = new Map(state._mined.map(w => [(w.french || '').toLowerCase().trim(), w]));
+  const stamp = Date.now();
+  entries.forEach((e, i) => {
+    if (e.gender !== 'm' && e.gender !== 'f') e.gender = null;
+    const key = e.french.toLowerCase().trim();
+    const existing = mine.get(key);
+    if (existing) { e.minedId = existing.id; e.already = true; return; }
+    const g = TR_GENDER[e.gender];
+    const note = [g ? g.short + (e.plural ? ' pl.' : '') : '', e.forms, e.pronunciation ? '[' + e.pronunciation + ']' : '', e.note].filter(Boolean).join(' · ');
+    const card = { id:'mine_t' + stamp + '_' + i, french:e.french.trim(), english:e.english || '', type:e.type || '', example:e.example || '', note,
+      gender:e.gender, pron:e.pronunciation || '', category:'mine', reverse:true, rank:0, addedAt:stamp, source:fromPhoto ? 'Traduire 📷' : 'Traduire' };
+    state._mined.unshift(card);
+    mine.set(key, card);
+    e.minedId = card.id;
+    myWordsAdd(card.french, card.english, card.source);
+  });
+  const look = { id:'tr' + stamp, at:stamp, query, fromPhoto, entries };
+  state._lookups = [look, ...trLookups()].slice(0, 80);
+  saveState(state);
+  trState.result = look;
+}
+
+function trInSRS(e) { return !!(state._mined || []).some(w => w.id === e.minedId); }
+function trToggleSRS(i) {
+  const e = trState.result?.entries?.[i]; if (!e) return;
+  if (trInSRS(e)) {
+    state._mined = state._mined.filter(w => w.id !== e.minedId);
+    if (state._vocab2) delete state._vocab2[e.minedId];
+  } else {
+    const g = TR_GENDER[e.gender];
+    const id = 'mine_t' + Date.now() + '_' + i;
+    state._mined.unshift({ id, french:e.french, english:e.english || '', type:e.type || '', example:e.example || '',
+      note:[g ? g.short : '', e.forms, e.pronunciation ? '[' + e.pronunciation + ']' : '', e.note].filter(Boolean).join(' · '),
+      gender:e.gender, pron:e.pronunciation || '', category:'mine', reverse:true, rank:0, addedAt:Date.now(), source:'Traduire' });
+    e.minedId = id; e.already = false;
+  }
+  saveState(state);
+  renderContent();
+}
+function trSpeak(i, which, btn) {
+  const e = trState.result?.entries?.[i]; if (!e) return;
+  speakFrenchHQ(which === 'ex' ? e.example : e.french, btn);
+}
+function trShowPast(id) {
+  const l = trLookups().find(x => x.id === id); if (!l) return;
+  trState = { ...trState, result:l, error:'', preview:null, query:l.fromPhoto ? '' : l.query };
+  renderContent();
+  window.scrollTo({ top:0, behavior:'smooth' }); document.getElementById('content')?.scrollTo({ top:0, behavior:'smooth' });
+}
+function trClear() { trState = { ...trState, query:'', result:null, error:'', preview:null }; renderContent(); trOpen(); }
+
+function trEntryHTML(e, i) {
+  const g = TR_GENDER[e.gender];
+  const f = e.french.trim();
+  const m = (g || e.type === 'noun') ? f.match(/^(le |la |les |l')(.*)$/i) : null;
+  const art = m ? m[1].trim() : '', rest = m ? m[2] : f;
+  const col = g ? g.color : (art.toLowerCase() === 'les' ? '#80cbc4' : 'var(--teal)');
+  const inSRS = trInSRS(e);
+  const headWord = g || art
+    ? `<div style="display:flex;align-items:baseline;justify-content:center;gap:10px;flex-wrap:wrap">
+         ${art ? `<span style="font-family:'Playfair Display',serif;font-style:italic;font-weight:700;font-size:40px;color:${col};text-shadow:0 0 24px ${col}70;line-height:1">${trEsc(art)}</span>` : ''}
+         <span style="font-family:'Playfair Display',serif;font-size:30px;color:var(--text);line-height:1.15">${trEsc(rest)}</span>
+       </div>
+       ${g ? `<div style="margin-top:8px"><span style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${col};border:1px solid ${col}66;background:${col}14;padding:3px 12px;border-radius:12px">${g.label}${e.plural ? ' · pluriel' : ''}</span></div>` : ''}`
+    : `<div style="font-family:'Playfair Display',serif;font-size:${f.length > 40 ? 20 : 28}px;color:var(--text);line-height:1.3">${trEsc(f)}</div>`;
+  return `<div class="card-area" style="cursor:default;margin-bottom:12px;text-align:center;${g ? `border-color:${col}60;background:linear-gradient(160deg,${col}10 0%,var(--surface) 55%);box-shadow:0 0 24px ${col}1c` : ''}">
+    ${e.type ? `<div style="font-size:10px;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">${trEsc(e.type)}</div>` : ''}
+    ${headWord}
+    <div style="font-size:18px;color:var(--text);margin-top:14px">${trEsc(e.english)}</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="font-size:14px;padding:8px 16px" onclick="trSpeak(${i},'word',this)">🔊</button>
+      <div style="text-align:left">
+        ${e.pronunciation ? `<div style="font-size:15px;color:var(--text2)">${trEsc(e.pronunciation)}</div>` : ''}
+        ${e.ipa ? `<div style="font-size:12px;color:var(--text3);font-family:'Inter',sans-serif">/${trEsc(e.ipa)}/</div>` : ''}
+      </div>
+    </div>
+    ${e.forms ? `<div style="font-size:12px;color:var(--text2);margin-top:12px">${trEsc(e.forms)}</div>` : ''}
+    ${e.example ? `<div style="align-self:stretch;width:100%;box-sizing:border-box;margin-top:14px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);text-align:left;display:flex;gap:10px;align-items:flex-start">
+        <button class="btn" style="font-size:12px;padding:4px 10px;flex-shrink:0" onclick="trSpeak(${i},'ex',this)">🔊</button>
+        <div><div class="card-example" style="color:var(--text)">${trEsc(e.example)}</div>
+        ${e.example_en ? `<div style="font-size:12px;color:var(--text3);margin-top:3px">${trEsc(e.example_en)}</div>` : ''}</div>
+      </div>` : ''}
+    ${e.note ? `<div style="font-size:12px;color:var(--amber);margin-top:10px;line-height:1.5">${trEsc(e.note)}</div>` : ''}
+    <div style="align-self:stretch;width:100%;box-sizing:border-box;margin-top:14px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px">
+      <span style="color:${inSRS ? 'var(--green)' : 'var(--text3)'}">${inSRS ? (e.already ? '✓ Already in your SRS' : '✓ Added to your SRS') : 'Not in your SRS'}</span>
+      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="trToggleSRS(${i})">${inSRS ? 'Remove' : '＋ Add to SRS'}</button>
+    </div>
+  </div>`;
+}
+
+function renderTraduireHTML() {
+  const r = trState.result;
+  const past = trLookups();
+  const added = r ? r.entries.filter(e => trInSRS(e) && !e.already).length : 0;
+  return `<div class="practice-screen">
+    <div class="ps-header" style="margin-bottom:1rem">
+      <div class="ps-title">Traduire</div>
+      <div class="ps-sub">Type a word (French or English) or snap a menu, sign or label. Every look-up goes into your SRS.</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="trInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"
+        value="${trEsc(trState.query)}" placeholder="${trState.result ? 'Another word…' : 'le sandre · a corkscrew · coucou…'}"
+        oninput="trState.query=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();trLookupText()}" onpaste="trPaste(event)"
+        style="flex:1;min-width:0;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:17px;padding:12px 14px;font-family:Inter,sans-serif;outline:none">
+      <button class="btn btn-primary" style="font-size:14px;white-space:nowrap" onclick="trLookupText()" ${trState.loading ? 'disabled' : ''}>Traduire</button>
+    </div>
+    <label class="btn" style="display:flex;align-items:center;justify-content:center;gap:8px;font-size:14px;padding:12px;cursor:pointer;margin-bottom:6px;${trState.loading ? 'opacity:.5;pointer-events:none' : ''}">
+      📷 Photo — menu, sign, label…
+      <input type="file" accept="image/*" style="display:none" onchange="trLookupPhoto(this)">
+    </label>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:1.25rem;text-align:center">Tip: type the word you're after first, then take the photo, and only that word is looked up. On a computer you can also paste a screenshot.</div>
+
+    ${trState.preview ? `<div style="text-align:center;margin-bottom:1rem"><img src="${trState.preview}" style="max-width:100%;max-height:180px;border-radius:var(--radius-sm);border:1px solid var(--border2)"></div>` : ''}
+    ${trState.loading ? `<div style="text-align:center;padding:2rem;color:var(--purple);font-size:14px">⟳ ${trState.fromPhoto ? 'Reading your photo…' : 'Looking it up…'}</div>` : ''}
+    ${trState.error ? `<div style="padding:12px 14px;border:1px solid var(--coral);background:var(--coral-dim);border-radius:var(--radius-sm);color:var(--coral);font-size:13px;margin-bottom:1rem">${trEsc(trState.error)}</div>` : ''}
+
+    ${r && !trState.loading ? `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;color:var(--text3)">
+        <span>${r.entries.length} result${r.entries.length > 1 ? 's' : ''}${added ? ` · <span style="color:var(--green)">${added} new in your SRS</span>` : ''}</span>
+        <button class="btn" style="font-size:11px;padding:4px 10px" onclick="trClear()">New look-up</button>
+      </div>
+      ${r.entries.map(trEntryHTML).join('')}` : ''}
+
+    ${past.length ? `<div style="margin-top:1.5rem">
+      <div style="font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px">Recent look-ups</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${past.slice(0, 40).map(l => `<button onclick="trShowPast('${l.id}')" style="padding:5px 12px;border-radius:20px;border:1px solid ${r && r.id === l.id ? 'var(--blue)' : 'var(--border2)'};background:var(--surface2);color:var(--text2);font-size:12px;cursor:pointer;font-family:Inter,sans-serif">${l.fromPhoto ? '📷 ' : ''}${trEsc(l.entries.slice(0, 2).map(e => e.french).join(', '))}${l.entries.length > 2 ? ' +' + (l.entries.length - 2) : ''}</button>`).join('')}
+      </div></div>` : ''}
+  </div>`;
+}
+
+// Floating 🔍 button — one tap to Traduire from anywhere in the app.
+(function trMountFab() {
+  const css = document.createElement('style');
+  css.textContent = `#trFab{position:fixed;right:18px;bottom:24px;z-index:150;width:54px;height:54px;border-radius:50%;border:1px solid var(--border2);
+    background:var(--teal);color:#0c0e14;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.45),0 0 0 4px rgba(78,205,196,.12);display:flex;align-items:center;justify-content:center}
+    #trFab:active{transform:scale(.94)} @media (max-width:640px){#trFab{bottom:calc(72px + env(safe-area-inset-bottom));right:14px}}`;
+  document.head.appendChild(css);
+  const b = document.createElement('button');
+  b.id = 'trFab'; b.title = 'Traduire — look up a word'; b.textContent = '🔍'; b.onclick = trOpen;
+  document.body.appendChild(b);
+  const sync = () => { b.style.display = activeTab === 'traduire' ? 'none' : 'flex'; };
+  const origRenderNav = renderNav;
+  renderNav = function () { origRenderNav.apply(this, arguments); sync(); };
+  renderNav();
+})();
+</script>
+
 </body>
 </html>
