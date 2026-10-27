@@ -5712,8 +5712,8 @@ renderNav();
 renderContent();
 </script>
 <!-- Auth Modal -->
-<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:90%;max-width:360px;position:relative;">
+<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:max(env(safe-area-inset-top,20px),40px) 16px 60px;">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:100%;max-width:360px;position:relative;margin:auto;">
     <button onclick="closeAuthModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#888;font-size:20px;cursor:pointer;">✕</button>
     <h2 style="margin:0 0 8px;color:#e8dcc8;font-family:'Playfair Display',serif;">Mon Français</h2>
     <p style="margin:0 0 24px;color:#888;font-size:14px;">Sign in to sync your progress across devices</p>
