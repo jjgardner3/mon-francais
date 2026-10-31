@@ -570,6 +570,11 @@ window.addEventListener('pagehide', supaSyncFlush);
 supa.auth.onAuthStateChange(async (event, session) => {
   supaUser = session?.user || null;
   supaSession = session || null;
+  if (event === 'PASSWORD_RECOVERY') {
+    // User clicked a password reset link — show the set-new-password modal
+    openSetPasswordModal();
+    return;
+  }
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
     if (supaUser) {
       await supaLoadState();
@@ -579,6 +584,7 @@ supa.auth.onAuthStateChange(async (event, session) => {
   }
   if (event === 'SIGNED_OUT') {
     supaUser = null;
+    supaSession = null;
     renderNav();
     renderContent();
   }
@@ -5583,20 +5589,54 @@ function renderReviewHTML() {
 // ═══════════════════════════════════════
 function openAuthModal() {
   const m = document.getElementById('authModal');
-  if (m) { m.style.display = 'flex'; }
+  if (!m) return;
+  m.style.display = 'flex';
+  // Reset state
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('authSuccess').style.display = 'none';
+  // Focus email field after a tick (iOS needs the delay)
+  setTimeout(() => {
+    const el = document.getElementById('authEmail');
+    if (el) el.focus();
+  }, 120);
 }
 function closeAuthModal() {
   const m = document.getElementById('authModal');
-  if (m) { m.style.display = 'none'; }
+  if (m) m.style.display = 'none';
+}
+function _authSetLoading(loading) {
+  const signInBtn = document.getElementById('authSignInBtn');
+  const signUpBtn = document.getElementById('authSignUpBtn');
+  if (signInBtn) { signInBtn.disabled = loading; signInBtn.textContent = loading ? 'Signing in…' : 'Sign in'; }
+  if (signUpBtn) { signUpBtn.disabled = loading; }
 }
 async function authSignIn() {
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
   const errEl = document.getElementById('authError');
+  const successEl = document.getElementById('authSuccess');
   errEl.style.display = 'none';
-  const { error } = await supa.auth.signInWithPassword({ email, password });
-  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
-  else { closeAuthModal(); }
+  successEl.style.display = 'none';
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your email and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  _authSetLoading(true);
+  try {
+    const { error } = await supa.auth.signInWithPassword({ email, password });
+    if (error) {
+      errEl.textContent = error.message;
+      errEl.style.display = 'block';
+    } else {
+      closeAuthModal();
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — check your connection and try again.';
+    errEl.style.display = 'block';
+  } finally {
+    _authSetLoading(false);
+  }
 }
 async function authSignUp() {
   const email = document.getElementById('authEmail').value.trim();
@@ -5605,15 +5645,72 @@ async function authSignUp() {
   const successEl = document.getElementById('authSuccess');
   errEl.style.display = 'none';
   successEl.style.display = 'none';
-  const { error } = await supa.auth.signUp({ email, password });
-  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
-  else { successEl.textContent = 'Check your email to confirm your account!'; successEl.style.display = 'block'; }
+  if (!email || !password) {
+    errEl.textContent = 'Please enter your email and a password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const signUpBtn = document.getElementById('authSignUpBtn');
+  if (signUpBtn) { signUpBtn.disabled = true; signUpBtn.textContent = 'Creating…'; }
+  try {
+    const { error } = await supa.auth.signUp({ email, password });
+    if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+    else { successEl.textContent = 'Check your email to confirm your account!'; successEl.style.display = 'block'; }
+  } catch(e) {
+    errEl.textContent = 'Network error — check your connection and try again.';
+    errEl.style.display = 'block';
+  } finally {
+    if (signUpBtn) { signUpBtn.disabled = false; signUpBtn.textContent = 'Create account'; }
+  }
+}
+function openSetPasswordModal() {
+  const m = document.getElementById('setPasswordModal');
+  if (m) { m.style.display = 'flex'; }
+  setTimeout(() => { const el = document.getElementById('setPasswordNew'); if (el) el.focus(); }, 120);
+}
+function closeSetPasswordModal() {
+  const m = document.getElementById('setPasswordModal');
+  if (m) m.style.display = 'none';
+}
+async function authSetNewPassword() {
+  const pw = (document.getElementById('setPasswordNew')?.value || '').trim();
+  const errEl = document.getElementById('setPasswordError');
+  const successEl = document.getElementById('setPasswordSuccess');
+  errEl.style.display = 'none';
+  successEl.style.display = 'none';
+  if (!pw || pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('setPasswordBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const { error } = await supa.auth.updateUser({ password: pw });
+    if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+    else {
+      successEl.textContent = 'Password updated! You\'re signed in.';
+      successEl.style.display = 'block';
+      setTimeout(() => { closeSetPasswordModal(); renderAuthButton(); }, 1800);
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error — try again.';
+    errEl.style.display = 'block';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Set new password'; }
+  }
 }
 async function authSignOut() {
-  await supa.auth.signOut();
+  // Close the account modal immediately so the user sees feedback
+  closeAccountModal();
+  // Clear local state right away — don't wait for Supabase
+  supaUser = null;
+  supaSession = null;
   renderAuthButton();
   renderNav();
   renderContent();
+  // Then tell Supabase (may fail on bad network — that's OK, local state is cleared)
+  try {
+    await supa.auth.signOut();
+  } catch(e) {
+    // Silent — local sign-out already happened
+  }
 }
 async function authResetPassword() {
   const email = document.getElementById('authEmail').value.trim();
@@ -5622,9 +5719,18 @@ async function authResetPassword() {
   errEl.style.display = 'none';
   successEl.style.display = 'none';
   if (!email) { errEl.textContent = 'Enter your email address first.'; errEl.style.display = 'block'; return; }
-  const { error } = await supa.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
-  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
-  else { successEl.textContent = 'Password reset email sent — check your inbox!'; successEl.style.display = 'block'; }
+  const btn = document.querySelector('[onclick="authResetPassword()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  try {
+    const { error } = await supa.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+    if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+    else { successEl.textContent = 'Password reset email sent — check your inbox!'; successEl.style.display = 'block'; }
+  } catch(e) {
+    errEl.textContent = 'Network error — try again.';
+    errEl.style.display = 'block';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Forgot password?'; }
+  }
 }
 function renderAuthButton() {
   const el = document.getElementById('authBtn');
@@ -5736,23 +5842,39 @@ renderNav();
 renderContent();
 </script>
 <!-- Auth Modal -->
-<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:max(env(safe-area-inset-top,20px),40px) 16px 60px;">
+<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:flex-start;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(env(safe-area-inset-top,20px),40px) 16px max(env(safe-area-inset-bottom,20px),80px);">
   <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:100%;max-width:360px;position:relative;margin:auto;">
-    <button onclick="closeAuthModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#888;font-size:20px;cursor:pointer;">✕</button>
+    <button onclick="closeAuthModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#888;font-size:20px;cursor:pointer;padding:8px;line-height:1;">✕</button>
     <h2 style="margin:0 0 8px;color:#e8dcc8;font-family:'Playfair Display',serif;">Mon Français</h2>
     <p style="margin:0 0 24px;color:#888;font-size:14px;">Sign in to sync your progress across devices</p>
-    <div id="authError" style="display:none;color:#f97066;font-size:13px;margin-bottom:12px;"></div>
-    <input id="authEmail" type="email" placeholder="Email address" style="width:100%;box-sizing:border-box;padding:10px 14px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;margin-bottom:10px;outline:none;">
-    <input id="authPassword" type="password" placeholder="Password" style="width:100%;box-sizing:border-box;padding:10px 14px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;margin-bottom:16px;outline:none;">
-    <button onclick="authSignIn()" id="authSignInBtn" style="width:100%;padding:11px;background:#c9a87c;border:none;border-radius:8px;color:#0c0e14;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:10px;">Sign in</button>
-    <button onclick="authSignUp()" id="authSignUpBtn" style="width:100%;padding:11px;background:transparent;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:14px;cursor:pointer;">Create account</button>
-    <p style="text-align:center;margin:12px 0 0;"><button onclick="authResetPassword()" style="background:none;border:none;color:#888;font-size:12px;cursor:pointer;text-decoration:underline;">Forgot password?</button></p>
-    <p id="authSuccess" style="display:none;color:#3ecf8e;font-size:13px;text-align:center;margin-top:12px;"></p>
+    <div id="authError" style="display:none;color:#f97066;font-size:13px;margin-bottom:12px;padding:10px 12px;background:#f970661a;border-radius:8px;border:1px solid #f9706640;"></div>
+    <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="Email address"
+      style="width:100%;box-sizing:border-box;padding:12px 14px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:16px;margin-bottom:10px;outline:none;-webkit-appearance:none;">
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="Password"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();authSignIn();}"
+      style="width:100%;box-sizing:border-box;padding:12px 14px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:16px;margin-bottom:16px;outline:none;-webkit-appearance:none;">
+    <button onclick="authSignIn()" id="authSignInBtn" style="width:100%;padding:13px;background:#c9a87c;border:none;border-radius:8px;color:#0c0e14;font-weight:600;font-size:16px;cursor:pointer;margin-bottom:10px;-webkit-appearance:none;">Sign in</button>
+    <button onclick="authSignUp()" id="authSignUpBtn" style="width:100%;padding:13px;background:transparent;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:15px;cursor:pointer;-webkit-appearance:none;">Create account</button>
+    <p style="text-align:center;margin:14px 0 0;"><button onclick="authResetPassword()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;text-decoration:underline;padding:8px;">Forgot password?</button></p>
+    <p id="authSuccess" style="display:none;color:#3ecf8e;font-size:13px;text-align:center;margin-top:12px;padding:10px 12px;background:#3ecf8e1a;border-radius:8px;border:1px solid #3ecf8e40;"></p>
+  </div>
+</div>
+<!-- Set New Password Modal (shown after clicking password reset email link) -->
+<div id="setPasswordModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1100;align-items:flex-start;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(env(safe-area-inset-top,20px),60px) 16px 80px;">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:100%;max-width:360px;position:relative;margin:auto;">
+    <h2 style="margin:0 0 8px;color:#e8dcc8;font-family:'Playfair Display',serif;">Set new password</h2>
+    <p style="margin:0 0 20px;color:#888;font-size:14px;">Choose a new password for your account.</p>
+    <div id="setPasswordError" style="display:none;color:#f97066;font-size:13px;margin-bottom:12px;padding:10px 12px;background:#f970661a;border-radius:8px;border:1px solid #f9706640;"></div>
+    <input id="setPasswordNew" type="password" autocomplete="new-password" placeholder="New password (min. 6 characters)"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();authSetNewPassword();}"
+      style="width:100%;box-sizing:border-box;padding:12px 14px;background:#0c0e14;border:1px solid #2a2d3a;border-radius:8px;color:#e8dcc8;font-size:16px;margin-bottom:16px;outline:none;-webkit-appearance:none;">
+    <button id="setPasswordBtn" onclick="authSetNewPassword()" style="width:100%;padding:13px;background:#c9a87c;border:none;border-radius:8px;color:#0c0e14;font-weight:600;font-size:16px;cursor:pointer;-webkit-appearance:none;">Set new password</button>
+    <p id="setPasswordSuccess" style="display:none;color:#3ecf8e;font-size:13px;text-align:center;margin-top:12px;padding:10px 12px;background:#3ecf8e1a;border-radius:8px;border:1px solid #3ecf8e40;"></p>
   </div>
 </div>
 <!-- Account Modal -->
-<div id="acctModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:90%;max-width:380px;position:relative;">
+<div id="acctModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:flex-start;justify-content:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(env(safe-area-inset-top,20px),40px) 16px max(env(safe-area-inset-bottom,20px),80px);">
+  <div style="background:#1a1d26;border:1px solid #2a2d3a;border-radius:16px;padding:32px;width:100%;max-width:380px;position:relative;margin:auto;">
     <button onclick="closeAccountModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#888;font-size:20px;cursor:pointer;">✕</button>
     <h2 style="margin:0 0 4px;color:#e8dcc8;font-family:'Playfair Display',serif;">Mon compte</h2>
     <p id="acctEmail" style="margin:0 0 20px;color:#666;font-size:13px;"></p>
@@ -5770,7 +5892,7 @@ renderContent();
     </div>
     <div id="acctStats"></div>
 
-    <button onclick="authSignOut()" style="width:100%;margin-top:20px;padding:10px;background:transparent;border:1px solid #3a2a2a;border-radius:8px;color:#f97066;font-size:13px;cursor:pointer;">Sign out</button>
+    <button id="signOutBtn" onclick="this.disabled=true;this.textContent='Signing out…';authSignOut();" style="width:100%;margin-top:20px;padding:12px;background:transparent;border:1px solid #3a2a2a;border-radius:8px;color:#f97066;font-size:14px;cursor:pointer;-webkit-appearance:none;">Sign out</button>
   </div>
 </div>
 
