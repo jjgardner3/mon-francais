@@ -1152,6 +1152,8 @@ function recordNewCardSeen(wordId) {
   saveState(state);
 }
 
+// Themed words live in their theme lists (free study), not in the daily new-card queue
+const DAILY_EXCLUDED_THEMES = new Set(['clothes','kitchen','bedroom','bathroom','city','shopping','transport','cafe','home','family','navigate','coffee','idioms','wine']);
 function getVocabDeck(themeFilter) {
   const now = Date.now();
   const srsData = state._vocab2 || {};
@@ -1176,7 +1178,7 @@ function getVocabDeck(themeFilter) {
   const alreadyIntroduced = new Set([...Object.keys(srsData), ...todayNew.ids]);
   const newCards = newSlotsLeft > 0
     ? pool
-        .filter(w => w.category !== 'mine' && !alreadyIntroduced.has(w.id) && ((w.rank ?? 9999) >= minRank || (themeFilter === 'idioms' && (state._idiomPins || {})[w.id])))
+        .filter(w => w.category !== 'mine' && !alreadyIntroduced.has(w.id) && (themeFilter || !DAILY_EXCLUDED_THEMES.has(w.category)) && ((w.rank ?? 9999) >= minRank || (themeFilter === 'idioms' && (state._idiomPins || {})[w.id])))
         .slice(0, newSlotsLeft)
         .map(w => ({ ...w, srs: getVocabSRS(w.id), isNew: true }))
     : [];
@@ -1316,6 +1318,7 @@ const THEMES = [
   { id: 'navigate', emoji: '🗺️', label: 'Se repérer',        labelEn: 'Getting Around' },
   { id: 'coffee',   emoji: '🫘', label: 'Café spécialisé',   labelEn: 'Coffee & Brewing' },
   { id: 'idioms',   emoji: '💬', label: 'Expressions',       labelEn: 'Idioms & Phrases' },
+  { id: 'wine',     emoji: '🍷', label: 'Vin',               labelEn: 'Wine — tasting & growing' },
 ];
 
 function renderThemesView() {
@@ -1325,14 +1328,15 @@ function renderThemesView() {
     const words = getThemeWords(t.id);
     const due = words.filter(w => srsData[w.id] && srsData[w.id].due <= now).length;
     const seen = words.filter(w => srsData[w.id]).length;
-    return { ...t, total: words.length, due, seen };
+    const known = words.filter(w => (state._themeKnown || {})[w.id]).length;
+    return { ...t, total: words.length, due, seen, known };
   });
   const hasAny = cards.some(c => c.total > 0);
   return `<div class="practice-screen">
     <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between">
       <div>
         <div class="ps-title">Thèmes</div>
-        <div class="ps-sub">Study by category · words also flow into your main SRS</div>
+        <div class="ps-sub">Open any theme, any time · free study, separate from your daily 20</div>
       </div>
       <button class="btn" style="font-size:12px" onclick="vocabState.themeView=false;renderContent()">← All words</button>
     </div>
@@ -1341,7 +1345,7 @@ function renderThemesView() {
     </div>` : ''}
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:1rem">
       ${cards.map(c => `
-        <div onclick="${c.total > 0 ? `vocabState.theme='${c.id}';vocabState.themeView=false;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='all';renderContent()` : ''}"
+        <div onclick="${c.total > 0 ? `openTheme('${c.id}')` : ''}"
           style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;
             cursor:${c.total > 0 ? 'pointer' : 'default'};transition:border-color .15s;opacity:${c.total > 0 ? '1' : '.45'}"
           onmouseover="if(${c.total}>0)this.style.borderColor='var(--purple)'"
@@ -1351,11 +1355,159 @@ function renderThemesView() {
           <div style="font-size:11px;color:var(--text3);margin-top:2px">${c.labelEn}</div>
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
             <span style="font-size:11px;background:var(--surface3);padding:2px 8px;border-radius:10px;color:var(--text2)">${c.total} words</span>
-            ${c.due > 0 ? `<span style="font-size:11px;background:var(--amber-dim,#3a2e00);padding:2px 8px;border-radius:10px;color:var(--amber)">${c.due} due</span>` : ''}
+            ${c.id !== 'mine' ? (c.known > 0 ? `<span style="font-size:11px;background:var(--green-dim,#003a1a);padding:2px 8px;border-radius:10px;color:var(--green)">${c.known === c.total ? '✓ all known' : c.known + ' known'}</span>` : '') : `${c.due > 0 ? `<span style="font-size:11px;background:var(--amber-dim,#3a2e00);padding:2px 8px;border-radius:10px;color:var(--amber)">${c.due} due</span>` : ''}
             ${c.seen > 0 && c.seen < c.total ? `<span style="font-size:11px;background:var(--blue-dim);padding:2px 8px;border-radius:10px;color:var(--blue)">${c.seen} seen</span>` : ''}
-            ${c.seen === c.total && c.total > 0 ? `<span style="font-size:11px;background:var(--green-dim,#003a1a);padding:2px 8px;border-radius:10px;color:var(--green)">✓ all seen</span>` : ''}
+            ${c.seen === c.total && c.total > 0 ? `<span style="font-size:11px;background:var(--green-dim,#003a1a);padding:2px 8px;border-radius:10px;color:var(--green)">✓ all seen</span>` : ''}`}
           </div>
         </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ── Theme study lists (free study, outside the daily SRS) ─────────
+// Themes other than "Mes mots" are lists you can open any time: flip through
+// them as cards or scan them as a list. Nothing here touches the SM-2 SRS or
+// the 20-a-day cap; "Je sais ✓" just marks a word as known within its theme
+// (state._themeKnown) so "À revoir" can filter it out.
+function tbEsc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function tbKnown() { return state._themeKnown || (state._themeKnown = {}); }
+function openTheme(id) {
+  vocabState.theme = id; vocabState.themeView = false;
+  vocabState.cardIndex = 0; vocabState.revealed = false; vocabState.filter = 'all';
+  const prev = vocabState.tb || {};
+  vocabState.tb = { idx: 0, revealed: false, filter: prev.filter || 'all', view: prev.view || 'cards', dir: prev.dir || 'fr', order: null };
+  renderContent();
+}
+function tbWords() {
+  const tb = vocabState.tb;
+  let words = getThemeWords(vocabState.theme);
+  if (tb.order) { const pos = new Map(tb.order.map((id, i) => [id, i])); words = [...words].sort((a, b) => (pos.get(a.id) ?? 1e9) - (pos.get(b.id) ?? 1e9)); }
+  if (tb.filter === 'learning') { const k = tbKnown(); words = words.filter(w => !k[w.id]); }
+  return words;
+}
+function tbSet(patch) { Object.assign(vocabState.tb, patch); renderContent(); }
+function tbShuffle() {
+  const ids = getThemeWords(vocabState.theme).map(w => w.id);
+  for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+  tbSet({ order: ids, idx: 0, revealed: false });
+}
+function tbReveal() {
+  const w = tbWords()[vocabState.tb.idx]; if (!w) return;
+  vocabState.tb.revealed = true; renderContent();
+  if (w.french) setTimeout(() => speakFrench(w.french), 250);
+}
+function tbMove(step) {
+  const n = tbWords().length; if (!n) return;
+  tbSet({ idx: (vocabState.tb.idx + step + n) % n, revealed: false });
+}
+function tbMark(known) {
+  const words = tbWords(); const w = words[vocabState.tb.idx]; if (!w) return;
+  const k = tbKnown();
+  if (known) k[w.id] = Date.now(); else delete k[w.id];
+  saveState(state);
+  // In "À revoir" a known word drops out of the list, so the next word slides into this slot
+  const n = tbWords().length;
+  const idx = (known && vocabState.tb.filter === 'learning') ? vocabState.tb.idx : vocabState.tb.idx + 1;
+  tbSet({ idx: n ? idx % n : 0, revealed: false });
+}
+function tbToggleKnown(id) {
+  const k = tbKnown(); if (k[id]) delete k[id]; else k[id] = Date.now();
+  saveState(state); renderContent();
+}
+function tbResetKnown() {
+  const k = tbKnown(); getThemeWords(vocabState.theme).forEach(w => delete k[w.id]);
+  saveState(state); tbSet({ idx: 0, revealed: false });
+}
+
+function renderThemeBrowse() {
+  const theme = THEMES.find(t => t.id === vocabState.theme);
+  if (!vocabState.tb) vocabState.tb = { idx: 0, revealed: false, filter: 'all', view: 'cards', dir: 'fr', order: null };
+  const tb = vocabState.tb;
+  const all = getThemeWords(vocabState.theme);
+  const k = tbKnown();
+  const knownN = all.filter(w => k[w.id]).length;
+  const words = tbWords();
+  if (tb.idx >= words.length) tb.idx = 0;
+  const chip = (on, label, click, color = 'var(--purple)') =>
+    `<button class="btn" style="font-size:11px;padding:4px 10px;${on ? `color:${color};border-color:${color};background:${color}14` : 'color:var(--text3)'}" onclick="${click}">${label}</button>`;
+
+  const header = `<div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
+      <div>
+        <div class="ps-title">${theme.emoji} ${theme.label}</div>
+        <div class="ps-sub">${theme.labelEn} · ${all.length} words · ${knownN} known · free study, outside your daily SRS</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.theme=null;vocabState.themeView=true;renderContent()">← Themes</button>
+        <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.themeView=false;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='due';renderContent()">✕ Daily words</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center">
+      ${chip(tb.view === 'cards', '🃏 Cartes', "tbSet({view:'cards'})")}
+      ${chip(tb.view === 'list', '📋 Liste', "tbSet({view:'list'})")}
+      <span style="width:8px"></span>
+      ${chip(tb.filter === 'all', `Tous · ${all.length}`, "tbSet({filter:'all',idx:0,revealed:false})", 'var(--blue)')}
+      ${chip(tb.filter === 'learning', `À revoir · ${all.length - knownN}`, "tbSet({filter:'learning',idx:0,revealed:false})", 'var(--amber)')}
+      <span style="width:8px"></span>
+      ${tb.view === 'cards' ? chip(false, tb.dir === 'fr' ? 'FR → EN' : 'EN → FR', `tbSet({dir:'${tb.dir === 'fr' ? 'en' : 'fr'}',revealed:false})`) : ''}
+      ${chip(!!tb.order, '🔀 Mélanger', 'tbShuffle()')}
+      ${tb.order ? chip(false, '↺ In order', 'tbSet({order:null,idx:0,revealed:false})') : ''}
+    </div>`;
+
+  if (!words.length) {
+    return `<div class="practice-screen">${header}
+      <div class="day-panel" style="padding:2rem;text-align:center;margin-top:1rem">
+        <div style="font-size:36px;margin-bottom:.5rem">🎉</div>
+        <div style="font-size:16px;color:var(--green);margin-bottom:6px">${all.length ? `You know all ${all.length} words in this theme` : 'No words in this theme yet'}</div>
+        ${all.length ? `<div style="display:flex;gap:8px;justify-content:center;margin-top:1rem">
+          <button class="btn" onclick="tbSet({filter:'all',idx:0,revealed:false})">Go through them all</button>
+          <button class="btn" style="color:var(--text3)" onclick="tbResetKnown()">Reset known marks</button></div>` : ''}
+      </div></div>`;
+  }
+
+  if (tb.view === 'list') {
+    return `<div class="practice-screen">${header}
+      <div style="margin-top:1rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+        ${words.map(w => `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-bottom:1px solid var(--border);${k[w.id] ? 'opacity:.55' : ''}">
+          <div style="flex:1;min-width:0">
+            <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:var(--blue)">${w.french}</div>
+            <div style="font-size:13px;color:var(--text2);margin-top:1px">${w.english}</div>
+            ${w.example ? `<div style="font-size:12px;color:var(--text3);margin-top:3px;font-style:italic">${w.example}</div>` : ''}
+          </div>
+          <button class="btn" style="font-size:12px;padding:3px 8px" data-speak="${tbEsc(w.french)}" onclick="speakFrench(this.dataset.speak)">🔊</button>
+          <button class="btn" title="${k[w.id] ? 'Known — tap to unmark' : 'Mark as known'}" style="font-size:12px;padding:3px 8px;${k[w.id] ? 'color:var(--green);border-color:var(--green)' : 'color:var(--text3)'}" onclick="tbToggleKnown('${tbEsc(w.id)}')">✓</button>
+        </div>`).join('')}
+      </div></div>`;
+  }
+
+  const w = words[tb.idx];
+  const rev = tb.revealed;
+  const frontFr = tb.dir === 'fr';
+  const rp = getRelatedPreps(w);
+  return `<div class="practice-screen">${header}
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-top:12px">
+      <span>${tb.idx + 1} / ${words.length}</span>${k[w.id] ? '<span style="color:var(--green)">✓ known</span>' : ''}
+    </div>
+    <div class="progress-bar-wrap" style="margin-top:6px"><div class="progress-bar-fill" style="width:${Math.round((tb.idx + 1) / words.length * 100)}%"></div></div>
+    <div class="card-area" onclick="${rev ? '' : 'tbReveal()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem">
+      ${frontFr
+        ? `<div class="card-front french">${w.french}</div><div style="font-size:11px;color:var(--text3);margin-top:4px">${w.type || ''}</div>`
+        : `<div class="card-front" style="font-size:22px">${w.english}</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${w.type ? ' · ' + w.type : ''}</div>`}
+      ${!rev ? `<div class="card-sub" style="margin-top:12px">Tap to reveal</div>` : `<div class="card-back">
+        ${frontFr ? `<div class="card-translation">${w.english}</div>` : `<div class="card-front french" style="margin-bottom:6px">${w.french}</div>`}
+        ${w.example ? `<div class="card-example">${w.example}</div>` : ''}
+        ${w.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${w.note}</div>` : ''}
+        ${rp.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left">
+          <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">With prepositions</div>
+          ${rp.map(r => `<div style="margin-bottom:5px;font-size:13px;line-height:1.4"><span style="color:var(--blue);font-family:'Playfair Display',serif;font-style:italic">${r.french}</span><span style="color:var(--text3)"> → </span><span style="color:var(--text2)">${r.english}</span></div>`).join('')}
+        </div>` : ''}
+      </div>`}
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="tbMove(-1)">← Préc.</button>
+      <button class="btn" data-speak="${tbEsc(w.french)}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊</button>
+      ${rev ? `<button class="btn btn-hard" onclick="tbMark(false)">Encore</button>
+      <button class="btn btn-good" onclick="tbMark(true)">Je sais ✓</button>`
+      : `<button class="btn" onclick="tbMove(1)">Suiv. →</button>`}
     </div>
   </div>`;
 }
@@ -1364,6 +1516,7 @@ function renderThemesView() {
 function renderVocabHTML() {
   if (vocabState.genderDrill) return renderGenderDrill();
   if (vocabState.themeView) return renderThemesView();
+  if (vocabState.theme && vocabState.theme !== 'mine') return renderThemeBrowse();
 
   const activeTheme = vocabState.theme ? THEMES.find(t => t.id === vocabState.theme) : null;
   const deck = getVocabDeck(vocabState.theme);
