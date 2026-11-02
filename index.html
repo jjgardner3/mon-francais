@@ -1043,7 +1043,10 @@ let vocabBank = vocabInitBank();
 async function vocabLoadFromSupabase() {
   const STORE_KEY = 'fpl_vocab_bank_v9';
   const cached = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
-  if (cached.length > 100) return; // already loaded
+  // Use the saved bank, but re-download it every 6 hours so words added in
+  // Supabase (new themes etc.) show up without clearing anything by hand
+  const fetchedAt = +(localStorage.getItem('fpl_vocab_bank_ts') || 0);
+  if (cached.length > 100 && Date.now() - fetchedAt < 6 * 3600 * 1000) return;
 
   // Show loading state
   const statusEl = document.getElementById('vocabLoadStatus');
@@ -1089,6 +1092,7 @@ async function vocabLoadFromSupabase() {
     // Clear old versioned caches before writing to avoid exceeding 5MB localStorage quota
     ['fpl_vocab_bank_v2','fpl_vocab_bank_v3','fpl_vocab_bank_v4','fpl_vocab_bank_v5','fpl_vocab_bank_v6','fpl_vocab_bank_v7','fpl_vocab_bank_v8'].forEach(k => localStorage.removeItem(k));
     localStorage.setItem(STORE_KEY, JSON.stringify(words));
+    localStorage.setItem('fpl_vocab_bank_ts', String(Date.now()));
     vocabBank = words;
     if (activeTab === 'vocab') renderContent();
   } catch (err) {
@@ -1099,10 +1103,10 @@ async function vocabLoadFromSupabase() {
 }
 
 function vocabMaybeGenerate() {
-  const bank = JSON.parse(localStorage.getItem('fpl_vocab_bank_v9') || '[]');
-  if (bank.length <= 100) {
-    vocabLoadFromSupabase();
-  }
+  // vocabLoadFromSupabase decides itself whether the saved bank is fresh enough
+  if (window._vocabFetching) return;
+  window._vocabFetching = true;
+  vocabLoadFromSupabase().finally(() => { window._vocabFetching = false; });
 }
 
 // ── SRS helpers ─────────────────────────────────────────────────
