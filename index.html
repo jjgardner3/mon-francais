@@ -1241,11 +1241,16 @@ function renderGenderDrill() {
     </div>
     <div style="text-align:center;padding:2.5rem 1rem 1.5rem">
       <div style="font-size:11px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;margin-bottom:1rem">masculine or feminine?</div>
-      <div style="font-family:'Playfair Display',serif;font-size:42px;color:var(--text);margin-bottom:.5rem">${noun}</div>
-      <div style="font-size:13px;color:var(--text3);font-style:italic;margin-bottom:2rem">${card.english}</div>
+      ${result ? '' : `<div style="font-family:'Playfair Display',serif;font-size:42px;color:var(--text);margin-bottom:.5rem">${noun}</div>`}
+      <div style="font-size:13px;color:var(--text3);font-style:italic;margin-bottom:${result ? '1rem' : '2rem'}">${card.english}</div>
       ${result ? `
-        <div style="font-size:20px;font-weight:700;color:${result === 'correct' ? 'var(--green)' : 'var(--coral)'};margin-bottom:1.2rem">
-          ${result === 'correct' ? '✓ ' : '✗ '}<span style="color:${correctColor}">${correctArticle}</span> ${noun}
+        <div style="max-width:340px;margin:0 auto 1.2rem;padding:22px 16px 18px;border-radius:16px;border:2px solid ${correctColor};background:linear-gradient(160deg,${correctColor}26 0%,${correctColor}0a 100%);box-shadow:0 0 32px ${correctColor}30">
+          <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:64px;font-weight:700;line-height:1;color:${correctColor};text-shadow:0 0 28px ${correctColor}70,0 0 60px ${correctColor}35">${correctArticle.toLowerCase()}</div>
+          <div style="font-family:'Playfair Display',serif;font-size:30px;color:var(--text);margin-top:6px">${noun}</div>
+          <div style="display:inline-block;margin-top:12px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${correctColor};background:${correctColor}1f;border:1px solid ${correctColor}66;padding:4px 16px;border-radius:20px">${isLe ? 'masculin' : 'féminin'}</div>
+        </div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:1.2rem;color:${result === 'correct' ? 'var(--green)' : 'var(--coral)'}">
+          ${result === 'correct' ? '✓ Correct' : `✗ You picked <span style="color:${isLe ? '#ff8fab' : '#7ecfff'}">${isLe ? 'LA' : 'LE'}</span>`}
         </div>
         ${card.example ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-bottom:1.2rem">${card.example}</div>` : ''}
         <button class="btn btn-primary" onclick="gdrillNext()">Next →</button>
@@ -4317,6 +4322,7 @@ const VM_TENSES = [
   {id:'conditional',label:'Conditionnel'},{id:'subjunctive',label:'Subjonctif'},
 ];
 const VM_PRONOUNS = ['je','tu','il/elle/on','nous','vous','ils/elles'];
+function vmWithPron(i,form){const f=String(form||'').trim();if(i===0&&/^[aeiouyhâàéèêîïôûœ]/i.test(f))return"j'"+f;return VM_PRONOUNS[i]+' '+f;}
 const ALLER_PRESENT = ['vais','vas','va','allons','allez','vont'];
 
 function vmV(id,inf,tr,group,subtype,pp,aux,tenseData,note){return{id,infinitive:inf,translation:tr,group,subtype,pp,aux,tenses:tenseData,note:note||null};}
@@ -4519,7 +4525,7 @@ function renderVMQuiz(){
     // Results screen
     const total=vmState.quizCorrect+vmState.quizWrong;
     const pct=total?Math.round(vmState.quizCorrect/total*100):0;
-    const missedHTML=vmState.missedCards.length?`<div style="margin-top:1rem"><div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:8px">Missed (${vmState.missedCards.length}):</div>${vmState.missedCards.map(m=>{const vb=vmVerbs.find(x=>x.id===m.verbId);const tl=VM_TENSES.find(t=>t.id===m.tenseId)?.label||m.tenseId;return`<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:1px solid var(--border)">${vb.infinitive} · ${tl} · ${VM_PRONOUNS[m.pronounIdx]} → <strong style="color:var(--text)">${m.correct}</strong></div>`;}).join('')}</div>`:'';
+    const missedHTML=vmState.missedCards.length?`<div style="margin-top:1rem"><div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:8px">Missed (${vmState.missedCards.length}):</div>${vmState.missedCards.map(m=>{const vb=vmVerbs.find(x=>x.id===m.verbId);const tl=VM_TENSES.find(t=>t.id===m.tenseId)?.label||m.tenseId;return`<div style="font-size:12px;color:var(--text3);padding:4px 0;border-bottom:1px solid var(--border)">${vb.infinitive} · ${tl} · ${VM_PRONOUNS[m.pronounIdx]} → ${m.yours?`<span style="color:var(--coral);text-decoration:line-through">${String(m.yours).replace(/</g,'&lt;')}</span> `:''}<strong style="color:var(--green)">${m.correct}</strong></div>`;}).join('')}</div>`:'';
     return`<div class="practice-screen" style="text-align:center">
       <div class="ps-header"><div class="ps-title">Quiz complete!</div></div>
       <div style="font-size:52px;font-weight:600;color:${pct>=70?'var(--green)':'var(--amber)'};margin:1rem 0">${pct}%</div>
@@ -4551,12 +4557,17 @@ function renderVMQuiz(){
       <div style="font-size:13px;color:var(--text2);margin-bottom:18px">${vb.translation}</div>
       <div style="font-size:16px;font-weight:500;color:var(--purple);margin-bottom:14px">${VM_PRONOUNS[card.pronounIdx]}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input type="text" id="vmQuizInput" placeholder="Type conjugation…" style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Inter,sans-serif;font-size:14px;padding:10px 12px;outline:none;touch-action:manipulation" onkeydown="if(event.key==='Enter')vmSubmit()" ${vmState.quizAnswered?'disabled':''} />
+        <input type="text" id="vmQuizInput" placeholder="Type conjugation…" style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Inter,sans-serif;font-size:14px;padding:10px 12px;outline:none;touch-action:manipulation" onkeydown="if(event.key==='Enter')vmSubmit()" ${vmState.quizAnswered?`disabled value="${String(vmState._lastAnswer||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" style="color:${vmState._lastCorrect?'var(--green)':'var(--coral)'}"`:''} />
         ${!vmState.quizAnswered?`<button class="btn btn-primary" onclick="vmSubmit()">Check</button>`:''}
       </div>
       ${vmState.quizAnswered?`
         <div style="margin-top:1rem;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid ${vmState._lastCorrect?'var(--green)':'var(--coral)'}">
-          <div style="font-size:13px;font-weight:500;color:${vmState._lastCorrect?'var(--green)':'var(--coral)'};margin-bottom:6px">${vmState._lastCorrect?'✓ Correct!':'✗ Answer: '+correct}</div>
+          ${vmState._lastCorrect?`<div style="font-size:13px;font-weight:500;color:var(--green);margin-bottom:6px">✓ Correct!</div>`:`<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:baseline;margin-bottom:10px">
+            <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">You wrote</span>
+            <span style="font-size:17px;font-family:'Playfair Display',serif;font-style:italic;color:var(--coral);text-decoration:line-through;text-decoration-thickness:1px">${vmWithPron(card.pronounIdx,String(vmState._lastAnswer||'').replace(/^(je |j'|tu |il |elle |on |nous |vous |ils |elles )/i,'')).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>
+            <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">Correct</span>
+            <span style="font-size:20px;font-family:'Playfair Display',serif;font-style:italic;font-weight:600;color:var(--green)">${vmWithPron(card.pronounIdx,correct)}</span>
+          </div>`}
           ${!vmState._lastCorrect?`<div style="font-size:12px;color:var(--text3)">SRS rating:</div><div class="btn-row" style="margin-top:6px"><button class="btn btn-hard" style="font-size:11px;padding:6px 12px" onclick="vmRate('hard')">Hard</button><button class="btn btn-ok" style="font-size:11px;padding:6px 12px" onclick="vmRate('ok')">OK</button><button class="btn btn-good" style="font-size:11px;padding:6px 12px" onclick="vmRate('easy')">Easy</button></div>${vmQuizConjCard(vb,card.tenseId)}`:`<button class="btn btn-primary" style="font-size:12px;margin-top:8px" onclick="vmNextQ()">Next →</button>`}
         </div>`:''}
     </div>
@@ -4585,7 +4596,7 @@ function vmVariants(s){const b=s.trim().toLowerCase();return[...new Set([b,b.rep
 function vmSubmit(){
   if(vmState.quizAnswered)return;
   const inp=document.getElementById('vmQuizInput');
-  let ans=vmNorm(inp.value||'');if(!ans)return;
+  const raw=(inp.value||'').trim();let ans=vmNorm(raw);if(!ans)return;vmState._lastAnswer=raw;
   // Strip leading "que/qu'" if the user prefixed it (subjonctif answers don't include que)
   ans=ans.replace(/^que? /,'').replace(/^qu'/,'');
   const card=vmState.quizQueue[vmState.quizIdx];
@@ -4595,7 +4606,7 @@ function vmSubmit(){
   vmState.quizAnswered=true;
   vmState._lastCorrect=isCorrect;
   if(isCorrect){vmState.quizCorrect++;vmUpdateSRS(`${card.verbId}_${card.tenseId}_${card.pronounIdx}`,true,'easy');inp.style.borderColor='var(--green)';inp.style.color='var(--green)';}
-  else{vmState.quizWrong++;vmState.missedCards.push({...card,correct});inp.style.borderColor='var(--coral)';inp.style.color='var(--coral)';}
+  else{vmState.quizWrong++;vmState.missedCards.push({...card,correct,yours:raw});inp.style.borderColor='var(--coral)';inp.style.color='var(--coral)';}
   renderContent();
 }
 function vmRate(rating){
