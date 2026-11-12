@@ -1205,32 +1205,129 @@ function getVocabStats() {
   return { total, seen, mastered, newSeenToday, newSlotsLeft };
 }
 
-// ── Article colour helper (for gender colour-coding) ─────────────
-function getArticleInfo(french) {
-  const f = (french || '').trim();
-  const fl = f.toLowerCase();
-  if (fl.startsWith('le '))  return { article: 'le',  rest: f.slice(3),  color: '#7ecfff', label: 'masc.' };
-  if (fl.startsWith('la '))  return { article: 'la',  rest: f.slice(3),  color: '#ff8fab', label: 'fém.' };
-  if (fl.startsWith("l'"))   return { article: "l'",  rest: f.slice(2),  color: '#ce93d8', label: 'masc./fém.' };
-  if (fl.startsWith('les ')) return { article: 'les', rest: f.slice(4),  color: '#80cbc4', label: 'pl.' };
+// ── Gender: one source of truth for every screen ──────────────────
+// masculine = blue, feminine = pink — vocab cards, themes, lists, the
+// genre drill and Traduire all go through genderInfo()/genderWordHTML().
+// Gender comes from (in order): the word's own gender field (Traduire),
+// its type (nm/nf), le/la/un/une, an "(m.)/(f.)" tag in the English, or a
+// one-time AI look-up for l'/les words, cached in state._genders.
+const GENDER = {
+  m: { color:'#7ecfff', label:'masculin', short:'masc.' },
+  f: { color:'#ff8fab', label:'féminin',  short:'fém.' },
+};
+const GENDER_UNKNOWN = '#9a94a8';
+function splitArticle(french) {
+  const f = String(french || '').trim();
+  const m = f.match(/^(le|la|les|un|une)\s+(.+)$/i) || f.match(/^(l['’])(.+)$/i);
+  if (!m) return null;
+  return { article: m[1].toLowerCase().replace('’', "'"), rest: m[2] };
+}
+function getGender(w) {
+  if (!w) return null;
+  if (w.gender === 'm' || w.gender === 'f') return w.gender;
+  const t = String(w.type || '').toLowerCase().replace(/\s+/g, '');
+  if (/^(nm|n\.m\.?|nounm|m)$/.test(t)) return 'm';
+  if (/^(nf|n\.f\.?|nounf|f)$/.test(t)) return 'f';
+  const a = splitArticle(w.french);
+  if (a) {
+    if (a.article === 'le' || a.article === 'un') return 'm';
+    if (a.article === 'la' || a.article === 'une') return 'f';
+  }
+  const en = String(w.english || '') + ' ' + String(w.note || '');
+  if (/\((?:m|masc)\.?\)|\bn\.\s?m\.|\bnm\b/i.test(en)) return 'm';
+  if (/\((?:f|fem|fém)\.?\)|\bn\.\s?f\.|\bnf\b/i.test(en)) return 'f';
+  const cached = (state._genders || {})[String(w.french || '').trim().toLowerCase()];
+  if (cached === 'm' || cached === 'f') return cached;
+  if (a && (a.article === "l'" || a.article === 'les')) genderQueueLookup(w.french);
   return null;
+}
+function genderInfo(w) {
+  const a = splitArticle(w && w.french);
+  const g = getGender(w);
+  const plural = !!(w && w.plural) || (a && a.article === 'les');
+  if (!a && !g) return null;
+  const color = g ? GENDER[g].color : GENDER_UNKNOWN;
+  const label = g ? GENDER[g].label + (plural ? ' · pluriel' : '') : (plural ? 'pluriel · genre ?' : 'genre ?');
+  return { g, article: a ? a.article : '', rest: a ? a.rest : String(w.french || '').trim(), color, label, plural };
+}
+// size: 'lg' (card front), 'md' (revealed answer), 'sm' (inline in a list)
+function genderWordHTML(w, size = 'lg', extra = '') {
+  const gi = genderInfo(w);
+  const fr = String(w.french || '').trim();
+  if (!gi) {
+    if (size === 'sm') return `<span style="font-family:'Playfair Display',serif;font-style:italic">${fr}</span>`;
+    return `<div class="card-front french"${size === 'md' ? ' style="margin-bottom:6px"' : ''}>${fr}</div>${size === 'lg' && extra ? `<div style="font-size:11px;color:var(--text3);margin-top:4px">${extra}</div>` : ''}`;
+  }
+  const c = gi.color;
+  const pill = (fs, pad) => `<span style="display:inline-block;font-size:${fs}px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:${c};background:${c}1c;border:1px solid ${c}60;padding:${pad};border-radius:20px">${gi.label}${extra ? ' · ' + extra : ''}</span>`;
+  if (size === 'sm') {
+    return `<span style="font-family:'Playfair Display',serif;font-style:italic">${gi.article ? `<b style="color:${c};font-weight:700">${gi.article}</b>${gi.article.endsWith("'") ? '' : ' '}` : ''}<span>${gi.rest}</span></span>`
+      + (gi.g ? ` <span title="${gi.label}" style="font-size:9px;font-weight:700;letter-spacing:.08em;color:${c};border:1px solid ${c}60;border-radius:8px;padding:0 5px;vertical-align:middle">${GENDER[gi.g].short}</span>` : '');
+  }
+  const big = size === 'lg' ? 52 : 36, word = size === 'lg' ? 30 : 24;
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;${size === 'md' ? 'margin-bottom:8px' : ''}">
+    ${gi.article ? `<span style="font-family:'Playfair Display',serif;font-style:italic;font-size:${big}px;font-weight:700;color:${c};text-shadow:0 0 28px ${c}70,0 0 60px ${c}35;line-height:1;letter-spacing:.02em">${gi.article}</span>` : ''}
+    <span class="card-front french" style="display:inline;margin:0;font-size:${word}px">${gi.rest}</span>
+    ${pill(10, '2px 12px')}
+  </div>`;
+}
+// border + tint for a card showing this word (empty string when no gender/article)
+function genderCardStyle(w) {
+  const gi = genderInfo(w);
+  if (!gi || !gi.g) return '';
+  const c = gi.color;
+  return `border-color:${c}60;background:linear-gradient(160deg,${c}10 0%,var(--surface) 55%);box-shadow:0 0 24px ${c}1c;`;
+}
+// Back-compat: older call sites use getArticleInfo(french)
+function getArticleInfo(frenchOrWord) {
+  const w = typeof frenchOrWord === 'string' ? { french: frenchOrWord } : frenchOrWord;
+  const gi = genderInfo(w);
+  if (!gi || !gi.article) return null;
+  return { article: gi.article, rest: gi.rest, color: gi.color, label: gi.g ? GENDER[gi.g].short : 'genre ?', g: gi.g };
+}
+// One-time batched look-up for l'/les words whose gender isn't in the data
+const _gQueue = new Set(), _gTried = new Set();
+let _gTimer = null;
+function genderQueueLookup(french) {
+  const k = String(french || '').trim().toLowerCase();
+  if (!k || _gTried.has(k)) return;
+  _gQueue.add(k);
+  if (!_gTimer) _gTimer = setTimeout(genderRunLookup, 700);
+}
+async function genderRunLookup() {
+  _gTimer = null;
+  const words = [..._gQueue].slice(0, 60);
+  words.forEach(k => { _gQueue.delete(k); _gTried.add(k); });
+  if (!words.length) return;
+  try {
+    const prompt = `For each French noun phrase below, give its grammatical gender: "m" or "f". If an entry is not a noun, use null.\nRespond ONLY with JSON mapping each phrase exactly as given to its gender, no markdown.\n${JSON.stringify(words)}`;
+    const res = await fetch(ANTHROPIC_API_URL, { method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:1500, messages:[{ role:'user', content:prompt }] }) });
+    const data = await res.json();
+    const text = (data.content?.[0]?.text || '').replace(/```json|```/g, '').trim();
+    const map = JSON.parse(text);
+    if (!state._genders) state._genders = {};
+    let n = 0;
+    Object.entries(map).forEach(([k, v]) => { if (v === 'm' || v === 'f') { state._genders[k.trim().toLowerCase()] = v; n++; } });
+    if (n) { saveState(state); renderContent(); }
+  } catch (e) { console.warn('gender look-up failed', e); }
+  if (_gQueue.size) _gTimer = setTimeout(genderRunLookup, 700);
 }
 
 // ── Gender drill ──────────────────────────────────────────────────
 function getGenderDrillDeck() {
-  return vocabBank.filter(w => {
-    const fl = (w.french || '').trim().toLowerCase();
-    return fl.startsWith('le ') || fl.startsWith('la ');
-  });
+  // every noun with an article whose gender is known (le/la/un/une, plus l'/les once looked up)
+  return [...vocabBank, ...(state._mined || [])].filter(w => splitArticle(w.french) && getGender(w));
 }
 function renderGenderDrill() {
   const deck = getGenderDrillDeck();
   if (!deck.length) return '<div style="padding:2rem;text-align:center;color:var(--text3)">No nouns found — vocab not loaded yet.</div>';
   const card = deck[vocabState.gdrillIdx % deck.length];
-  const isLe = card.french.trim().toLowerCase().startsWith('le ');
-  const noun = card.french.trim().slice(3);
-  const correctColor = isLe ? '#7ecfff' : '#ff8fab';
-  const correctArticle = isLe ? 'LE' : 'LA';
+  const gi = genderInfo(card);
+  const isLe = gi.g === 'm';
+  const noun = gi.rest;
+  const correctColor = gi.color;
+  const correctArticle = gi.article.toUpperCase();
   const result = vocabState.gdrillResult;
   const streakFire = vocabState.gdrillStreak >= 3 ? ' 🔥' : '';
   return `<div class="practice-screen">
@@ -1247,17 +1344,17 @@ function renderGenderDrill() {
         <div style="max-width:340px;margin:0 auto 1.2rem;padding:22px 16px 18px;border-radius:16px;border:2px solid ${correctColor};background:linear-gradient(160deg,${correctColor}26 0%,${correctColor}0a 100%);box-shadow:0 0 32px ${correctColor}30">
           <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:64px;font-weight:700;line-height:1;color:${correctColor};text-shadow:0 0 28px ${correctColor}70,0 0 60px ${correctColor}35">${correctArticle.toLowerCase()}</div>
           <div style="font-family:'Playfair Display',serif;font-size:30px;color:var(--text);margin-top:6px">${noun}</div>
-          <div style="display:inline-block;margin-top:12px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${correctColor};background:${correctColor}1f;border:1px solid ${correctColor}66;padding:4px 16px;border-radius:20px">${isLe ? 'masculin' : 'féminin'}</div>
+          <div style="display:inline-block;margin-top:12px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:${correctColor};background:${correctColor}1f;border:1px solid ${correctColor}66;padding:4px 16px;border-radius:20px">${gi.label}</div>
         </div>
         <div style="font-size:15px;font-weight:600;margin-bottom:1.2rem;color:${result === 'correct' ? 'var(--green)' : 'var(--coral)'}">
-          ${result === 'correct' ? '✓ Correct' : `✗ You picked <span style="color:${isLe ? '#ff8fab' : '#7ecfff'}">${isLe ? 'LA' : 'LE'}</span>`}
+          ${result === 'correct' ? '✓ Correct' : `✗ You picked <span style="color:${isLe ? GENDER.f.color : GENDER.m.color}">${isLe ? 'féminin' : 'masculin'}</span>`}
         </div>
         ${card.example ? `<div style="font-size:12px;color:var(--text3);font-style:italic;margin-bottom:1.2rem">${card.example}</div>` : ''}
         <button class="btn btn-primary" onclick="gdrillNext()">Next →</button>
       ` : `
         <div style="display:flex;gap:14px;justify-content:center">
-          <button onclick="gdrillAnswer('le')" style="flex:1;max-width:130px;padding:18px 0;border-radius:14px;border:2px solid #7ecfff;background:rgba(126,207,255,0.08);color:#7ecfff;font-size:26px;font-weight:700;cursor:pointer;transition:background .1s" onmouseover="this.style.background='rgba(126,207,255,0.18)'" onmouseout="this.style.background='rgba(126,207,255,0.08)'">LE</button>
-          <button onclick="gdrillAnswer('la')" style="flex:1;max-width:130px;padding:18px 0;border-radius:14px;border:2px solid #ff8fab;background:rgba(255,143,171,0.08);color:#ff8fab;font-size:26px;font-weight:700;cursor:pointer;transition:background .1s" onmouseover="this.style.background='rgba(255,143,171,0.18)'" onmouseout="this.style.background='rgba(255,143,171,0.08)'">LA</button>
+          <button onclick="gdrillAnswer('le')" style="flex:1;max-width:130px;padding:18px 0;border-radius:14px;border:2px solid #7ecfff;background:rgba(126,207,255,0.08);color:#7ecfff;font-size:26px;font-weight:700;cursor:pointer;transition:background .1s" onmouseover="this.style.background='rgba(126,207,255,0.18)'" onmouseout="this.style.background='rgba(126,207,255,0.08)'">LE<div style="font-size:10px;font-weight:600;letter-spacing:.14em;margin-top:4px;opacity:.85">MASCULIN</div></button>
+          <button onclick="gdrillAnswer('la')" style="flex:1;max-width:130px;padding:18px 0;border-radius:14px;border:2px solid #ff8fab;background:rgba(255,143,171,0.08);color:#ff8fab;font-size:26px;font-weight:700;cursor:pointer;transition:background .1s" onmouseover="this.style.background='rgba(255,143,171,0.18)'" onmouseout="this.style.background='rgba(255,143,171,0.08)'">LA<div style="font-size:10px;font-weight:600;letter-spacing:.14em;margin-top:4px;opacity:.85">FÉMININ</div></button>
         </div>
       `}
     </div>
@@ -1266,7 +1363,7 @@ function renderGenderDrill() {
 function gdrillAnswer(chosen) {
   const deck = getGenderDrillDeck();
   const card = deck[vocabState.gdrillIdx % deck.length];
-  const isLe = card.french.trim().toLowerCase().startsWith('le ');
+  const isLe = getGender(card) === 'm';
   const correct = (isLe && chosen === 'le') || (!isLe && chosen === 'la');
   vocabState.gdrillTotal++;
   if (correct) { vocabState.gdrillScore++; vocabState.gdrillStreak++; }
@@ -1478,7 +1575,7 @@ function renderThemeBrowse() {
       <div style="margin-top:1rem;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
         ${words.map(w => `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-bottom:1px solid var(--border);${k[w.id] ? 'opacity:.55' : ''}">
           <div style="flex:1;min-width:0">
-            <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:var(--blue)">${w.french}</div>
+            <div style="font-size:15px;color:var(--text)">${genderWordHTML(w, 'sm')}</div>
             <div style="font-size:13px;color:var(--text2);margin-top:1px">${w.english}</div>
             ${w.example ? `<div style="font-size:12px;color:var(--text3);margin-top:3px;font-style:italic">${w.example}</div>` : ''}
           </div>
@@ -1497,12 +1594,12 @@ function renderThemeBrowse() {
       <span>${tb.idx + 1} / ${words.length}</span>${k[w.id] ? '<span style="color:var(--green)">✓ known</span>' : ''}
     </div>
     <div class="progress-bar-wrap" style="margin-top:6px"><div class="progress-bar-fill" style="width:${Math.round((tb.idx + 1) / words.length * 100)}%"></div></div>
-    <div class="card-area" onclick="${rev ? '' : 'tbReveal()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem">
+    <div class="card-area" onclick="${rev ? '' : 'tbReveal()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem;${!frontFr && !rev ? '' : genderCardStyle(w)}">
       ${frontFr
-        ? `<div class="card-front french">${w.french}</div><div style="font-size:11px;color:var(--text3);margin-top:4px">${w.type || ''}</div>`
+        ? genderWordHTML(w, 'lg', w.type && !/^(nm|nf|noun|word)$/i.test(w.type) ? w.type : '')
         : `<div class="card-front" style="font-size:22px">${w.english}</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${w.type ? ' · ' + w.type : ''}</div>`}
       ${!rev ? `<div class="card-sub" style="margin-top:12px">Tap to reveal</div>` : `<div class="card-back">
-        ${frontFr ? `<div class="card-translation">${w.english}</div>` : `<div class="card-front french" style="margin-bottom:6px">${w.french}</div>`}
+        ${frontFr ? `<div class="card-translation">${w.english}</div>` : genderWordHTML(w, 'md')}
         ${w.example ? `<div class="card-example">${w.example}</div>` : ''}
         ${w.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${w.note}</div>` : ''}
         ${rp.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left">
@@ -1616,46 +1713,17 @@ function renderVocabHTML() {
       <div id="vocabTimerBar" class="vocab-timer-bar ${vocabState.timerExpired?'urgent':''}"
         style="width:${vocabState.timerExpired?'0':'100'}%"></div>
     </div>` : ''}
-    <div class="card-area" onclick="${rev ? '' : 'revealVocab()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem;${(()=>{const ai=getArticleInfo(card.french);return ai?`border-color:${ai.color}60;background:linear-gradient(160deg,${ai.color}0a 0%,var(--surface) 50%);box-shadow:0 0 24px ${ai.color}20`:''})()}">
+    <div class="card-area" onclick="${rev ? '' : 'revealVocab()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem;${card.reverse && !rev ? '' : genderCardStyle(card)}">
       ${card.isNew ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--blue);background:var(--blue-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin-bottom:8px">NEW</div>` : ''}
       ${card.category === 'mine' ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--coral);background:var(--coral-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin:0 0 8px 6px">🎙 MES MOTS</div>` : ''}
       ${card.reverse
         ? `<div class="card-front" style="font-size:22px">${card.english}</div>
            <div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${card.type ? ' · ' + card.type : ''}</div>`
-        : (()=>{
-            const ai = getArticleInfo(card.french);
-            if (ai) return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px">
-              <span style="
-                font-family:'Playfair Display',serif;
-                font-style:italic;
-                font-size:52px;
-                font-weight:700;
-                color:${ai.color};
-                text-shadow:0 0 28px ${ai.color}70, 0 0 60px ${ai.color}35;
-                line-height:1;
-                letter-spacing:.02em;
-              ">${ai.article}</span>
-              <span class="card-front french" style="display:inline;margin:0;font-size:30px">${ai.rest}</span>
-              <span style="
-                font-size:10px;
-                font-weight:600;
-                letter-spacing:.12em;
-                text-transform:uppercase;
-                color:${ai.color};
-                background:${ai.color}18;
-                border:1px solid ${ai.color}50;
-                padding:2px 12px;
-                border-radius:20px;
-                margin-top:2px;
-              ">${ai.label}${card.type ? ' · ' + card.type : ''}</span>
-            </div>`;
-            return `<div class="card-front french">${card.french}</div>
-           <div style="font-size:11px;color:var(--text3);margin-top:4px">${card.type || ''}</div>`;
-          })()}
+        : genderWordHTML(card, 'lg', card.type && !/^(nm|nf|noun|word)$/i.test(card.type) ? card.type : '')}
       ${!rev ? `<div class="card-sub" style="margin-top:12px">${card.reverse ? 'Say it aloud, then click to check' : 'Click to reveal · tap 🔊 to hear'}</div>` : ''}
       ${rev ? `<div class="card-back">
         ${card.reverse
-          ? `<div class="card-front french" style="margin-bottom:6px">${card.french}</div>`
+          ? genderWordHTML(card, 'md')
           : `<div class="card-translation">${card.english}</div>`}
         ${card.example ? `<div class="card-example">${card.example}</div>` : ''}
         ${card.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${card.note}</div>` : ''}
@@ -1925,7 +1993,7 @@ function renderVocabList(stats) {
     const s = srsData[w.id];
     const dot = !s ? '⚪' : s.due <= now ? '🔴' : s.interval >= 7 ? '🟢' : '🟡';
     return `<div class="vocab-row">
-      <span class="vocab-french" data-speak="${w.french}" onclick="speakFrench(this.dataset.speak)" style="cursor:pointer" title="Click to hear">${w.french}</span>
+      <span class="vocab-french" data-speak="${w.french}" onclick="speakFrench(this.dataset.speak)" style="cursor:pointer" title="Click to hear">${genderWordHTML(w, 'sm')}</span>
       <span class="vocab-english">${w.english}</span>
       <span style="font-size:10px;color:var(--text3);padding:1px 5px;border:1px solid var(--border);border-radius:4px">${w.type||''}</span>
       <span style="font-size:11px">${dot}</span>
@@ -1948,7 +2016,7 @@ function renderVocabList(stats) {
       <button class="btn" style="font-size:11px;padding:5px 12px" onclick="myWordsAddManual()">+ Add</button>
     </div>
     ${myWordList.map((w,i) => `<div style="display:flex;align-items:baseline;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:13px">
-      <span style="font-family:'Playfair Display',serif;font-style:italic;color:var(--text);min-width:120px;cursor:pointer" data-speak="${w.french}" onclick="speakFrench(this.dataset.speak)">${w.french}</span>
+      <span style="color:var(--text);min-width:120px;cursor:pointer" data-speak="${w.french}" onclick="speakFrench(this.dataset.speak)">${genderWordHTML(w, 'sm')}</span>
       <span style="color:var(--text2);flex:1;font-size:12px">${w.english||'—'}</span>
       <span style="font-size:10px;color:var(--text3)">${w.source}</span>
       <button onclick="myWordsDelete(${i})" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0 4px">✕</button>
@@ -6124,8 +6192,8 @@ renderContent();
 // ═══════════════════════════════════════
 let trState = { query:'', loading:false, error:'', result:null, preview:null, fromPhoto:false };
 const TR_GENDER = {
-  m: { color:'#7ecfff', label:'Masculin', short:'masc.' },
-  f: { color:'#ff8fab', label:'Féminin',  short:'fém.' },
+  m: { color: GENDER.m.color, label:'Masculin', short: GENDER.m.short },
+  f: { color: GENDER.f.color, label:'Féminin',  short: GENDER.f.short },
 };
 function trEsc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function trLookups() { if (!state._lookups) state._lookups = []; return state._lookups; }
