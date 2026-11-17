@@ -657,7 +657,7 @@ const DAY_SCHEDULES = {
   0: [ // Sunday — Review day
     { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards in your SRS queue.', tab:'vocab' },
     { id:'weekly_rev',  name:'Weekly review',     badge:'review',  badgeLabel:'Review',  time:'20 min', desc:'Review the week: what stuck, what needs more work.', tab:'review' },
-    { id:'verb_srs',    name:'Verb conjugation',  badge:'verbs',   badgeLabel:'Verbs',   time:'10 min', desc:'Light review — just the SRS due queue.', tab:'verbs' },
+    { id:'verb_srs',    name:'Verb conjugation',  badge:'verbs',   badgeLabel:'Verbs',   time:'10 min', desc:'Radicaux: principal-parts review + a 60-second Assemblage round.', tab:'verbs' },
     { id:'listen',      name:'Listening input',   badge:'listen',  badgeLabel:'Listen',  time:'20 min', desc:'Podcast or video — passive relaxed listening.', tab:null },
   ],
   1: [ // Monday — Grammar + Speaking
@@ -668,7 +668,7 @@ const DAY_SCHEDULES = {
   ],
   2: [ // Tuesday — Verbs + Vocab
     { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
-    { id:'verbs',       name:'Verb conjugation',  badge:'verbs',   badgeLabel:'Verbs',   time:'15 min', desc:'Pick one verb and drill all tenses.', tab:'verbs' },
+    { id:'verbs',       name:'Verb conjugation',  badge:'verbs',   badgeLabel:'Verbs',   time:'15 min', desc:'Radicaux: clear due principal parts, then one Assemblage round.', tab:'verbs' },
     { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Focus on past tenses today.', tab:'speaking' },
   ],
   3: [ // Wednesday — Grammar
@@ -4477,6 +4477,7 @@ function vmBuildExamples(vb,tId){
 }
 
 function renderVerbsHTML(){
+  if(vmState.view==='radicaux')return renderRTHTML();
   if(vmState.view==='quiz')return renderVMQuiz();
   if(vmState.view==='card')return renderVMCard();
   return renderVMList();
@@ -4529,6 +4530,7 @@ function renderVMList(){
     <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div><div class="ps-title">Conjugaison</div><div class="ps-sub">${filtered.length} of ${vmVerbs.length} verbs</div></div>
       <div style="display:flex;gap:6px">
+        <button class="btn" style="font-size:12px" onclick="rtOpen()">🧩 Radicaux</button>
         <button class="btn" style="font-size:12px" onclick="openVerbEndingsModal()">📋 Endings</button>
         <button class="btn btn-primary" style="font-size:12px" onclick="vmState.view='quiz';renderContent()">Quiz mode →</button>
       </div>
@@ -4684,6 +4686,329 @@ function vmRate(rating){
 }
 function vmNextQ(){vmState.quizIdx++;vmState.quizAnswered=false;renderContent();setTimeout(()=>{const inp=document.getElementById('vmQuizInput');if(inp)inp.focus();},80);}
 function vmResetQuiz(){vmState.quizQueue=[];vmState.quizIdx=0;vmState.quizCorrect=0;vmState.quizWrong=0;vmState.missedCards=[];vmState.quizAnswered=false;}
+
+// ═══════════════════════════════════════
+// RADICAUX & TERMINAISONS — learn endings once, derive stems from 3 anchors
+// ═══════════════════════════════════════
+const RT_TENSES=[{id:'present',label:'Présent'},{id:'imparfait',label:'Imparfait'},{id:'futur',label:'Futur simple'},{id:'conditional',label:'Conditionnel'},{id:'subjunctive',label:'Subjonctif'}];
+const RT_ENDINGS={present_er:['e','es','e','ons','ez','ent'],present_ir:['s','s','t','ons','ez','ent'],imparfait:['ais','ais','ait','ions','iez','aient'],futur:['ai','as','a','ons','ez','ont'],conditional:['ais','ais','ait','ions','iez','aient'],subjunctive:['e','es','e','ions','iez','ent']};
+const RT_END_LABELS={present_er:'Présent -er',present_ir:'Présent -ir / -re',imparfait:'Imparfait',futur:'Futur simple',conditional:'Conditionnel',subjunctive:'Subjonctif'};
+const RT_END_NOTES={present_er:'All -er verbs except aller.',present_ir:'-ir and -re verbs (il prend, il vend: no -t after d).',imparfait:'Every verb, no exceptions. Stem from nous.',futur:'= the présent of avoir. Stem from the infinitive.',conditional:'Imparfait endings on the futur stem.',subjunctive:'Stem from ils (nous/vous: from nous).'};
+const RT_END_EX={present_er:'parler',present_ir:'finir',imparfait:'parler',futur:'parler',conditional:'parler',subjunctive:'parler'};
+const RT_PRON=['je','tu','il/elle','nous','vous','ils/elles'];
+const RT_SUBJ_EXC=['etre','avoir','aller','vouloir','faire','savoir','pouvoir'];
+const RT_PRES_CANDS=[['e','s','x'],['es','s','x'],['e','t','d'],['ons'],['ez','es'],['ent','ont']];
+const RT_NEW_PER_DAY=5;
+
+let rtState={mode:'hub',queue:[],idx:0,answered:false,lastOk:false,lastAns:'',correct:0,wrong:0,missed:[],tense:'all',timed:false,timerEnd:0,done:false,ppResult:null};
+let rtTimer=null;
+
+function rtEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function rtSave(){saveState(state);}
+function rtVerbs(){const seen=new Set();return vmVerbs.filter(v=>{if(v.subtype==='reflexive'||seen.has(v.id))return false;seen.add(v.id);return RT_TENSES.every(t=>Array.isArray(v.tenses[t.id])&&v.tenses[t.id].length===6);});}
+function rtVerb(id){return vmVerbs.find(v=>v.id===id);}
+function rtShuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function rtNorm(s){return String(s||'').trim().toLowerCase().replace(/[’`]/g,"'").replace(/^-+/,'').replace(/\(e\)|\(s\)/g,'').replace(/\s+/g,' ').replace(/^(qu'|que )/,'').replace(/^(j'|je |tu |il |elle |on |nous |vous |ils |elles )/,'').trim();}
+
+function rtSplit(form,tense,p){
+  const f=String(form||'');
+  const cands=tense==='present'?RT_PRES_CANDS[p]:[RT_ENDINGS[tense][p]];
+  for(const e of [...cands].sort((a,b)=>b.length-a.length)){if(e&&f.endsWith(e)&&f.length>e.length)return{stem:f.slice(0,-e.length),end:e};}
+  return{stem:f,end:''};
+}
+function rtColor(form,tense,p){const{stem,end}=rtSplit(form,tense,p);return `<span style="color:var(--blue)">${rtEsc(stem)}</span><span style="color:var(--coral);font-weight:700">${rtEsc(end)}</span>`;}
+function rtAnchors(v){
+  const P=v.tenses.present;
+  const nous=P[3].endsWith('ons')?P[3].slice(0,-3):null;
+  const ils=P[5].endsWith('ent')?P[5].slice(0,-3):null;
+  const infStem=v.infinitive.endsWith('re')?v.infinitive.slice(0,-1):v.infinitive;
+  const futStem=rtSplit(v.tenses.futur[0],'futur',0).stem;
+  return{nous,ils,infStem,futStem,futRegular:futStem===infStem};
+}
+function rtIsBoot(a){
+  if(!a.nous||!a.ils||a.nous===a.ils)return false;
+  if(a.nous===a.ils+'e'||a.nous.replace(/ç/g,'c')===a.ils)return false; // manger / commencer: spelling only
+  return true;
+}
+function rtExplain(v,tense,p){
+  const a=rtAnchors(v),P=v.tenses.present,form=v.tenses[tense][p],{stem,end}=rtSplit(form,tense,p);
+  const B=s=>`<b style="color:var(--blue)">${rtEsc(s)}-</b>`;
+  if(tense==='imparfait'){
+    if(v.id==='etre')return `The one imparfait exception: être → ${B('ét')}`;
+    if(a.nous&&stem===a.nous)return `<b>nous</b> anchor: nous ${rtEsc(P[3])} → drop -ons → ${B(stem)} + ${rtEsc(end)}`;
+    if(a.nous&&stem+'e'===a.nous)return `<b>nous</b> anchor ${B(a.nous)}, but the e drops before i (it only keeps the g soft before a/o): ${B(stem)} + ${rtEsc(end)}`;
+    return `Imparfait stem ${B(stem)} (nous ${rtEsc(P[3])})`;
+  }
+  if(tense==='futur'||tense==='conditional'){
+    const tail=tense==='conditional'?' + imparfait endings':' + avoir endings';
+    if(a.futRegular)return `<b>infinitive</b> anchor: ${rtEsc(v.infinitive)} → ${B(stem)}${tail}`;
+    return `<b>Irregular futur stem</b> (on the list): ${rtEsc(v.infinitive)} → ${B(stem)}${tail}`;
+  }
+  if(tense==='subjunctive'){
+    if(RT_SUBJ_EXC.includes(v.id))return `<b>Exceptions card</b>: que je ${rtEsc(v.tenses.subjunctive[0])}, que nous ${rtEsc(v.tenses.subjunctive[3])}`;
+    if(p===3||p===4){if(a.nous&&(stem===a.nous||stem+'e'===a.nous))return `nous/vous go back to the <b>nous</b> anchor: nous ${rtEsc(P[3])} → ${B(stem)}${stem===a.nous?'':' (the soft-g e drops before i)'}`;}
+    else if(a.ils&&stem===a.ils)return `<b>ils</b> anchor: ils ${rtEsc(P[5])} → drop -ent → ${B(stem)}`;
+    return `Subjonctif stem ${B(stem)}`;
+  }
+  if(['etre','avoir','aller','faire'].includes(v.id))return `Irregular présent — learn it as principal parts`;
+  const er=v.group===1;
+  let s=`${er?'-er':'-ir / -re'} présent endings`;
+  if(rtIsBoot(a))s+=` · <b>boot verb</b>: ${rtEsc(rtSplit(P[0],'present',0).stem)}- / ${rtEsc(a.nous)}- / ${rtEsc(a.ils)}-`;
+  return s;
+}
+function rtPrefix(p,form,tense){
+  const f=String(form||'');let pr=RT_PRON[p];
+  if(p===0&&/^[aeiouyhâàéèêîïôûœ]/i.test(f))pr="j'";else pr+=' ';
+  if(tense==='subjunctive')pr=(/^[aeiouyh]/i.test(pr)?"qu'":'que ')+pr;
+  return pr;
+}
+
+// ── stats & SRS storage (synced with the rest of state)
+function rtStats(){if(!state._rtStats)state._rtStats={};return state._rtStats;}
+function rtBump(key,ok){const s=rtStats();if(!s[key])s[key]={c:0,n:0};s[key].n++;if(ok)s[key].c++;}
+function rtPP(){if(!state._rtPP)state._rtPP={};return state._rtPP;}
+function rtNewToday(){const k=dateKey(new Date());if(!state._rtPPNew||state._rtPPNew.date!==k)state._rtPPNew={date:k,count:0};return state._rtPPNew;}
+function rtPPQueue(){
+  const pp=rtPP(),now=Date.now(),vs=rtVerbs();
+  const due=vs.filter(v=>pp[v.id]&&pp[v.id].due<=now).sort((a,b)=>pp[a.id].due-pp[b.id].due);
+  const fresh=vs.filter(v=>!pp[v.id]).sort((a,b)=>(b.top10?1:0)-(a.top10?1:0));
+  const room=Math.max(0,RT_NEW_PER_DAY-rtNewToday().count);
+  return [...due.map(v=>({id:v.id,isNew:false})),...fresh.slice(0,room).map(v=>({id:v.id,isNew:true}))];
+}
+function rtPPGrade(id,q){
+  const pp=rtPP();const c=pp[id]||{reps:0,ease:2.5,interval:0,due:0};
+  if(q<3){c.reps=0;c.interval=1;}
+  else{c.reps++;c.interval=c.reps===1?1:c.reps===2?3:Math.round(c.interval*c.ease);}
+  c.ease=Math.max(1.3,c.ease+0.1-(5-q)*(0.08+(5-q)*0.02));
+  c.due=Date.now()+c.interval*86400000-3600000;
+  pp[id]=c;
+}
+
+// ── navigation
+function rtGo(mode){
+  if(rtTimer){clearInterval(rtTimer);rtTimer=null;}
+  rtState.mode=mode;rtState.idx=0;rtState.answered=false;rtState.correct=0;rtState.wrong=0;rtState.missed=[];rtState.done=false;rtState.ppResult=null;
+  if(mode==='endings')rtState.queue=rtBuildEndings();
+  else if(mode==='pp')rtState.queue=rtPPQueue();
+  else rtState.queue=[];
+  renderContent();rtFocus();
+}
+function rtOpen(){vmState.view='radicaux';rtGo('hub');}
+function rtExit(){if(rtTimer){clearInterval(rtTimer);rtTimer=null;}vmState.view='list';rtState.mode='hub';renderContent();}
+function rtFocus(){setTimeout(()=>{const i=document.querySelector('[data-rt-first]')||document.getElementById('rtInput');if(i)i.focus();},60);}
+
+function renderRTHTML(){
+  const head=(title,sub)=>`<div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <div><div class="ps-title">${title}</div><div class="ps-sub">${sub}</div></div>
+    <button class="btn" onclick="rtGo('hub')">← Back</button></div>`;
+  if(rtState.mode==='endings')return `<div class="practice-screen">${head('Terminaisons','Type the ending')}${rtEndingsBody()}</div>`;
+  if(rtState.mode==='pp')return `<div class="practice-screen">${head('Temps primitifs','Principal parts · spaced repetition')}${rtPPBody()}</div>`;
+  if(rtState.mode==='assemble')return `<div class="practice-screen">${head('Assemblage','Stem + ending')}${rtAsmBody()}</div>`;
+  return rtHubHTML();
+}
+
+function rtHubHTML(){
+  const pq=rtPPQueue(),dueN=pq.filter(x=>!x.isNew).length,newN=pq.filter(x=>x.isNew).length;
+  const learned=Object.keys(rtPP()).length,total=rtVerbs().length;
+  const st=rtStats();
+  const tenseStats=RT_TENSES.map(t=>{const s=st['asm_'+t.id];const pct=s&&s.n?Math.round(s.c/s.n*100):null;
+    return `<div style="flex:1;min-width:92px;background:var(--surface2);border-radius:var(--radius-sm);padding:8px 10px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">${t.label}</div><div style="font-size:18px;font-weight:600;color:${pct==null?'var(--text3)':pct>=85?'var(--green)':pct>=65?'var(--amber)':'var(--coral)'}">${pct==null?'—':pct+'%'}</div><div style="font-size:10px;color:var(--text3)">${s?s.n:0} tries</div></div>`;}).join('');
+  const card=(icon,title,desc,meta,mode,primary)=>`<button onclick="rtGo('${mode}')" class="day-panel" style="display:block;width:100%;text-align:left;padding:14px 16px;margin-bottom:10px;cursor:pointer;border:1px solid ${primary?'var(--blue)':'var(--border)'};font-family:Inter,sans-serif;color:var(--text)">
+    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:18px">${icon}</span><span style="font-family:'Playfair Display',serif;font-size:17px;font-style:italic">${title}</span><span style="margin-left:auto;font-size:11px;color:var(--text3)">${meta}</span></div>
+    <div style="font-size:12px;color:var(--text2);margin-top:4px">${desc}</div></button>`;
+  const anchors=[['nous','drop -ons','Imparfait · subj. nous/vous','nous finiss<i>ons</i> → je finiss<b>ais</b>'],['ils','drop -ent','Subjonctif je/tu/il/ils','ils prenn<i>ent</i> → que je prenn<b>e</b>'],['infinitive','-re: drop the e','Futur · conditionnel','prendr<i>e</i> → je prendr<b>ai</b>']]
+    .map(a=>`<div style="display:grid;grid-template-columns:78px 1fr;gap:2px 10px;padding:7px 0;border-bottom:1px solid var(--border)"><span style="font-weight:600;color:var(--blue)">${a[0]}</span><span style="font-size:12px;color:var(--text)">${a[2]}</span><span style="font-size:10px;color:var(--text3)">${a[1]}</span><span style="font-size:12px;color:var(--text2)">${a[3]}</span></div>`).join('');
+  return `<div class="practice-screen" style="max-width:740px">
+    <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div><div class="ps-title">Radicaux &amp; Terminaisons</div><div class="ps-sub">Learn the endings once · derive every stem from 3 anchors</div></div>
+      <button class="btn" onclick="rtExit()">← Conjugaison</button></div>
+    <div class="day-panel" style="padding:12px 16px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">The three anchors</div>
+      ${anchors}
+      <div style="font-size:12px;color:var(--amber);margin-top:8px">Stuck? Imparfait → think <b>nous</b> · Subjonctif → think <b>ils</b> · Futur/Cond. → think <b>infinitive</b></div>
+    </div>
+    ${card('🔚','Terminaisons','Drill the six ending sets until they are instant. About 30 endings in total.','12 cards','endings',false)}
+    ${card('🗝️','Temps primitifs','Spaced repetition: see the infinitive, type je / nous / ils + participe passé.',`${dueN} due · ${newN} new · ${learned}/${total} learned`,'pp',dueN+newN>0)}
+    ${card('🧩','Assemblage','Verb + tense + person → type the form. Feedback splits stem and ending and names the anchor.','10 questions or 60 s','assemble',dueN+newN===0)}
+    <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin:16px 0 8px">Assemblage accuracy by tense</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${tenseStats}</div>
+  </div>`;
+}
+
+// ── 1. Endings drill
+function rtBuildEndings(){const all=[];Object.keys(RT_ENDINGS).forEach(s=>[0,1,2,3,4,5].forEach(p=>all.push({set:s,p})));return rtShuffle(all).slice(0,12);}
+function rtEndingsBody(){
+  if(rtState.idx>=rtState.queue.length)return rtResults("rtGo('endings')");
+  const c=rtState.queue[rtState.idx],correct=RT_ENDINGS[c.set][c.p];
+  let fb='';
+  if(rtState.answered){
+    const exV=rtVerb(RT_END_EX[c.set]);const tense=c.set.startsWith('present')?'present':c.set;
+    const row=RT_ENDINGS[c.set].map((e,i)=>`<div style="text-align:center;padding:6px 2px;border-radius:6px;${i===c.p?'background:var(--coral-dim);':''}"><div style="font-size:10px;color:var(--text3)">${RT_PRON[i].split('/')[0]}</div><div style="font-weight:600;color:${i===c.p?'var(--coral)':'var(--text)'}">-${e}</div></div>`).join('');
+    const exForm=exV?exV.tenses[tense][c.p]:'';
+    fb=`<div style="margin-top:1rem;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid ${rtState.lastOk?'var(--green)':'var(--coral)'}">
+      <div style="font-size:13px;font-weight:500;color:${rtState.lastOk?'var(--green)':'var(--coral)'};margin-bottom:8px">${rtState.lastOk?'✓ Correct':'✗ You wrote “'+rtEsc(rtState.lastAns)+'” — it’s -'+correct}</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:8px">${row}</div>
+      ${exV?`<div style="font-size:13px;color:var(--text2)">e.g. <span style="font-family:'Playfair Display',serif;font-style:italic;font-size:16px">${rtEsc(rtPrefix(c.p,exForm,tense))}${rtColor(exForm,tense,c.p)}</span> <span style="color:var(--text3)">(${rtEsc(exV.infinitive)})</span></div>`:''}
+      <div style="font-size:11px;color:var(--amber);margin-top:6px">${RT_END_NOTES[c.set]}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Press Enter for the next one</div></div>`;
+  }
+  return `${rtProgress()}<div class="question-card">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--blue);margin-bottom:10px;text-transform:uppercase">${RT_END_LABELS[c.set]}</div>
+    <div style="font-size:22px;color:var(--purple);font-weight:500;margin-bottom:14px">${RT_PRON[c.p]} <span style="color:var(--text3)">… -?</span></div>
+    ${rtInputRow('rtEndSubmit()','Type the ending (e.g. ais)')}${fb}</div>`;
+}
+function rtEndSubmit(){
+  if(rtState.answered){rtNext();return;}
+  const raw=(document.getElementById('rtInput').value||'').trim();if(!raw)return;
+  const c=rtState.queue[rtState.idx];const ok=raw.toLowerCase().replace(/^-+/,'').trim()===RT_ENDINGS[c.set][c.p];
+  rtMark(ok,raw,{label:RT_END_LABELS[c.set]+' · '+RT_PRON[c.p],correct:'-'+RT_ENDINGS[c.set][c.p]});
+  rtBump('end_'+c.set,ok);rtSave();renderContent();rtFocus();
+}
+
+// ── 2. Principal parts SRS
+const RT_PP_FIELDS=[{k:'je',label:'je (présent)'},{k:'nous',label:'nous (présent)'},{k:'ils',label:'ils (présent)'},{k:'pp',label:'participe passé'}];
+function rtPPAnswers(v){return{je:v.tenses.present[0],nous:v.tenses.present[3],ils:v.tenses.present[5],pp:v.pp};}
+function rtPPBody(){
+  if(rtState.idx>=rtState.queue.length){
+    if(!rtState.queue.length)return `<div class="day-panel" style="padding:1.5rem;text-align:center"><div style="font-size:15px;color:var(--green);margin-bottom:6px">Nothing due right now ✓</div><div style="font-size:12px;color:var(--text3);margin-bottom:12px">New verbs unlock at ${RT_NEW_PER_DAY} a day. Use Assemblage to practise the verbs you know.</div><button class="btn btn-primary" onclick="rtGo('assemble')">Assemblage →</button></div>`;
+    const more=rtPPQueue().length;
+    return rtResults(more?"rtGo('pp')":"rtGo('assemble')",more?'More due →':'Assemblage →');
+  }
+  const item=rtState.queue[rtState.idx],v=rtVerb(item.id),ans=rtPPAnswers(v),r=rtState.ppResult;
+  const fields=RT_PP_FIELDS.map((f,i)=>{
+    const res=r&&r[f.k];
+    const pre=f.k==='pp'?'':(f.k==='je'?(/^[aeiouyhâàéèêîïôûœ]/i.test(ans.je)?"j'":'je'):f.k);
+    return `<label style="display:block"><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px">${f.label}</div>
+      <div style="display:flex;align-items:center;gap:6px"><span style="font-size:13px;color:var(--purple);min-width:34px">${pre}</span>
+      <input id="rtPP_${f.k}" ${i===0&&!r?'data-rt-first':''} ${r?'readonly':''} autocomplete="off" autocapitalize="off" spellcheck="false" value="${r?rtEsc(r[f.k].raw):''}" onkeydown="if(event.key==='Enter'){event.preventDefault();rtPPKey('${f.k}')}"
+        style="flex:1;min-width:0;background:var(--surface2);border:1px solid ${res?(res.ok?'var(--green)':'var(--coral)'):'var(--border)'};border-radius:var(--radius-sm);color:${res?(res.ok?'var(--green)':'var(--coral)'):'var(--text)'};font-size:15px;padding:9px 11px;outline:none;font-family:Inter,sans-serif"></div>
+      ${res&&!res.ok?`<div style="font-size:15px;color:var(--green);margin:4px 0 0 40px;font-family:'Playfair Display',serif;font-style:italic">${rtEsc(ans[f.k])}</div>`:''}</label>`;
+  }).join('');
+  let fb='';
+  if(r){
+    const a=rtAnchors(v);const nWrong=RT_PP_FIELDS.filter(f=>!r[f.k].ok).length;
+    const derived=[['Imparfait',`je ${v.tenses.imparfait[0]}`,v.id==='etre'?'exception (ét-)':`nous → ${a.nous||'?'}-`],['Subjonctif',`que je ${v.tenses.subjunctive[0]}`,RT_SUBJ_EXC.includes(v.id)?'exceptions card':`ils → ${a.ils||'?'}-`],['Futur',`je ${v.tenses.futur[0]}`,a.futRegular?'infinitive':'irregular stem']]
+      .map(d=>`<div style="display:flex;gap:10px;font-size:12px;padding:3px 0;flex-wrap:wrap"><span style="min-width:80px;color:var(--text3)">${d[0]}</span><span style="color:var(--text);font-style:italic">${rtEsc(d[1])}</span><span style="margin-left:auto;color:var(--blue)">${rtEsc(d[2])}</span></div>`).join('');
+    const col=nWrong===0?'var(--green)':nWrong===1?'var(--amber)':'var(--coral)';
+    fb=`<div style="margin-top:1rem;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid ${col}">
+      <div style="font-size:13px;font-weight:500;margin-bottom:6px;color:${col}">${nWrong===0?'✓ All four right':nWrong+' to fix'} · auxiliary: ${rtEsc(v.aux)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">What these unlock:</div>${derived}
+      <div class="btn-row" style="margin-top:10px">${nWrong===0?`<button class="btn" style="font-size:12px" onclick="rtPPRate(4)">Good</button><button class="btn btn-primary" id="rtPPNext" style="font-size:12px" onclick="rtPPRate(5)">Easy →</button>`:`<button class="btn btn-primary" id="rtPPNext" style="font-size:12px" onclick="rtPPRate(${nWrong===1?3:1})">Next →</button>`}</div></div>`;
+  }
+  return `${rtProgress()}<div class="question-card">
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:24px;font-family:'Playfair Display',serif;font-style:italic;color:var(--text)">${rtEsc(v.infinitive)}</span>
+      <span style="font-size:13px;color:var(--text2)">${rtEsc(v.translation)}</span>
+      ${item.isNew?'<span style="font-size:10px;padding:2px 7px;border-radius:10px;background:var(--amber-dim);color:var(--amber);margin-left:auto">NEW</span>':''}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">${fields}</div>
+    ${r?'':`<div class="btn-row" style="margin-top:14px"><button class="btn btn-primary" onclick="rtPPCheck()">Check</button>${item.isNew?`<button class="btn" onclick="rtPPShow()">Show me (new verb)</button>`:''}</div>`}
+    ${fb}</div>`;
+}
+function rtPPKey(k){
+  if(rtState.ppResult)return;
+  const order=RT_PP_FIELDS.map(f=>f.k);const i=order.indexOf(k);
+  if(i<order.length-1){const n=document.getElementById('rtPP_'+order[i+1]);if(n)n.focus();}else rtPPCheck();
+}
+function rtPPCheck(){
+  const item=rtState.queue[rtState.idx],v=rtVerb(item.id),ans=rtPPAnswers(v),r={};
+  RT_PP_FIELDS.forEach(f=>{const el=document.getElementById('rtPP_'+f.k);const raw=((el&&el.value)||'').trim();r[f.k]={raw,ok:!!raw&&rtNorm(raw)===rtNorm(ans[f.k])};});
+  rtState.ppResult=r;renderContent();
+  setTimeout(()=>{const b=document.getElementById('rtPPNext');if(b)b.focus();},60);
+}
+function rtPPShow(){const r={};RT_PP_FIELDS.forEach(f=>r[f.k]={raw:'',ok:false});rtState.ppResult=r;renderContent();setTimeout(()=>{const b=document.getElementById('rtPPNext');if(b)b.focus();},60);}
+function rtPPRate(q){
+  const item=rtState.queue[rtState.idx],v=rtVerb(item.id);
+  if(item.isNew){rtNewToday().count++;}
+  if(!item.retry)rtPPGrade(item.id,q);
+  if(q>=3)rtState.correct++;
+  else{rtState.wrong++;rtState.missed.push({label:v.infinitive,correct:Object.values(rtPPAnswers(v)).join(' · ')});if(!item.retry)rtState.queue.push({id:item.id,isNew:false,retry:true});}
+  rtBump('pp',q>=3);rtSave();
+  rtState.ppResult=null;rtState.idx++;renderContent();rtFocus();
+}
+
+// ── 3. Assembly drill
+function rtAsmPick(){
+  const vs=rtVerbs();const ts=rtState.tense==='all'?RT_TENSES.map(t=>t.id):[rtState.tense];
+  const st=rtStats();const w=ts.map(t=>{const s=st['asm_'+t];const acc=s&&s.n>=5?s.c/s.n:0.6;return Math.max(0.15,1.2-acc);}); // lean toward weaker tenses
+  let x=Math.random()*w.reduce((a,b)=>a+b,0),ti=0;while(x>w[ti]&&ti<w.length-1){x-=w[ti];ti++;}
+  const v=vs[Math.floor(Math.random()*vs.length)];
+  return{verbId:v.id,tense:ts[ti],p:Math.floor(Math.random()*6)};
+}
+function rtAsmStart(timed){
+  if(rtTimer){clearInterval(rtTimer);rtTimer=null;}
+  rtState.timed=timed;rtState.idx=0;rtState.correct=0;rtState.wrong=0;rtState.missed=[];rtState.answered=false;rtState.done=false;
+  rtState.queue=timed?[rtAsmPick()]:Array.from({length:10},rtAsmPick);
+  if(timed){
+    rtState.timerEnd=Date.now()+60000;
+    rtTimer=setInterval(()=>{
+      if(activeTab!=='verbs'||vmState.view!=='radicaux'||rtState.mode!=='assemble'){clearInterval(rtTimer);rtTimer=null;return;}
+      const left=Math.max(0,Math.ceil((rtState.timerEnd-Date.now())/1000));
+      const el=document.getElementById('rtTimer');if(el)el.textContent=left+'s';
+      if(left<=0){clearInterval(rtTimer);rtTimer=null;rtState.done=true;rtSave();renderContent();}
+    },250);
+  }
+  renderContent();rtFocus();
+}
+function rtAsmBody(){
+  if(!rtState.queue.length){
+    const pills=[{id:'all',label:'All tenses'},...RT_TENSES].map(t=>`<button class="tense-pill ${rtState.tense===t.id?'active':''}" onclick="rtState.tense='${t.id}';renderContent()">${t.label}</button>`).join('');
+    return `<div class="day-panel" style="padding:1.25rem">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Tense</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:1.25rem">${pills}</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:1rem">“All tenses” leans toward the tenses you score lowest on. Start untimed; switch to the 60-second round once you're above about 90%.</div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="rtAsmStart(false)">10 questions →</button><button class="btn" onclick="rtAsmStart(true)">⏱ 60-second round</button></div></div>`;
+  }
+  if(rtState.done||(!rtState.timed&&rtState.idx>=rtState.queue.length))return rtResults(`rtAsmStart(${rtState.timed})`,'Again →',rtState.timed?`${rtState.correct} correct in 60 seconds`:null);
+  const c=rtState.queue[rtState.idx],v=rtVerb(c.verbId),form=v.tenses[c.tense][c.p],tl=RT_TENSES.find(t=>t.id===c.tense).label;
+  let fb='';
+  if(rtState.answered){
+    fb=`<div style="margin-top:1rem;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm);border-left:3px solid ${rtState.lastOk?'var(--green)':'var(--coral)'}">
+      ${rtState.lastOk?'<div style="font-size:13px;color:var(--green);margin-bottom:4px">✓ Correct</div>':`<div style="font-size:13px;color:var(--coral);text-decoration:line-through;margin-bottom:4px">${rtEsc(rtState.lastAns)}</div>`}
+      <div style="font-size:22px;font-family:'Playfair Display',serif;font-style:italic;margin-bottom:6px">${rtEsc(rtPrefix(c.p,form,c.tense))}${rtColor(form,c.tense,c.p)}</div>
+      <div style="font-size:12px;color:var(--text2)">${rtExplain(v,c.tense,c.p)}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Press Enter for the next one</div></div>`;
+  }
+  const meta=rtState.timed?`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span id="rtTimer" style="font-size:22px;font-weight:600;color:var(--amber)">${Math.max(0,Math.ceil((rtState.timerEnd-Date.now())/1000))}s</span><span style="font-size:13px"><span style="color:var(--green)">✓${rtState.correct}</span> <span style="color:var(--coral)">✗${rtState.wrong}</span></span></div>`:rtProgress();
+  return `${meta}<div class="question-card">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--blue);margin-bottom:10px;text-transform:uppercase">${tl}</div>
+    <div style="font-size:22px;font-family:'Playfair Display',serif;font-style:italic;color:var(--text);margin-bottom:4px">${rtEsc(v.infinitive)}</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px">${rtEsc(v.translation)}</div>
+    <div style="font-size:16px;font-weight:500;color:var(--purple);margin-bottom:12px">${c.tense==='subjunctive'?'que ':''}${RT_PRON[c.p]}</div>
+    ${rtInputRow('rtAsmSubmit()','Type the form…')}${fb}</div>`;
+}
+function rtAsmSubmit(){
+  if(rtState.answered){if(rtState.timed){rtState.answered=false;rtState.idx++;if(rtState.idx>=rtState.queue.length)rtState.queue.push(rtAsmPick());renderContent();rtFocus();}else rtNext();return;}
+  if(rtState.done)return;
+  const raw=(document.getElementById('rtInput').value||'').trim();if(!raw)return;
+  const c=rtState.queue[rtState.idx],v=rtVerb(c.verbId),form=v.tenses[c.tense][c.p];
+  const ok=rtNorm(raw)===rtNorm(form);
+  rtBump('asm_'+c.tense,ok);
+  rtMark(ok,raw,{label:`${v.infinitive} · ${RT_TENSES.find(t=>t.id===c.tense).label} · ${RT_PRON[c.p]}`,correct:form});
+  rtSave();
+  if(rtState.timed&&ok){rtState.answered=false;rtState.idx++;rtState.queue.push(rtAsmPick());}
+  renderContent();rtFocus();
+}
+
+// ── shared bits
+function rtInputRow(submit,ph){
+  const a=rtState.answered,col=a?(rtState.lastOk?'var(--green)':'var(--coral)'):null;
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap"><input type="text" id="rtInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${ph}" ${a?`readonly value="${rtEsc(rtState.lastAns)}"`:''}
+    onkeydown="if(event.key==='Enter'){event.preventDefault();${submit}}"
+    style="flex:1;min-width:160px;background:var(--surface2);border:1px solid ${col||'var(--border)'};border-radius:var(--radius-sm);color:${col||'var(--text)'};font-family:Inter,sans-serif;font-size:15px;padding:10px 12px;outline:none">
+    <button class="btn btn-primary" onclick="${submit}">${a?'Next →':'Check'}</button></div>`;
+}
+function rtMark(ok,raw,miss){rtState.answered=true;rtState.lastOk=ok;rtState.lastAns=raw;if(ok)rtState.correct++;else{rtState.wrong++;rtState.missed.push({...miss,yours:raw});}}
+function rtNext(){rtState.answered=false;rtState.idx++;renderContent();rtFocus();}
+function rtProgress(){const n=rtState.queue.length||1;return `<div style="font-size:12px;color:var(--text3);margin-bottom:6px">${Math.min(rtState.idx+1,n)}/${n} · <span style="color:var(--green)">✓${rtState.correct}</span> <span style="color:var(--coral)">✗${rtState.wrong}</span></div><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${Math.round(rtState.idx/n*100)}%"></div></div>`;}
+function rtResults(againCall,againLabel,headline){
+  const total=rtState.correct+rtState.wrong,pct=total?Math.round(rtState.correct/total*100):0;
+  const missed=rtState.missed.length?`<div style="text-align:left;margin-top:1rem"><div style="font-size:12px;font-weight:500;color:var(--text2);margin-bottom:6px">To review (${rtState.missed.length})</div>${rtState.missed.map(m=>`<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap"><span style="color:var(--text3)">${rtEsc(m.label)}</span><span style="margin-left:auto;color:var(--green);font-style:italic">${rtEsc(m.correct)}</span></div>`).join('')}</div>`:'';
+  return `<div class="day-panel" style="padding:1.5rem;text-align:center">
+    <div style="font-size:46px;font-weight:600;color:${pct>=85?'var(--green)':pct>=65?'var(--amber)':'var(--coral)'}">${headline?rtState.correct:pct+'%'}</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:.5rem">${headline||`${rtState.correct} of ${total} correct`}</div>
+    ${missed}
+    <div class="btn-row" style="justify-content:center;margin-top:1.25rem"><button class="btn btn-primary" onclick="${againCall}">${againLabel||'Again →'}</button><button class="btn" onclick="rtGo('hub')">Hub</button></div></div>`;
+}
 
 
 
