@@ -640,7 +640,7 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 const TABS = [
   { id:'schedule', label:'Schedule',        dot:'#4f8ef7' },
   { id:'traduire', label:'Traduire',        dot:'#4ecdc4', noBottom:true },
-  { id:'vocab',    label:'Vocabulary',      dot:'#4f8ef7' },
+  { id:'vocab',    label:'Expressions',     dot:'#4f8ef7' },
   { id:'parler',   label:'Parler',          dot:'#ff6b9d' },
   { id:'speaking', label:'Speaking',        dot:'#3ecf8e' },
   { id:'grammar',  label:'Grammar',         dot:'#a78bfa' },
@@ -655,43 +655,43 @@ const TABS = [
 // Smart weekly schedule — different focus each day
 const DAY_SCHEDULES = {
   0: [ // Sunday — Review day
-    { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards in your SRS queue.', tab:'vocab' },
+    { id:'vocab_srs',   name:'Mes expressions',   badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Review the phrases you added this week.', tab:'vocab' },
     { id:'weekly_rev',  name:'Weekly review',     badge:'review',  badgeLabel:'Review',  time:'20 min', desc:'Review the week: what stuck, what needs more work.', tab:'review' },
     { id:'verb_srs',    name:'Verb conjugation',  badge:'verbs',   badgeLabel:'Verbs',   time:'10 min', desc:'Radicaux: principal-parts review + a 60-second Assemblage round.', tab:'verbs' },
     { id:'listen',      name:'Listening input',   badge:'listen',  badgeLabel:'Listen',  time:'20 min', desc:'Podcast or video — passive relaxed listening.', tab:null },
   ],
   1: [ // Monday — Grammar + Speaking
     { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
-    { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
+    { id:'vocab_srs',   name:'Mes expressions',   badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Review the phrases you added — from Traduire, packs and role-plays.', tab:'vocab' },
     { id:'grammar',     name:'Grammar drill',     badge:'grammar', badgeLabel:'Grammar', time:'15 min', desc:'Next Clémence lesson — notes, review, worksheet, quizzes.', tab:'grammar' },
-    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'10 English→French sentences. Self-rate each one.', tab:'speaking' },
+    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Jeu de rôle: one chantier scene (quote, delay, extra cost…).', tab:'speaking' },
   ],
   2: [ // Tuesday — Verbs + Vocab
-    { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
+    { id:'vocab_srs',   name:'Mes expressions',   badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Review the phrases you added — from Traduire, packs and role-plays.', tab:'vocab' },
     { id:'verbs',       name:'Verb conjugation',  badge:'verbs',   badgeLabel:'Verbs',   time:'15 min', desc:'Radicaux: clear due principal parts, then one Assemblage round.', tab:'verbs' },
     { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Focus on past tenses today.', tab:'speaking' },
   ],
   3: [ // Wednesday — Grammar
     { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
-    { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
+    { id:'vocab_srs',   name:'Mes expressions',   badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Review the phrases you added — from Traduire, packs and role-plays.', tab:'vocab' },
     { id:'grammar',     name:'Grammar drill',     badge:'grammar', badgeLabel:'Grammar', time:'15 min', desc:'Next Clémence lesson — roll-up quiz when a block of 5 is done.', tab:'grammar' },
     { id:'listen',      name:'Listening input',   badge:'listen',  badgeLabel:'Listen',  time:'15 min', desc:'Podcast episode, focus on sentences you understand.', tab:null },
   ],
   4: [ // Thursday — Verbs + Speaking
-    { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
+    { id:'vocab_srs',   name:'Mes expressions',   badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Review the phrases you added — from Traduire, packs and role-plays.', tab:'vocab' },
     { id:'verbs',       name:'Verb conjugation',  badge:'verbs',   badgeLabel:'Verbs',   time:'15 min', desc:'Irregular verbs — être, avoir, aller, faire, prendre.', tab:'verbs' },
-    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Mix tenses — present, passé composé, futur proche.', tab:'speaking' },
+    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Jeu de rôle: one Pommard or everyday scene.', tab:'speaking' },
   ],
   5: [ // Friday — Grammar + Review
     { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
-    { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
+    { id:'vocab_srs',   name:'Mes expressions',   badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Review the phrases you added — from Traduire, packs and role-plays.', tab:'vocab' },
     { id:'grammar',     name:'Grammar drill',     badge:'grammar', badgeLabel:'Grammar', time:'15 min', desc:'Next Clémence lesson, then clear your missed-question review.', tab:'grammar' },
-    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Longer answers — practice 3-4 sentence responses.', tab:'speaking' },
+    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Jeu de rôle: dinner with friends — longer answers about your news.', tab:'speaking' },
   ],
   6: [ // Saturday — Light + Fun
     { id:'parler',      name:'Parler',            badge:'parler',  badgeLabel:'Parler',  time:'20 min', desc:'Speak & record (2 × 10 min), listen back, then add the words you got stuck on to your SRS.', tab:'parler' },
-    { id:'vocab_srs',   name:'Vocabulary SRS',    badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Clear all due cards — the bank auto-introduces up to 20 new words per day.', tab:'vocab' },
-    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Free practice — any topic you enjoy.', tab:'speaking' },
+    { id:'vocab_srs',   name:'Mes expressions',   badge:'vocab',   badgeLabel:'Vocab',   time:'10 min', desc:'Review the phrases you added — from Traduire, packs and role-plays.', tab:'vocab' },
+    { id:'speaking',    name:'Speaking practice', badge:'speaking',badgeLabel:'Speaking',time:'15 min', desc:'Jeu de rôle: ✨ your own situation — something you need to say this week.', tab:'speaking' },
     { id:'listen',      name:'Listening input',   badge:'listen',  badgeLabel:'Listen',  time:'20 min', desc:'Something fun — a French film, song, or YouTube video.', tab:null },
   ],
 };
@@ -1164,7 +1164,8 @@ function getVocabDeck(themeFilter) {
   const todayNew = getTodayNewCards();
   const newSlotsLeft = Math.max(0, NEW_CARDS_PER_DAY - todayNew.count);
   const mined = getMinedWords();
-  const pool = themeFilter === 'mine' ? mined : themeFilter ? getThemeWords(themeFilter) : [...mined, ...vocabBank];
+  const personal = !themeFilter && !state._bankDaily; // default: review only what you added (Mes expressions)
+  const pool = (themeFilter === 'mine' || personal) ? mined : themeFilter ? getThemeWords(themeFilter) : [...mined, ...vocabBank];
   const minRank = state._vocab_minRank || 0;
 
   // Reviews: cards already rated whose due date has passed
@@ -1410,7 +1411,7 @@ function getRelatedPreps(card) {
 
 // ── Themes ───────────────────────────────────────────────────────
 const THEMES = [
-  { id: 'mine',     emoji: '🎙', label: 'Mes mots',          labelEn: 'Words you needed (Parler)' },
+  { id: 'mine',     emoji: '✦', label: 'Mes expressions',   labelEn: 'Everything you added' },
   { id: 'clothes',  emoji: '🧥', label: 'Vêtements',        labelEn: 'Clothes' },
   { id: 'kitchen',  emoji: '🍳', label: 'Cuisine',           labelEn: 'Kitchen' },
   { id: 'bedroom',  emoji: '🛏', label: 'Chambre',           labelEn: 'Bedroom' },
@@ -1622,6 +1623,7 @@ function renderThemeBrowse() {
 function renderVocabHTML() {
   if (vocabState.genderDrill) return renderGenderDrill();
   if (vocabState.themeView) return renderThemesView();
+  if (vocabState.packsView) return renderPacksHTML();
   if (vocabState.theme && vocabState.theme !== 'mine') return renderThemeBrowse();
 
   const activeTheme = vocabState.theme ? THEMES.find(t => t.id === vocabState.theme) : null;
@@ -1649,19 +1651,24 @@ function renderVocabHTML() {
       <span>· 🎙 ${getMinedWords().length} from Parler</span>
     </div>`;
   }
-  const statsRow = `<div class="stats-row" style="margin-bottom:1rem">
+  let statsRow = `<div class="stats-row" style="margin-bottom:1rem">
     <div class="stat-card"><div class="stat-lbl">Bank size</div><div class="stat-val">${stats.total}</div><div class="stat-sub">words total</div></div>
     <div class="stat-card"><div class="stat-lbl">New today</div><div class="stat-val" style="color:var(--blue)">${stats.newSeenToday}/${NEW_CARDS_PER_DAY}</div><div class="stat-sub">of daily limit</div></div>
     <div class="stat-card"><div class="stat-lbl">Mastered</div><div class="stat-val" style="color:var(--green)">${stats.mastered}</div><div class="stat-sub">interval ≥ 7d</div></div>
     <div class="stat-card"><div class="stat-lbl">Due now</div><div class="stat-val" style="color:${deck.length>0?'var(--amber)':'var(--green)'}">${deck.length}</div><div class="stat-sub">reviews + new</div></div>
   </div>`;
+  const personal = mxIsPersonal();
+  if (personal) { genStatus = mxStatusHTML(); statsRow = mxStatsHTML(deck); }
+  else if (!activeTheme) genStatus += `<div style="font-size:11px;margin-top:4px"><a href="#" onclick="mxToggleBank();return false" style="color:var(--blue)">✦ Switch back to Mes expressions only</a></div>`;
 
   if (deck.length === 0) {
     return `<div class="practice-screen">
       <div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
-        <div><div class="ps-title">Vocabulaire${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div><div class="ps-sub">SM-2 spaced repetition · ${stats.total} words</div></div>
+        <div><div class="ps-title">${personal ? 'Mes expressions' : 'Vocabulaire'}${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div><div class="ps-sub">${personal ? `${getMinedWords().length} phrases & words you added` : `SM-2 spaced repetition · ${stats.total} words`}</div></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='due';renderContent()">✕ All words</button>` : ''}
+          <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--blue);border-color:var(--blue)" onclick="switchTab('traduire')">🔍 How do I say…?</button>
+          <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--green);border-color:var(--green)" onclick="vocabState.packsView=true;packState.open=null;renderContent()">📦 Packs</button>
           <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
           <button class="btn" style="font-size:11px;padding:4px 10px;color:#ff8fab;border-color:#ff8fab" onclick="vocabState.genderDrill=true;vocabState.gdrillIdx=Math.floor(Math.random()*getGenderDrillDeck().length);vocabState.gdrillScore=0;vocabState.gdrillTotal=0;vocabState.gdrillStreak=0;vocabState.gdrillResult=null;renderContent()">🎯 Genre</button>
         </div>
@@ -1673,7 +1680,7 @@ function renderVocabHTML() {
         <div style="font-size:17px;color:var(--green);margin-bottom:6px">All caught up!</div>
         <div style="font-size:13px;color:var(--text2);margin-bottom:1.5rem">No cards due right now. Come back later or browse the word list below.</div>
       </div>
-      ${renderVocabList(stats)}
+      ${personal ? mxListHTML() : renderVocabList(stats)}
     </div>`;
   }
 
@@ -1696,12 +1703,14 @@ function renderVocabHTML() {
   return `<div class="practice-screen">
     <div class="ps-header" style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px">
       <div>
-        <div class="ps-title">Vocabulaire${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div>
-        <div class="ps-sub">${deck.length} due · ${stats.mastered} mastered · ${stats.total} words</div>
+        <div class="ps-title">${personal ? 'Mes expressions' : 'Vocabulaire'}${activeTheme ? ` <span style="font-size:14px;font-weight:400;color:var(--purple)">${activeTheme.emoji} ${activeTheme.label}</span>` : ''}</div>
+        <div class="ps-sub">${personal ? `${deck.length} due · ${getMinedWords().length} phrases & words you added` : `${deck.length} due · ${stats.mastered} mastered · ${stats.total} words`}</div>
       </div>
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
         ${activeTheme ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--text3)" onclick="vocabState.theme=null;vocabState.cardIndex=0;vocabState.revealed=false;vocabState.filter='due';renderContent()">✕ All words</button>` : ''}
-        <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
+        <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--blue);border-color:var(--blue)" onclick="switchTab('traduire')">🔍 How do I say…?</button>
+          <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--green);border-color:var(--green)" onclick="vocabState.packsView=true;packState.open=null;renderContent()">📦 Packs</button>
+          <button class="btn" style="font-size:11px;padding:4px 10px;color:var(--purple);border-color:var(--purple)" onclick="vocabState.themeView=true;renderContent()">🏷 Themes</button>
       </div>
     </div>
     ${genStatus}
@@ -1715,7 +1724,7 @@ function renderVocabHTML() {
     </div>` : ''}
     <div class="card-area" onclick="${rev ? '' : 'revealVocab()'}" style="cursor:${rev ? 'default' : 'pointer'};margin-top:1rem;${card.reverse && !rev ? '' : genderCardStyle(card)}">
       ${card.isNew ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--blue);background:var(--blue-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin-bottom:8px">NEW</div>` : ''}
-      ${card.category === 'mine' ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--coral);background:var(--coral-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin:0 0 8px 6px">🎙 MES MOTS</div>` : ''}
+      ${card.category === 'mine' ? `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;color:var(--coral);background:var(--coral-dim);padding:2px 10px;border-radius:10px;display:inline-block;margin:0 0 8px 6px">✦ MES EXPRESSIONS</div>` : ''}
       ${card.reverse
         ? `<div class="card-front" style="font-size:22px">${card.english}</div>
            <div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${card.type ? ' · ' + card.type : ''}</div>`
@@ -1754,7 +1763,7 @@ function renderVocabHTML() {
     </div>` : card.reverse ? '' : `<div class="btn-row" style="justify-content:center;margin-top:0">
       <button class="btn" data-speak="${card.french}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊 Hear it</button>
     </div>`}
-    <div style="margin-top:1.5rem">${renderVocabList(stats)}</div>
+    <div style="margin-top:1.5rem">${personal ? mxListHTML() : renderVocabList(stats)}</div>
   </div>`;
 }
 
@@ -2172,7 +2181,7 @@ const SPEAKING_TOPICS_FULL = [
 ];
 const SPEAKING_SUBJECTS = ["I","you","he","she","we","they","my friend","my sister","my boss","the children"];
 
-let speakState = { tenseKey: 'all', drillMode: 'translation', sentence: null, revealed: false, loading: false, speakStreak: 0, sessionCount: 0, sessionGoal: 10 };
+let speakState = { tenseKey: 'all', drillMode: 'roleplay', sentence: null, revealed: false, loading: false, speakStreak: 0, sessionCount: 0, sessionGoal: 10 };
 
 function speakFrench(text) {
   if (!text) return;
@@ -2311,6 +2320,12 @@ function renderSpeakingHTML() {
 
   // Mode toggle: Translation vs Situation
   const modeToggle = `<div style="display:flex;background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);padding:3px;margin-bottom:1rem;gap:2px">
+    <button onclick="setSpeakMode('roleplay')" style="flex:1;padding:7px;border-radius:6px;border:none;font-size:12px;font-weight:500;font-family:Inter,sans-serif;cursor:pointer;transition:all .15s;
+      background:${speakState.drillMode==='roleplay'?'var(--surface)':'transparent'};
+      color:${speakState.drillMode==='roleplay'?'var(--text)':'var(--text3)'};
+      box-shadow:${speakState.drillMode==='roleplay'?'0 1px 3px rgba(0,0,0,.3)':'none'}">
+      🗣 Jeu de rôle
+    </button>
     <button onclick="setSpeakMode('translation')" style="flex:1;padding:7px;border-radius:6px;border:none;font-size:12px;font-weight:500;font-family:Inter,sans-serif;cursor:pointer;transition:all .15s;
       background:${speakState.drillMode==='translation'?'var(--surface)':'transparent'};
       color:${speakState.drillMode==='translation'?'var(--text)':'var(--text3)'};
@@ -2324,6 +2339,7 @@ function renderSpeakingHTML() {
       🎭 Situation drill
     </button>
   </div>`;
+  if (speakState.drillMode === 'roleplay') return renderRoleplayHTML(modeToggle);
 
   // Tense selector row (only for translation mode)
   const tenseHTML = SPEAKING_TENSE_KEYS.map(k => {
@@ -2580,6 +2596,7 @@ function myWordsAddManual() {
   const fr = frEl.value.trim();
   const en = enEl ? enEl.value.trim() : '';
   const added = myWordsAdd(fr, en, 'Manual');
+  mxAdd([{ french: fr, english: en }], 'Manual');
   if (added) {
     frEl.value = ''; if (enEl) enEl.value = '';
     renderContent();
@@ -5012,6 +5029,705 @@ function rtResults(againCall,againLabel,headline){
 
 
 
+
+// ═══════════════════════════════════════
+// PHRASE PACKS — real spoken phrases for the chantier, Pommard and daily life.
+// Browse any time; "+" sends a phrase to Mes expressions (English first, say it in French).
+// ═══════════════════════════════════════
+const PACKS = [
+  { id:'chantier', emoji:'🔨', title:'Le chantier', sub:'Renovation — quotes, follow-up, problems, handover', sections:[
+    { t:'Premier contact & devis', items:[
+      ["Je vous appelle pour des travaux de rénovation dans un appartement.","I'm calling about renovation work in an apartment."],
+      ["Vous pourriez passer voir l'appartement cette semaine ?","Could you come and see the apartment this week?"],
+      ["Vous pouvez me faire un devis détaillé ?","Can you give me a detailed quote?"],
+      ["Le devis comprend la main-d'œuvre et les fournitures ?","Does the quote include labour and materials?"],
+      ["C'est un prix ferme ou une estimation ?","Is that a fixed price or an estimate?"],
+      ["C'est HT ou TTC ?","Is that before or after VAT?","HT = hors taxes, TTC = toutes taxes comprises. Renovation work is often at 10% VAT."],
+      ["Vous avez l'assurance décennale ? Vous pouvez m'envoyer l'attestation ?","Do you have ten-year liability insurance? Can you send me the certificate?","Ask every contractor this before signing."],
+      ["Quel acompte vous demandez ?","What deposit do you ask for?"],
+      ["Vous seriez disponible à partir de quand ?","When would you be available from?"],
+      ["On demande plusieurs devis, je reviens vers vous la semaine prochaine.","We're getting several quotes; I'll get back to you next week."],
+    ]},
+    { t:'Décrire les travaux', items:[
+      ["On veut refaire entièrement la cuisine.","We want to completely redo the kitchen."],
+      ["On voudrait abattre ce mur. C'est un mur porteur ?","We'd like to knock down this wall. Is it load-bearing?"],
+      ["Il faut tout remettre aux normes, surtout l'électricité.","Everything needs bringing up to code, especially the electrics."],
+      ["Il faudrait refaire toute la plomberie de la salle de bains.","The bathroom plumbing needs redoing entirely."],
+      ["On aimerait garder le parquet d'origine et le faire poncer.","We'd like to keep the original parquet and have it sanded."],
+      ["On voudrait déplacer la cuisine de l'autre côté.","We'd like to move the kitchen to the other side."],
+      ["Est-ce qu'il faut l'accord de la copropriété ?","Do we need the building's approval?","Work touching walls, pipes or façade often needs a vote at the assemblée générale."],
+      ["Il y a de l'humidité ici. Ça vient d'où, à votre avis ?","There's damp here. Where do you think it's coming from?"],
+      ["Qu'est-ce que vous feriez à notre place ?","What would you do in our position?"],
+    ]},
+    { t:'Suivre le chantier', items:[
+      ["On peut faire le point sur l'avancement ?","Can we go over how things are progressing?"],
+      ["Où en est-on ?","Where are we at?"],
+      ["Ça va prendre combien de temps ?","How long is it going to take?"],
+      ["Ce sera terminé quand, à peu près ?","Roughly when will it be finished?"],
+      ["Il y a du retard ? Qu'est-ce qui se passe ?","Is there a delay? What's going on?"],
+      ["Les matériaux sont commandés ?","Have the materials been ordered?"],
+      ["On attend quoi, exactement ?","What exactly are we waiting for?"],
+      ["Vous pouvez m'envoyer quelques photos ?","Can you send me a few photos?"],
+      ["Qui sera sur le chantier demain ?","Who'll be on site tomorrow?"],
+      ["Je passerai jeudi matin pour voir.","I'll come by Thursday morning to take a look."],
+    ]},
+    { t:'Problèmes & désaccords', items:[
+      ["Ce n'est pas ce qu'on avait convenu.","That's not what we agreed."],
+      ["Sur le devis, c'était prévu autrement.","The quote had it differently."],
+      ["Je ne suis pas satisfait de la finition ici.","I'm not happy with the finish here."],
+      ["Il faudrait reprendre ça.","This needs redoing.","Reprendre = go back over and fix work."],
+      ["Ce supplément n'était pas prévu. Vous pouvez m'expliquer ?","This extra wasn't planned. Can you explain?"],
+      ["Avant de faire quoi que ce soit en plus, prévenez-moi, s'il vous plaît.","Before doing anything extra, please check with me."],
+      ["Je préfère qu'on le mette par écrit.","I'd rather we put it in writing."],
+      ["On s'était mis d'accord sur une date.","We'd agreed on a date."],
+      ["Je comprends, mais ça ne peut pas continuer comme ça.","I understand, but this can't go on like this."],
+      ["Il me faut une date ferme.","I need a firm date."],
+    ]},
+    { t:'Choix & finitions', items:[
+      ["Vous me conseillez quoi ?","What do you recommend?"],
+      ["Qu'est-ce qui est le plus facile à entretenir ?","What's easiest to maintain?"],
+      ["On hésite entre ces deux carrelages.","We're torn between these two tiles."],
+      ["Vous pouvez me montrer des échantillons ?","Can you show me some samples?"],
+      ["On met les prises où ?","Where are we putting the sockets?"],
+      ["Pour la peinture, mat ou satiné ?","For the paint, matte or satin?"],
+      ["On peut voir ça ensemble sur place ?","Can we look at it together on site?"],
+    ]},
+    { t:'Fin de chantier & paiement', items:[
+      ["On fait la réception des travaux quand ?","When do we do the formal handover?","La réception: you walk through and list any defects (réserves) before paying the balance."],
+      ["Je voudrais émettre quelques réserves.","I'd like to note a few defects."],
+      ["Je règle le solde quand tout est terminé.","I'll pay the balance when everything's finished."],
+      ["Vous pouvez m'envoyer la facture ?","Can you send me the invoice?"],
+      ["Merci, c'est du beau travail.","Thank you, that's lovely work."],
+    ]},
+    { t:'Les corps de métier', items:[
+      ["l'entrepreneur / l'entreprise générale","the general contractor"],
+      ["le maître d'œuvre","the project manager (oversees all the trades)"],
+      ["le plombier","the plumber"],
+      ["l'électricien","the electrician"],
+      ["le carreleur","the tiler"],
+      ["le peintre","the painter"],
+      ["le menuisier","the joiner (doors, windows, cabinetry)"],
+      ["le maçon","the mason / builder"],
+      ["le plaquiste","the drywaller"],
+      ["le chauffagiste","the heating engineer"],
+      ["le couvreur","the roofer"],
+    ]},
+  ]},
+  { id:'pommard', emoji:'🍇', title:'Pommard & le village', sub:'Neighbours, the mairie, vignerons, the house', sections:[
+    { t:'Les voisins', items:[
+      ["Bonjour ! On vient d'acheter la maison d'à côté.","Hello! We've just bought the house next door."],
+      ["On est vos nouveaux voisins.","We're your new neighbours."],
+      ["On partage notre temps entre Paris et ici.","We split our time between Paris and here."],
+      ["Vous habitez ici depuis longtemps ?","Have you lived here long?"],
+      ["Vous êtes du coin ?","Are you from around here?"],
+      ["N'hésitez pas si vous avez besoin de quoi que ce soit.","Don't hesitate if you need anything at all."],
+      ["Passez prendre l'apéro un de ces soirs !","Come over for a drink one evening!"],
+      ["Vous connaîtriez un bon artisan dans le coin ?","Would you know a good tradesperson around here?"],
+      ["Quand on n'est pas là, vous pourriez jeter un œil à la maison ?","When we're away, could you keep an eye on the house?"],
+    ]},
+    { t:'La vie au village', items:[
+      ["Le marché, c'est quel jour ?","Which day is the market?"],
+      ["La boulangerie ouvre le dimanche ?","Is the bakery open on Sundays?"],
+      ["Les poubelles, c'est quel jour ?","Which day are the bins collected?"],
+      ["Où est la déchetterie la plus proche ?","Where's the nearest recycling centre?"],
+      ["Il se passe quelque chose au village ce week-end ?","Is anything happening in the village this weekend?"],
+      ["Je voudrais me renseigner sur une déclaration préalable de travaux.","I'd like to ask about a planning declaration for some work.","Needed at the mairie for exterior changes: windows, roof, shutters, façade."],
+      ["Il faut demander une autorisation pour changer les volets ?","Do we need permission to change the shutters?"],
+    ]},
+    { t:'Chez le vigneron', items:[
+      ["On peut passer déguster ?","Can we come by for a tasting?"],
+      ["Il faut prendre rendez-vous pour une dégustation ?","Do we need to book a tasting?"],
+      ["C'est quelle parcelle ?","Which plot is this from?"],
+      ["Ce millésime, il se boit déjà ou il faut attendre ?","Is this vintage drinking now, or should we wait?"],
+      ["Qu'est-ce que vous nous conseillez pour la garde ?","What do you recommend for laying down?"],
+      ["Ça se marie bien avec quoi ?","What does it go well with?"],
+      ["On aimerait en prendre un carton.","We'd like to take a case."],
+      ["Les vendanges, c'est pour quand cette année ?","When's the harvest this year?"],
+      ["C'était une belle année ?","Was it a good year?"],
+    ]},
+    { t:'La maison', items:[
+      ["On a une fuite au niveau du toit.","We have a leak somewhere in the roof."],
+      ["La chaudière ne démarre plus.","The boiler won't start any more."],
+      ["Il faut faire ramoner la cheminée.","We need to get the chimney swept."],
+      ["On cherche quelqu'un pour entretenir le jardin.","We're looking for someone to look after the garden."],
+      ["Vous pourriez passer quand on est là, le week-end prochain ?","Could you come while we're here, next weekend?"],
+      ["Je vous laisse les clés chez la voisine.","I'll leave the keys with the neighbour."],
+    ]},
+  ]},
+  { id:'quotidien', emoji:'🥖', title:'La vie de tous les jours', sub:'Shops, restaurants, the building, deliveries, health, phone calls, dinners', sections:[
+    { t:'Commerces & marché', items:[
+      ["Je vais prendre ça.","I'll take this."],
+      ["Je regarde, merci.","I'm just looking, thanks."],
+      ["Vous l'avez dans une autre taille ?","Do you have it in another size?"],
+      ["C'est pour offrir.","It's a gift.","They'll offer to gift-wrap it."],
+      ["Ce sera tout, merci.","That'll be all, thanks."],
+      ["Je peux payer par carte ?","Can I pay by card?"],
+      ["Un peu plus, s'il vous plaît. / Un peu moins.","A bit more, please. / A bit less."],
+      ["Qu'est-ce qui est bon en ce moment ?","What's good at the moment?"],
+      ["Une baguette pas trop cuite, s'il vous plaît.","A baguette not too well done, please."],
+    ]},
+    { t:'Restaurant & café', items:[
+      ["Je voudrais réserver une table pour quatre, samedi soir vers vingt heures.","I'd like to book a table for four, Saturday evening around 8."],
+      ["On n'a pas réservé. Vous auriez une table pour deux ?","We haven't booked. Would you have a table for two?"],
+      ["Qu'est-ce que vous nous conseillez ?","What would you recommend?"],
+      ["Je vais prendre le plat du jour.","I'll have the dish of the day."],
+      ["Saignant, s'il vous plaît.","Rare, please.","Bleu, saignant, à point, bien cuit."],
+      ["On pourrait avoir une carafe d'eau ?","Could we have a jug of tap water?"],
+      ["On peut avoir l'addition, s'il vous plaît ?","Could we have the bill, please?"],
+      ["C'était délicieux, merci.","That was delicious, thank you."],
+    ]},
+    { t:'Immeuble, syndic & livraisons', items:[
+      ["On a un dégât des eaux, ça vient de l'appartement du dessus.","We have water damage; it's coming from the flat above.","Dégât des eaux is the insurance term."],
+      ["Il faut qu'on remplisse un constat amiable.","We need to fill in a joint damage report."],
+      ["Je voudrais signaler un problème dans les parties communes.","I'd like to report a problem in the common areas."],
+      ["Qui s'occupe de ça, le syndic ou le gardien ?","Who deals with that, the managing agent or the caretaker?"],
+      ["L'ascenseur est encore en panne.","The lift is broken again."],
+      ["J'attends un colis. Il a été livré où ?","I'm expecting a parcel. Where was it delivered?"],
+      ["Le livreur n'a pas sonné.","The courier didn't ring."],
+      ["Vous pouvez le laisser chez le gardien ?","Can you leave it with the caretaker?"],
+      ["Je voudrais reprogrammer la livraison.","I'd like to reschedule the delivery."],
+    ]},
+    { t:'Santé & pharmacie', items:[
+      ["J'ai mal à la gorge depuis deux jours.","I've had a sore throat for two days."],
+      ["Qu'est-ce que vous me conseillez pour la toux ?","What do you recommend for a cough?"],
+      ["Il faut une ordonnance ?","Do I need a prescription?"],
+      ["Je voudrais prendre rendez-vous avec le médecin.","I'd like to make an appointment with the doctor."],
+      ["C'est assez urgent.","It's fairly urgent."],
+      ["Je prends déjà un traitement.","I'm already taking medication."],
+    ]},
+    { t:'Au téléphone & démarches', items:[
+      ["Je vous appelle au sujet de…","I'm calling about…"],
+      ["Pourriez-vous parler un peu plus lentement, s'il vous plaît ?","Could you speak a little more slowly, please?"],
+      ["Je n'ai pas bien compris, vous pouvez répéter ?","I didn't quite catch that; could you repeat it?"],
+      ["Vous pouvez me l'envoyer par mail ?","Can you send it to me by email?"],
+      ["Vous pouvez me l'épeler ?","Could you spell that for me?"],
+      ["Quelles sont les pièces à fournir ?","What documents do I need to provide?"],
+      ["C'est de la part de qui ?","Who's calling?","You'll hear this; answer « De la part de Jimmy Gardner »."],
+      ["Je vous rappelle dans l'après-midi.","I'll call you back this afternoon."],
+    ]},
+    { t:'Dîners & conversation', items:[
+      ["Ça fait longtemps !","It's been ages!"],
+      ["Quoi de neuf ?","What's new?"],
+      ["Vous faites quoi dans la vie ?","What do you do for a living?"],
+      ["On est en train de rénover un appartement, c'est un vrai chantier.","We're renovating an apartment; it's total chaos.","Chantier also means « a mess »."],
+      ["On vient d'acheter une maison en Bourgogne, à Pommard.","We've just bought a house in Burgundy, in Pommard."],
+      ["Ça vous dirait de venir dîner un de ces jours ?","Would you like to come for dinner one of these days?"],
+      ["Je vous sers un verre ?","Can I pour you a drink?"],
+      ["À la vôtre !","Cheers!"],
+      ["Merci pour cette soirée, c'était vraiment sympa.","Thanks for this evening, it was really lovely."],
+    ]},
+  ]},
+  { id:'expressions', emoji:'💬', title:'Expressions du quotidien', sub:'The idioms people actually use', sections:[
+    { t:'Réactions', items:[
+      ["Ça marche.","Sounds good. / Works for me."],
+      ["Pas de souci.","No problem."],
+      ["C'est pas évident.","It's tricky.","Spoken French drops the ne."],
+      ["Ça dépend.","It depends."],
+      ["On verra.","We'll see."],
+      ["Ça m'est égal.","I don't mind either way."],
+      ["Tant pis.","Oh well. / Too bad."],
+      ["Tant mieux.","All the better."],
+      ["Je n'en reviens pas.","I can't believe it."],
+      ["C'est n'importe quoi.","That's nonsense."],
+      ["Ça me fait plaisir.","I'm happy to. / That's kind of you."],
+      ["Bon courage !","Good luck! / Hang in there!"],
+    ]},
+    { t:'Idiomes', items:[
+      ["Ça vaut le coup.","It's worth it."],
+      ["Ça coûte les yeux de la tête.","It costs an arm and a leg."],
+      ["Ce n'est pas la mer à boire.","It's not that hard."],
+      ["Les doigts dans le nez.","Easy-peasy."],
+      ["Avoir un coup de cœur pour…","To fall in love with (a place, a thing)…"],
+      ["Poser un lapin à quelqu'un.","To stand someone up.","Useful with artisans."],
+      ["Je suis à la bourre.","I'm running late."],
+      ["J'en ai marre.","I'm fed up."],
+      ["Il pleut des cordes.","It's pouring."],
+      ["Mettre son grain de sel.","To put in one's two cents."],
+      ["C'est la goutte d'eau qui fait déborder le vase.","That's the last straw."],
+      ["Ça me dit quelque chose.","That rings a bell."],
+      ["Il vaut mieux attendre.","It's better to wait."],
+    ]},
+  ]},
+  { id:'liant', emoji:'🧵', title:'Le liant de la conversation', sub:'Fillers and connectors that keep you talking', sections:[
+    { t:'Gagner du temps', items:[
+      ["Comment dire…","How can I put it…"],
+      ["Je cherche le mot…","I'm looking for the word…"],
+      ["Comment on dit « … » en français ?","How do you say « … » in French?","Your most useful sentence."],
+      ["C'est comme… un genre de…","It's like… a kind of…"],
+      ["Enfin, je veux dire…","Well, I mean…"],
+      ["Attendez… / Attends…","Wait…"],
+    ]},
+    { t:'Relier les idées', items:[
+      ["Du coup…","So… / As a result…"],
+      ["En fait…","Actually…"],
+      ["Bref…","Anyway…"],
+      ["Par contre…","On the other hand… / However…"],
+      ["D'ailleurs…","By the way… / Besides…"],
+      ["À mon avis…","In my opinion…"],
+      ["Bon, ben…","Well then…","Used to wrap things up."],
+    ]},
+    { t:'Réagir & vérifier', items:[
+      ["Ah bon ?","Really?"],
+      ["Sans blague !","No kidding!"],
+      ["Je vois.","I see."],
+      ["C'est-à-dire ?","Meaning?"],
+      ["Vous voyez ce que je veux dire ?","Do you see what I mean?"],
+      ["Vous pouvez reformuler ?","Could you put that another way?"],
+      ["Je suis d'accord. / Pas tout à fait.","I agree. / Not entirely."],
+    ]},
+  ]},
+];
+
+let packState = { open:null };
+function pkEsc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function pkKey(fr){ return String(fr || '').toLowerCase().trim(); }
+function pkMinedKeys(){ return new Set((state._mined || []).map(w => pkKey(w.french))); }
+// Add to Mes expressions — dedups against Mes expressions only (not the word bank)
+function mxAdd(items, source, dripPerDay) {
+  if (!state._mined) state._mined = [];
+  const have = pkMinedKeys();
+  const start = new Date(); start.setHours(0,0,0,0);
+  const stamp = Date.now(); let added = 0; const fresh = [];
+  items.forEach(x => {
+    const fr = (x.french || '').trim(); if (!fr || have.has(pkKey(fr))) return; have.add(pkKey(fr));
+    const card = { id:'mine_x' + stamp + '_' + added, french:fr, english:x.english || '', type:x.type || 'phrase', example:x.example || '', note:x.note || '', category:'mine', reverse:true, rank:0, addedAt:stamp, source:source || 'Manual' };
+    if (dripPerDay) card.availableFrom = start.getTime() + Math.floor(added / dripPerDay) * 86400000;
+    fresh.push(card); added++;
+    try { myWordsAdd(fr, x.english || '', source || 'Manual'); } catch {}
+  });
+  state._mined = [...fresh, ...state._mined];
+  saveState(state);
+  return added;
+}
+const PACK_DRIP = 8;
+function pkItem(p, s, i){ const it = PACKS.find(x => x.id === p).sections[s].items[i]; return { french:it[0], english:it[1], note:it[2] || '' }; }
+function pkAddOne(p, s, i, btn){
+  const pack = PACKS.find(x => x.id === p);
+  const n = mxAdd([pkItem(p, s, i)], 'Pack · ' + pack.title);
+  if (btn) { btn.textContent = '✓'; btn.disabled = true; btn.style.color = 'var(--green)'; btn.style.borderColor = 'var(--green)'; btn.title = n ? 'Added to Mes expressions' : 'Already in Mes expressions'; }
+}
+function pkAddSection(p, s){
+  const pack = PACKS.find(x => x.id === p);
+  const items = pack.sections[s].items.map((_, i) => pkItem(p, s, i));
+  const n = mxAdd(items, 'Pack · ' + pack.title, PACK_DRIP);
+  packState.msg = n ? `✓ ${n} phrase${n>1?'s':''} added — ${n > PACK_DRIP ? PACK_DRIP + ' a day, starting today' : 'ready to review today'}.` : 'Already in Mes expressions.';
+  renderContent();
+}
+function pkSpeak(p, s, i, btn){ const it = PACKS.find(x => x.id === p).sections[s].items[i]; speakFrenchHQ(it[0].split(' / ')[0], btn); }
+function pkOpen(id){ packState.open = id; packState.msg = ''; renderContent(); window.scrollTo(0,0); }
+
+function renderPacksHTML(){
+  const have = pkMinedKeys();
+  const back = `<button class="btn" style="font-size:12px" onclick="${packState.open ? "packState.open=null;renderContent()" : "vocabState.packsView=false;renderContent()"}">← ${packState.open ? 'Packs' : 'Mes expressions'}</button>`;
+  if (!packState.open) {
+    const cards = PACKS.map(p => {
+      const all = p.sections.flatMap(s => s.items); const n = all.filter(it => have.has(pkKey(it[0]))).length;
+      return `<div onclick="pkOpen('${p.id}')" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer"
+        onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:26px;margin-bottom:6px">${p.emoji}</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">${p.title}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">${p.sub}</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <span style="font-size:11px;background:var(--surface3);padding:2px 8px;border-radius:10px;color:var(--text2)">${all.length} phrases</span>
+          ${n ? `<span style="font-size:11px;background:var(--green-dim);padding:2px 8px;border-radius:10px;color:var(--green)">${n} in Mes expressions</span>` : ''}
+        </div></div>`;
+    }).join('');
+    return `<div class="practice-screen">
+      <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div><div class="ps-title">Phrase packs</div><div class="ps-sub">Browse any time · tap + to add a phrase to Mes expressions</div></div>${back}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:1rem">${cards}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:1rem">Practise these out loud in <a href="#" onclick="switchTab('speaking');setSpeakMode('roleplay');return false" style="color:var(--blue)">🗣 Jeu de rôle</a>.</div>
+    </div>`;
+  }
+  const p = PACKS.find(x => x.id === packState.open);
+  const sections = p.sections.map((s, si) => {
+    const left = s.items.filter(it => !have.has(pkKey(it[0]))).length;
+    const rows = s.items.map((it, i) => {
+      const inMine = have.has(pkKey(it[0]));
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 14px;border-bottom:1px solid var(--border)">
+        <button class="btn" style="font-size:12px;padding:3px 8px;flex:none" onclick="pkSpeak('${p.id}',${si},${i},this)" title="Hear it">🔊</button>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;color:var(--text);font-family:'Playfair Display',serif;font-style:italic;line-height:1.35">${pkEsc(it[0])}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${pkEsc(it[1])}</div>
+          ${it[2] ? `<div style="font-size:11px;color:var(--amber);margin-top:3px">${pkEsc(it[2])}</div>` : ''}
+        </div>
+        <button class="btn" style="font-size:13px;padding:3px 10px;flex:none;${inMine ? 'color:var(--green);border-color:var(--green)' : ''}" ${inMine ? 'disabled title="In Mes expressions"' : `title="Add to Mes expressions" onclick="pkAddOne('${p.id}',${si},${i},this)"`}>${inMine ? '✓' : '+'}</button>
+      </div>`;
+    }).join('');
+    return `<div class="day-panel" style="margin-bottom:12px">
+      <div class="dp-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div class="dp-title" style="font-size:14px">${pkEsc(s.t)}</div>
+        ${left ? `<button class="btn" style="font-size:11px;padding:4px 10px" onclick="pkAddSection('${p.id}',${si})">+ Add ${left === s.items.length ? 'all' : 'the other ' + left}</button>` : '<span style="font-size:11px;color:var(--green)">✓ all added</span>'}
+      </div>${rows}</div>`;
+  }).join('');
+  return `<div class="practice-screen" style="max-width:760px">
+    <div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div><div class="ps-title">${p.emoji} ${p.title}</div><div class="ps-sub">${p.sub}</div></div>${back}</div>
+    ${packState.msg ? `<div style="font-size:12px;color:var(--green);margin:-4px 0 10px">${packState.msg}</div>` : ''}
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Adding a whole section drips it in at ${PACK_DRIP} a day so your review never floods.</div>
+    ${sections}
+  </div>`;
+}
+
+// ── Mes expressions: the personal review (replaces the 20-a-day bank deck) ──
+function mxIsPersonal(){ return !vocabState.theme && !state._bankDaily; }
+function mxToggleBank(){ state._bankDaily = !state._bankDaily; saveState(state); vocabState.cardIndex = 0; vocabState.revealed = false; renderContent(); }
+function mxSourceGroup(src){ src = src || ''; if (/^Traduire/.test(src)) return 'Traduire'; if (/^Pack/.test(src)) return 'Packs'; if (/Jeu de rôle/.test(src)) return 'Jeu de rôle'; if (/^Clémence/.test(src)) return 'Clémence'; if (/Parler|Speaking/.test(src)) return 'Parler'; return 'Added by you'; }
+function mxStatsHTML(deck){
+  const mined = getMinedWords(), now = Date.now(), week = now - 7 * 86400000;
+  const ready = mined.filter(w => !w.availableFrom || w.availableFrom <= now);
+  const coming = mined.length - ready.length;
+  const thisWeek = mined.filter(w => (w.addedAt || 0) >= week).length;
+  const srs = state._vocab2 || {};
+  const solid = ready.filter(w => srs[w.id] && srs[w.id].interval >= 7).length;
+  return `<div class="stats-row" style="margin-bottom:1rem">
+    <div class="stat-card"><div class="stat-lbl">Due now</div><div class="stat-val" style="color:${deck.length ? 'var(--amber)' : 'var(--green)'}">${deck.length}</div><div class="stat-sub">to review</div></div>
+    <div class="stat-card"><div class="stat-lbl">Mes expressions</div><div class="stat-val">${ready.length}</div><div class="stat-sub">${coming ? coming + ' more arriving' : 'phrases & words'}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Solid</div><div class="stat-val" style="color:var(--green)">${solid}</div><div class="stat-sub">interval ≥ 7 days</div></div>
+    <div class="stat-card"><div class="stat-lbl">This week</div><div class="stat-val" style="color:var(--blue)">${thisWeek}</div><div class="stat-sub">newly added</div></div>
+  </div>`;
+}
+function mxStatusHTML(){
+  const counts = {}; getMinedWords().forEach(w => { const g = mxSourceGroup(w.source); counts[g] = (counts[g] || 0) + 1; });
+  const parts = ['Traduire','Jeu de rôle','Packs','Parler','Clémence','Added by you'].filter(k => counts[k]).map(k => `${k} ${counts[k]}`);
+  return `<div style="font-size:11px;color:var(--text3);margin-top:4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+    <span>English first — say it in French, then check.</span>${parts.length ? `<span>· ${parts.join(' · ')}</span>` : ''}
+    <span>· <a href="#" onclick="mxToggleBank();return false" style="color:var(--text3)">General word deck: off</a></span></div>`;
+}
+function mxDelete(id){
+  state._mined = (state._mined || []).filter(w => w.id !== id);
+  if (state._vocab2) delete state._vocab2[id];
+  saveState(state); renderContent();
+}
+function mxAddManual(){
+  const fr = (document.getElementById('mxAddFr') || {}).value || '', en = (document.getElementById('mxAddEn') || {}).value || '';
+  if (!fr.trim()) return;
+  mxAdd([{ french:fr.trim(), english:en.trim() }], 'Manual'); renderContent();
+}
+function mxListHTML(){
+  const q = (vocabState.search || '').toLowerCase(), now = Date.now(), srs = state._vocab2 || {};
+  const all = getMinedWords();
+  const list = all.filter(w => !q || (w.french || '').toLowerCase().includes(q) || (w.english || '').toLowerCase().includes(q)).slice(0, q ? 300 : 80);
+  const inp = 'flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:Inter,sans-serif;font-size:12px;padding:6px 9px;outline:none';
+  const rows = list.map(w => {
+    const s = srs[w.id]; const later = w.availableFrom && w.availableFrom > now;
+    const dot = later ? '⏳' : !s ? '⚪' : s.due <= now ? '🔴' : s.interval >= 7 ? '🟢' : '🟡';
+    return `<div style="display:flex;align-items:baseline;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="font-size:11px">${dot}</span>
+      <span style="color:var(--text);flex:1.2;min-width:0;cursor:pointer" data-speak="${pkEsc(w.french)}" onclick="speakFrenchHQ(this.dataset.speak)">${genderWordHTML(w, 'sm')}</span>
+      <span style="color:var(--text2);flex:1;min-width:0;font-size:12px">${pkEsc(w.english || '—')}</span>
+      <span style="font-size:10px;color:var(--text3);white-space:nowrap">${pkEsc(mxSourceGroup(w.source))}</span>
+      <button onclick="mxDelete('${w.id}')" title="Remove" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0 4px">✕</button>
+    </div>`;
+  }).join('');
+  return `<div class="day-panel">
+    <div class="dp-header" style="gap:10px;flex-wrap:wrap">
+      <div class="dp-title" style="font-size:14px">Mes expressions · ${all.length}</div>
+      <input type="text" placeholder="Search…" value="${pkEsc(vocabState.search)}" oninput="vocabState.search=this.value;renderContent()" style="${inp}">
+      <button class="btn" style="font-size:11px;padding:4px 10px" onclick="downloadMyWords()">⬇ Download</button>
+    </div>
+    <div style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <input type="text" id="mxAddFr" placeholder="French phrase…" style="${inp}">
+      <input type="text" id="mxAddEn" placeholder="English…" style="${inp}" onkeydown="if(event.key==='Enter')mxAddManual()">
+      <button class="btn" style="font-size:11px;padding:5px 12px" onclick="mxAddManual()">+ Add</button>
+    </div>
+    ${rows || `<div style="padding:1.25rem 16px;font-size:12px;color:var(--text3)">Nothing yet. Look something up in 🔍 Traduire, add phrases from 📦 Packs, or do a 🗣 Jeu de rôle.</div>`}
+    ${!q && all.length > 80 ? `<div style="padding:10px 16px;font-size:11px;color:var(--text3)">Showing the 80 most recent · search to find older ones</div>` : ''}
+  </div>`;
+}
+
+
+// ═══════════════════════════════════════
+// JEU DE RÔLE — live role-play conversations for real situations
+// The AI plays the other person; corrections and phrases you needed go to Mes expressions.
+// ═══════════════════════════════════════
+const ROLEPLAYS = [
+  { id:'devis', group:'chantier', emoji:'📋', title:"Premier rendez-vous avec l'entrepreneur", brief:"A contractor visits your new Paris apartment to quote the renovation.",
+    role:"Monsieur Ferreira, an experienced Paris general contractor in his fifties: friendly, practical, a little rushed, asks concrete questions about the scope and budget", goal:"Explain the work (kitchen, bathroom, electrics, floors), ask for a detailed quote, timing, and whether he has the assurance décennale", reg:'vous' },
+  { id:'retard', group:'chantier', emoji:'⏳', title:"Le plombier a deux semaines de retard", brief:"The plumber is two weeks behind and blames the supplier.",
+    role:"Kévin, a plumber running late on several jobs, apologetic but vague, blames a supplier delay and tries to avoid committing to a date", goal:"Find out what's really holding things up and get a firm date, staying polite but firm", reg:'vous' },
+  { id:'supplement', group:'chantier', emoji:'💶', title:"Un supplément imprévu", brief:"The contractor announces an extra cost that wasn't in the quote.",
+    role:"Madame Lefèvre, the contractor, explaining that they found rotten joists under the bathroom floor and the work will cost 2,800 € more", goal:"Understand the problem, question the price, and ask for a written revised quote before anything is done", reg:'vous' },
+  { id:'carrelage', group:'chantier', emoji:'🧱', title:"Choisir le carrelage avec le carreleur", brief:"On site with the tiler to decide the bathroom tiles and layout.",
+    role:"Sébastien, a tiler with strong opinions who suggests a different tile and layout than you planned", goal:"Discuss options, ask for his advice, and agree on tile, layout and grout colour", reg:'vous' },
+  { id:'electricien', group:'chantier', emoji:'💡', title:"L'électricien et la mise aux normes", brief:"The electrician explains the wiring must be brought up to code.",
+    role:"Thierry, an electrician explaining that the old fuse box and wiring must be replaced; he uses some technical words", goal:"Understand what must be done, decide where sockets and lights go, and ask about cost and duration", reg:'vous' },
+  { id:'reception', group:'chantier', emoji:'✅', title:"La réception des travaux", brief:"Final walk-through before paying the balance.",
+    role:"Monsieur Ferreira, the contractor, keen to get the final payment today and a bit defensive about small defects", goal:"Point out the defects (a cracked tile, a door that sticks, paint marks), note them as réserves, and agree when they'll be fixed before paying the balance", reg:'vous' },
+  { id:'syndic', group:'chantier', emoji:'🏢', title:"Appeler le syndic", brief:"You call the building's managing agent about authorisation for your work.",
+    role:"A busy property manager at the syndic's office, polite but bureaucratic, asks for documents and mentions the next assemblée générale", goal:"Explain the planned work (moving a wall, new plumbing) and find out what authorisation and documents you need", reg:'vous' },
+  { id:'voisine', group:'pommard', emoji:'👋', title:"Rencontrer la voisine", brief:"Your elderly neighbour in Pommard comes over to say hello.",
+    role:"Madame Moreau, a retired widow who has lived in Pommard for forty years: warm, curious, chatty, knows everyone and everything about the house's history", goal:"Introduce yourself, chat about the house and the village, and ask if she knows a good roofer", reg:'vous' },
+  { id:'vigneron', group:'pommard', emoji:'🍷', title:"Dégustation chez un vigneron", brief:"A tasting at a small family domaine in Pommard.",
+    role:"Antoine, a third-generation vigneron in Pommard, passionate and generous, talks about plots, vintages and how the year went", goal:"Taste, ask about the wines and vintages, ask what to lay down, and buy a case", reg:'vous' },
+  { id:'mairie', group:'pommard', emoji:'🏛', title:"À la mairie", brief:"You go to the village mairie with practical questions about the house.",
+    role:"The secretary at the Pommard mairie, helpful and precise, explains procedures and local rules", goal:"Ask whether you need a déclaration préalable to replace the windows and shutters, and ask about bin days and the déchetterie", reg:'vous' },
+  { id:'couvreur', group:'pommard', emoji:'🏠', title:"Le couvreur du village", brief:"You call a local roofer because water came through the ceiling.",
+    role:"Gilles, a local roofer, very busy, speaks fast with a bit of Burgundy bluntness, asks precise questions about the leak", goal:"Describe the leak, ask him to come and look as soon as possible, and arrange access since you're often in Paris", reg:'vous' },
+  { id:'pharmacie', group:'quotidien', emoji:'💊', title:"À la pharmacie", brief:"You've had a cough and sore throat for a few days.",
+    role:"A Paris pharmacist, kind and efficient, asks a few questions before recommending something", goal:"Describe your symptoms and get advice and something for the cough", reg:'vous' },
+  { id:'resa', group:'quotidien', emoji:'📞', title:"Réserver au restaurant par téléphone", brief:"You call a bistro to book a table for Saturday.",
+    role:"A bistro host answering the phone in a noisy restaurant; Saturday 8pm is full but 9:15 or the terrace might work", goal:"Book a table for four on Saturday evening and give your name and phone number", reg:'vous' },
+  { id:'degat', group:'quotidien', emoji:'💧', title:"Dégât des eaux avec le voisin du dessus", brief:"Water is dripping from your ceiling; you knock on the upstairs neighbour's door.",
+    role:"Julien, the upstairs neighbour, surprised and a bit defensive, didn't know about the leak", goal:"Explain the problem calmly, get him to check his bathroom, and agree to fill in a constat amiable", reg:'vous' },
+  { id:'colis', group:'quotidien', emoji:'📦', title:"Un colis introuvable", brief:"Your parcel shows as delivered but it isn't there.",
+    role:"A customer-service agent for a delivery company on the phone, follows a script, asks for the tracking number", goal:"Explain the parcel is missing, give details, and get it found or re-delivered", reg:'vous' },
+  { id:'diner', group:'quotidien', emoji:'🥂', title:"Dîner chez des amis", brief:"Dinner at French friends' place; they ask about your news.",
+    role:"Camille, a French friend in her forties, warm and teasing, asks about the renovation, Pommard and life between two places; uses tu and everyday expressions", goal:"Chat naturally: tell her about the apartment, the house in Pommard and your plans", reg:'tu' },
+  { id:'medecin', group:'quotidien', emoji:'🩺', title:"Prendre rendez-vous chez le médecin", brief:"You call the doctor's office to get an appointment this week.",
+    role:"A medical secretary on the phone, brisk, offers limited slots and asks if you're already a patient", goal:"Get an appointment this week and give your details", reg:'vous' },
+];
+const RP_GROUPS = [{ id:'chantier', label:'🔨 Le chantier' }, { id:'pommard', label:'🍇 Pommard' }, { id:'quotidien', label:'🥖 Tous les jours' }];
+
+let rpState = { view:'pick', sc:null, msgs:[], loading:false, error:'', draft:'', pace:'natural', autoplay:true, help:null, review:null, rec:false, transcribing:false, custom:'' };
+let _rpRec = null, _rpStream = null, _rpChunks = [];
+
+function rpEsc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function rpJSON(text){ const a = text.indexOf('{'), b = text.lastIndexOf('}'); return JSON.parse(text.slice(a, b + 1)); }
+function rpTranscript(){ return rpState.msgs.map(m => (m.who === 'ai' ? 'THEM: ' : 'LEARNER: ') + m.fr).join('\n'); }
+function rpScrollEnd(){ setTimeout(() => { const el = document.getElementById('rpChat'); if (el) el.scrollTop = el.scrollHeight; const i = document.getElementById('rpInput'); if (i && !('ontouchstart' in window)) i.focus(); }, 60); }
+
+function rpStart(id){
+  const sc = id === 'custom'
+    ? { id:'custom', group:'custom', emoji:'✨', title:'Ma situation', brief:rpState.custom.trim(), role:'the other person in this situation, behaving realistically', goal:'Handle the situation: ' + rpState.custom.trim(), reg:'vous' }
+    : ROLEPLAYS.find(r => r.id === id);
+  if (!sc || (id === 'custom' && !rpState.custom.trim())) return;
+  rpState = { ...rpState, view:'chat', sc, msgs:[], loading:false, error:'', draft:'', help:null, review:null, goalMet:false };
+  renderContent();
+  rpTurn(true);
+}
+function rpPrompt(opening){
+  const sc = rpState.sc;
+  return `You are role-playing a scene so an intermediate learner of French can practise speaking. The learner is Jimmy, an American who splits his time between an apartment in Paris (6th arrondissement, currently being renovated) and a house he just bought in Pommard, Burgundy.
+
+SCENE: ${sc.brief}
+YOUR CHARACTER: ${sc.role}
+THE LEARNER'S GOAL: ${sc.goal}
+
+Rules:
+- Stay in character. Speak only natural, spoken, everyday French, the way a real person in this role talks (contractions like « y a », « c'est pas » are fine).
+- ${rpState.pace === 'slow' ? 'Speak simply and clearly: 1–2 short sentences per turn, common words.' : 'Speak at a natural pace: 1–3 sentences per turn, with the everyday expressions a native would use.'}
+- Use « ${sc.reg} » with the learner.
+- Keep the scene moving: ask questions and raise realistic complications, but let the learner reach the goal if they communicate it.
+- If the learner writes English or struggles, stay in character and simplify, like a patient native would.
+
+Conversation so far:
+${rpTranscript() || '(nothing yet)'}
+
+${opening ? 'Open the scene with your first line.' : "Reply in character to the learner's last line."}
+
+Return ONLY JSON:
+{"reply":"your line in French","reply_en":"natural English translation of your line",${opening ? '"correction":null' : '"correction":null or {"better":"how a native would naturally say the learner\'s last line","better_en":"its English meaning","why":"max 15 words of English explaining the main fix"} (only for a real error or clearly unnatural phrasing; null if it was fine)'},"goal_met":true or false}`;
+}
+async function rpTurn(opening){
+  rpState.loading = true; rpState.error = ''; renderContent(); rpScrollEnd();
+  try {
+    const d = rpJSON(await parlerCallAI(rpPrompt(opening), 700));
+    if (!opening && d.correction && d.correction.better) {
+      const last = [...rpState.msgs].reverse().find(m => m.who === 'me');
+      if (last && rpNormLite(d.correction.better) !== rpNormLite(last.fr)) last.correction = d.correction;
+    }
+    rpState.msgs.push({ who:'ai', fr:d.reply || '…', en:d.reply_en || '', showEn:false });
+    if (d.goal_met) rpState.goalMet = true;
+    rpState.loading = false; renderContent(); rpScrollEnd();
+    if (rpState.autoplay && d.reply) { const b = document.getElementById('rpPlay' + (rpState.msgs.length - 1)); speakFrenchHQ(d.reply, b); }
+  } catch (e) {
+    rpState.loading = false; rpState.error = 'Could not reach the AI — ' + (e.message || e) + '. Try again.'; renderContent();
+  }
+}
+function rpNormLite(s){ return String(s || '').toLowerCase().replace(/[.,!?;:«»"'’\s]+/g, ' ').trim(); }
+function rpSend(){
+  const el = document.getElementById('rpInput'); const t = ((el && el.value) || '').trim();
+  if (!t || rpState.loading) return;
+  rpState.msgs.push({ who:'me', fr:t }); rpState.draft = ''; rpState.help = null;
+  rpTurn(false);
+}
+function rpKey(ev){ if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); rpSend(); } }
+function rpToggleEn(i){ const m = rpState.msgs[i]; if (m) { m.showEn = !m.showEn; renderContent(); rpScrollEnd(); } }
+function rpPlay(i, btn){ const m = rpState.msgs[i]; if (m) speakFrenchHQ(m.fr, btn); }
+function rpAddCorrection(i, btn){
+  const m = rpState.msgs[i]; if (!m || !m.correction) return;
+  const n = mxAdd([{ french:m.correction.better, english:m.correction.better_en || '', note:m.correction.why || '' }], 'Jeu de rôle · ' + rpState.sc.title);
+  if (btn) { btn.textContent = n ? '✓ Added' : '✓ Already there'; btn.disabled = true; }
+}
+// "How do I say…?" — the in-the-moment help
+function rpHelpOpen(){ rpState.help = { en:'', loading:false, res:null }; renderContent(); setTimeout(() => { const i = document.getElementById('rpHelpIn'); if (i) i.focus(); }, 60); }
+async function rpHelpAsk(){
+  const en = ((document.getElementById('rpHelpIn') || {}).value || '').trim(); if (!en) return;
+  rpState.help = { en, loading:true, res:null }; renderContent();
+  try {
+    const d = rpJSON(await parlerCallAI(`A learner of French is in this situation: ${rpState.sc.brief} (talking to: ${rpState.sc.role}; using « ${rpState.sc.reg} »).
+They want to say: "${en}"
+Give the natural spoken French they should say. Return ONLY JSON: {"fr":"the French","en":"short English back-translation","note":"optional, max 12 words on a key word or structure, or empty"}`, 300));
+    rpState.help = { en, loading:false, res:d };
+  } catch (e) { rpState.help = { en, loading:false, res:null, err:'Could not get a suggestion — try again.' }; }
+  renderContent();
+}
+function rpHelpUse(){ const r = rpState.help && rpState.help.res; if (!r) return; rpState.draft = ((rpState.draft ? rpState.draft + ' ' : '') + r.fr).trim(); rpState.help = null; renderContent(); rpScrollEnd(); }
+function rpHelpAdd(btn){ const r = rpState.help && rpState.help.res; if (!r) return; const n = mxAdd([{ french:r.fr, english:rpState.help.en, note:r.note || '' }], 'Jeu de rôle · ' + rpState.sc.title); if (btn) { btn.textContent = n ? '✓ Added' : '✓ Already there'; btn.disabled = true; } }
+// Mic → transcription into the input box (same transcriber as Parler)
+async function rpMic(){
+  if (rpState.rec) { if (_rpRec && _rpRec.state !== 'inactive') _rpRec.stop(); return; }
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') { rpState.error = "Recording isn't supported in this browser — type instead."; renderContent(); return; }
+  try { _rpStream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
+  catch { rpState.error = 'Microphone access was blocked — allow it for this site, or type instead.'; renderContent(); return; }
+  _rpChunks = []; _rpRec = new MediaRecorder(_rpStream);
+  _rpRec.ondataavailable = e => { if (e.data && e.data.size) _rpChunks.push(e.data); };
+  _rpRec.onstop = async () => {
+    if (_rpStream) _rpStream.getTracks().forEach(t => t.stop());
+    rpState.rec = false; rpState.transcribing = true; renderContent();
+    try {
+      const blob = new Blob(_rpChunks, { type:_rpRec.mimeType || 'audio/webm' });
+      const { data, rate } = await parlerDecode(blob);
+      const text = await parlerTranscribeChunk(parlerWavB64(data, rate));
+      const cur = (document.getElementById('rpInput') || {}).value || rpState.draft || '';
+      rpState.draft = (cur ? cur + ' ' : '') + text;
+    } catch (e) { rpState.error = 'Transcription failed — ' + (e.message || e); }
+    rpState.transcribing = false; renderContent(); rpScrollEnd();
+  };
+  _rpRec.start(); rpState.rec = true; rpState.error = ''; renderContent();
+}
+// Finish → review: corrections + phrases worth keeping
+async function rpFinish(){
+  if (!rpState.msgs.some(m => m.who === 'me')) { rpState = { ...rpState, view:'pick', sc:null, msgs:[] }; renderContent(); return; }
+  rpState.view = 'review'; rpState.review = { loading:true, items:[], summary:'' }; renderContent(); window.scrollTo(0,0);
+  if (!state._rpLog) state._rpLog = [];
+  state._rpLog.unshift({ at:Date.now(), id:rpState.sc.id, title:rpState.sc.title, turns:rpState.msgs.filter(m => m.who === 'me').length });
+  state._rpLog = state._rpLog.slice(0, 100); saveState(state);
+  const corr = rpState.msgs.filter(m => m.correction).map(m => ({ french:m.correction.better, english:m.correction.better_en || '', note:m.correction.why || '', kind:'fix', keep:true }));
+  try {
+    const d = rpJSON(await parlerCallAI(`A learner of French just did this role-play.
+SCENE: ${rpState.sc.brief}
+THEIR GOAL: ${rpState.sc.goal}
+TRANSCRIPT:
+${rpTranscript()}
+
+1. In 2 short sentences of English, say how it went (be specific and encouraging, mention one thing to work on).
+2. List 5–7 short, natural spoken French phrases that would have helped them most here, or that the other person used and are worth stealing. Prefer whole phrases to single words. Don't repeat these corrections: ${corr.map(c => c.french).join(' | ') || 'none'}.
+Return ONLY JSON: {"summary":"...","phrases":[{"french":"...","english":"...","note":"max 10 words or empty"}]}`, 900));
+    rpState.review = { loading:false, summary:d.summary || '', items:[...corr, ...(d.phrases || []).map(p => ({ ...p, kind:'phrase', keep:true }))] };
+  } catch (e) {
+    rpState.review = { loading:false, summary:'', items:corr, err:'Could not fetch extra phrases — your corrections are below.' };
+  }
+  renderContent();
+}
+function rpReviewToggle(i){ const it = rpState.review.items[i]; it.keep = !it.keep; renderContent(); }
+function rpReviewSave(){
+  const items = rpState.review.items.filter(x => x.keep);
+  const n = mxAdd(items, 'Jeu de rôle · ' + rpState.sc.title);
+  rpState.review.saved = `✓ ${n} added to Mes expressions${items.length - n ? ` (${items.length - n} already there)` : ''}.`;
+  renderContent();
+}
+function rpBackToPick(){ if (_rpRec && _rpRec.state !== 'inactive') _rpRec.stop(); rpState = { ...rpState, view:'pick', sc:null, msgs:[], review:null, help:null, error:'' }; renderContent(); }
+
+function renderRoleplayHTML(modeToggle){
+  const head = `<div class="ps-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <div><div class="ps-title">Jeu de rôle</div><div class="ps-sub">Real conversations for the situations you'll actually be in</div></div></div>`;
+  if (rpState.view === 'review') return `<div class="practice-screen" style="max-width:740px">${head}${rpReviewHTML()}</div>`;
+  if (rpState.view === 'chat') return `<div class="practice-screen" style="max-width:740px">${rpChatHTML()}</div>`;
+  const log = state._rpLog || [];
+  const doneIds = new Set(log.map(l => l.id));
+  const week = log.filter(l => l.at > Date.now() - 7 * 86400000).length;
+  const groups = RP_GROUPS.map(g => `<div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin:16px 0 8px">${g.label}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">${ROLEPLAYS.filter(r => r.group === g.id).map(r => `
+      <button onclick="rpStart('${r.id}')" style="text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;cursor:pointer;font-family:Inter,sans-serif;color:var(--text)"
+        onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:13px;font-weight:600">${r.emoji} ${rpEsc(r.title)}${doneIds.has(r.id) ? ' <span style="color:var(--green);font-size:11px">✓</span>' : ''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">${rpEsc(r.brief)}</div>
+      </button>`).join('')}</div>`).join('');
+  const pace = ['slow','natural'].map(p => `<button class="verb-pill ${rpState.pace === p ? 'active' : ''}" onclick="rpState.pace='${p}';renderContent()">${p === 'slow' ? '🐢 Simple & slow' : '🗣 Natural'}</button>`).join('');
+  return `<div class="practice-screen" style="max-width:740px">
+    ${modeToggle}${head}
+    <div style="font-size:12px;color:var(--text2);margin:-4px 0 10px">The other person speaks; you answer by typing or 🎤 speaking. Stuck? Tap 💡 <b>How do I say…</b> mid-conversation. Corrections and useful phrases go to Mes expressions at the end.${week ? ` <span style="color:var(--green)">· ${week} this week</span>` : ''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${pace}
+      <button class="verb-pill ${rpState.autoplay ? 'active' : ''}" onclick="rpState.autoplay=!rpState.autoplay;renderContent()">🔊 Read replies aloud: ${rpState.autoplay ? 'on' : 'off'}</button></div>
+    <div class="day-panel" style="padding:12px 14px;margin-top:14px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px">✨ Your own situation</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <input id="rpCustom" type="text" value="${rpEsc(rpState.custom)}" oninput="rpState.custom=this.value" onkeydown="if(event.key==='Enter')rpStart('custom')"
+          placeholder="e.g. I need to return a lamp that arrived broken" style="flex:1;min-width:200px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Inter,sans-serif;font-size:13px;padding:9px 11px;outline:none">
+        <button class="btn btn-primary" onclick="rpStart('custom')">Start →</button></div>
+    </div>
+    ${groups}
+  </div>`;
+}
+function rpChatHTML(){
+  const sc = rpState.sc;
+  const bubbles = rpState.msgs.map((m, i) => m.who === 'ai'
+    ? `<div style="display:flex;justify-content:flex-start;margin-bottom:10px"><div style="max-width:84%;background:var(--surface2);border:1px solid var(--border);border-radius:14px 14px 14px 4px;padding:10px 12px">
+        <div style="font-size:15px;color:var(--text);line-height:1.45">${rpEsc(m.fr)}</div>
+        ${m.showEn ? `<div style="font-size:12px;color:var(--text3);margin-top:5px;font-style:italic">${rpEsc(m.en)}</div>` : ''}
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button id="rpPlay${i}" class="btn" style="font-size:11px;padding:2px 8px" onclick="rpPlay(${i},this)">🔊</button>
+          <button class="btn" style="font-size:11px;padding:2px 8px" onclick="rpToggleEn(${i})">${m.showEn ? 'Hide' : 'EN'}</button>
+        </div></div></div>`
+    : `<div style="display:flex;flex-direction:column;align-items:flex-end;margin-bottom:10px">
+        <div style="max-width:84%;background:var(--blue-dim);border:1px solid var(--blue);border-radius:14px 14px 4px 14px;padding:10px 12px;font-size:15px;color:var(--text);line-height:1.45">${rpEsc(m.fr)}</div>
+        ${m.correction ? `<div style="max-width:84%;margin-top:5px;padding:7px 10px;border-left:3px solid var(--amber);background:var(--surface2);border-radius:6px">
+          <div style="font-size:13px;color:var(--amber)">Plus naturel : <span style="font-family:'Playfair Display',serif;font-style:italic;font-size:14px">${rpEsc(m.correction.better)}</span></div>
+          ${m.correction.why ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${rpEsc(m.correction.why)}</div>` : ''}
+          <button class="btn" style="font-size:11px;padding:2px 8px;margin-top:5px" onclick="rpAddCorrection(${i},this)">+ Mes expressions</button></div>` : ''}
+      </div>`).join('');
+  const typing = rpState.loading ? `<div style="font-size:13px;color:var(--text3);padding:4px 2px">… ${rpEsc(sc.role.split(',')[0])} is replying</div>` : '';
+  const h = rpState.help;
+  const helpHTML = h ? `<div style="margin-top:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--purple);border-radius:var(--radius-sm)">
+      <div style="font-size:11px;color:var(--purple);font-weight:600;margin-bottom:6px">💡 HOW DO I SAY…</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><input id="rpHelpIn" type="text" value="${rpEsc(h.en)}" placeholder="Type it in English…" onkeydown="if(event.key==='Enter')rpHelpAsk()"
+        style="flex:1;min-width:160px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;padding:7px 9px;outline:none">
+        <button class="btn" onclick="rpHelpAsk()">${h.loading ? '…' : 'Ask'}</button><button class="btn" onclick="rpState.help=null;renderContent()">✕</button></div>
+      ${h.err ? `<div style="font-size:12px;color:var(--coral);margin-top:6px">${h.err}</div>` : ''}
+      ${h.res ? `<div style="margin-top:8px"><div style="font-size:16px;font-family:'Playfair Display',serif;font-style:italic;color:var(--text)">${rpEsc(h.res.fr)}</div>
+        ${h.res.note ? `<div style="font-size:11px;color:var(--amber);margin-top:3px">${rpEsc(h.res.note)}</div>` : ''}
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><button class="btn btn-primary" style="font-size:12px" onclick="rpHelpUse()">Use it</button>
+        <button class="btn" style="font-size:12px" onclick="speakFrenchHQ(rpState.help.res.fr,this)">🔊</button>
+        <button class="btn" style="font-size:12px" onclick="rpHelpAdd(this)">+ Mes expressions</button></div></div>` : ''}
+    </div>` : '';
+  return `<div class="ps-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px"><div class="ps-title" style="font-size:20px">${sc.emoji} ${rpEsc(sc.title)}</div>
+        <div class="ps-sub">${rpEsc(sc.brief)}</div>
+        <div style="font-size:12px;color:var(--blue);margin-top:4px">🎯 ${rpEsc(sc.goal)}${rpState.goalMet ? ' <span style="color:var(--green);font-weight:600">· objectif atteint ✓</span>' : ''}</div></div>
+      <div style="display:flex;gap:6px"><button class="btn" style="font-size:12px" onclick="rpBackToPick()">✕</button><button class="btn btn-primary" style="font-size:12px" onclick="rpFinish()">Terminer & review →</button></div>
+    </div>
+    <div id="rpChat" style="max-height:52vh;overflow-y:auto;padding:4px 2px;margin-bottom:10px">${bubbles}${typing}</div>
+    ${rpState.error ? `<div style="font-size:12px;color:var(--coral);margin-bottom:6px">${rpEsc(rpState.error)} ${!rpState.loading && rpState.msgs.length && rpState.msgs[rpState.msgs.length-1].who === 'me' ? `<a href="#" onclick="rpTurn(false);return false" style="color:var(--blue)">Retry</a>` : (!rpState.msgs.length ? `<a href="#" onclick="rpTurn(true);return false" style="color:var(--blue)">Retry</a>` : '')}</div>` : ''}
+    <div style="display:flex;gap:6px;align-items:flex-end">
+      <textarea id="rpInput" rows="2" placeholder="${rpState.transcribing ? 'Transcribing…' : 'Répondez en français… (Enter to send)'}" oninput="rpState.draft=this.value" onkeydown="rpKey(event)"
+        style="flex:1;resize:vertical;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:Inter,sans-serif;font-size:15px;padding:10px 12px;outline:none">${rpEsc(rpState.draft)}</textarea>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="btn" title="Speak your answer" style="${rpState.rec ? 'background:var(--coral);color:#fff;border-color:var(--coral)' : ''}" onclick="rpMic()">${rpState.rec ? '■ Stop' : rpState.transcribing ? '…' : '🎤'}</button>
+        <button class="btn btn-primary" onclick="rpSend()" ${rpState.loading ? 'disabled' : ''}>Send</button>
+      </div>
+    </div>
+    <div style="margin-top:6px"><button class="btn" style="font-size:12px;color:var(--purple);border-color:var(--purple)" onclick="rpHelpOpen()">💡 How do I say…</button></div>
+    ${helpHTML}`;
+}
+function rpReviewHTML(){
+  const r = rpState.review, sc = rpState.sc;
+  if (r.loading) return `<div class="day-panel" style="padding:2rem;text-align:center"><div class="spinner" style="margin:0 auto 10px"></div><div style="color:var(--text2);font-size:13px">Reviewing your conversation…</div></div>`;
+  const rows = r.items.map((it, i) => `<div onclick="rpReviewToggle(${i})" style="display:flex;gap:10px;align-items:flex-start;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer;opacity:${it.keep ? 1 : .45}">
+      <span style="font-size:15px;flex:none">${it.keep ? '☑' : '☐'}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:15px;font-family:'Playfair Display',serif;font-style:italic;color:var(--text)">${rpEsc(it.french)}</div>
+        <div style="font-size:12px;color:var(--text2)">${rpEsc(it.english)}</div>
+        ${it.note ? `<div style="font-size:11px;color:var(--amber);margin-top:2px">${rpEsc(it.note)}</div>` : ''}</div>
+      <span style="font-size:10px;padding:2px 7px;border-radius:10px;flex:none;${it.kind === 'fix' ? 'background:var(--amber-dim);color:var(--amber)' : 'background:var(--blue-dim);color:var(--blue)'}">${it.kind === 'fix' ? 'your fix' : 'useful'}</span>
+    </div>`).join('');
+  return `<div class="day-panel" style="padding:14px 16px;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">${sc.emoji} ${rpEsc(sc.title)} ${rpState.goalMet ? '<span style="color:var(--green);font-size:12px">· objectif atteint ✓</span>' : ''}</div>
+      ${r.summary ? `<div style="font-size:13px;color:var(--text2);line-height:1.5">${rpEsc(r.summary)}</div>` : ''}
+      ${r.err ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${rpEsc(r.err)}</div>` : ''}
+    </div>
+    <div class="day-panel" style="margin-bottom:12px">
+      <div class="dp-header"><div class="dp-title" style="font-size:14px">Keep for Mes expressions</div></div>
+      ${rows || '<div style="padding:1rem 14px;font-size:12px;color:var(--text3)">Nothing to add — clean run.</div>'}
+    </div>
+    ${r.saved ? `<div style="font-size:13px;color:var(--green);margin-bottom:10px">${r.saved}</div>` : ''}
+    <div class="btn-row">
+      ${r.items.length && !r.saved ? `<button class="btn btn-primary" onclick="rpReviewSave()">Add ${r.items.filter(x => x.keep).length} to Mes expressions</button>` : ''}
+      <button class="btn" onclick="rpStart('${sc.id}')">↻ Same scene again</button>
+      <button class="btn" onclick="rpBackToPick()">Another scene</button>
+    </div>`;
+}
+
 function setSpeakMode(mode) {
   speakState.drillMode = mode;
   speakState.sentence = null;
@@ -5942,7 +6658,7 @@ function renderParlerHTML() {
         <span style="font-size:10px;color:var(--text3)">${srs[w.id] ? srs[w.id].interval + 'd' : 'new'}</span>
         <button onclick="parlerDeleteMined('${w.id}')" title="Remove" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px">✕</button>
       </div>`).join('')}
-    </div>` : `<div style="font-size:12px;color:var(--text3);margin-top:8px">Words you add from your sessions land here and go straight into your Vocabulary SRS — ahead of the general word bank, and outside the 20-new-a-day cap.</div>`}
+    </div>` : `<div style="font-size:12px;color:var(--text3);margin-top:8px">Words you add from your sessions land here and go straight into Mes expressions, your daily review.</div>`}
   </div>`;
 
   return `<div class="practice-screen">
