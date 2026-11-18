@@ -1243,6 +1243,7 @@ function getGender(w) {
   return null;
 }
 function genderInfo(w) {
+  if (w && w.noGender) return null;
   const a = splitArticle(w && w.french);
   const g = getGender(w);
   const plural = !!(w && w.plural) || (a && a.article === 'les');
@@ -1390,10 +1391,259 @@ function pinRelatedToIdioms(card) {
   rp.forEach(r => { if (!state._idiomPins[r.id]) { state._idiomPins[r.id] = Date.now(); n++; } });
   return n;
 }
+// ── Built-in everyday idioms (💬 Expressions theme) ──────────────
+// Common idioms and set phrases heard in France today. They join the
+// Expressions theme alongside the idioms in the cloud word bank (an entry
+// already in the bank is not repeated). Row: [group, french, english,
+// literal, example, example in English, register (c = courant, f = familier), tip]
+const IDIOM_GROUPS = [
+  { id:'reagir',     emoji:'💬', label:'Réagir',               labelEn:'Everyday reactions' },
+  { id:'humeur',     emoji:'🌦', label:'Humeur & émotions',    labelEn:'Mood & feelings' },
+  { id:'effort',     emoji:'😮‍💨', label:'Fatigue & effort',     labelEn:'Tiredness, effort, easy & hard' },
+  { id:'argent',     emoji:'💶', label:'Argent',               labelEn:'Money & prices' },
+  { id:'temps',      emoji:'⏰', label:'Le temps qui passe',   labelEn:'Time, lateness & timing' },
+  { id:'parler',     emoji:'🗣', label:'Parler',               labelEn:'Talking & conversation' },
+  { id:'gens',       emoji:'👥', label:'Les gens',             labelEn:'People & relationships' },
+  { id:'travail',    emoji:'🛠', label:'Travail & projets',    labelEn:'Work, projects & the chantier' },
+  { id:'situations', emoji:'🌀', label:'Situations',           labelEn:'Problems, luck & mix-ups' },
+  { id:'table',      emoji:'🍷', label:'À table',              labelEn:'Food & drink idioms' },
+  { id:'meteo',      emoji:'🌧', label:'Météo',                labelEn:'Weather' },
+];
+const IDIOM_LIST = [
+  // Réagir
+  ['reagir',"Ça marche.","Sounds good. / Works for me.","It walks.","On se retrouve à 20 h devant le café ? — Ça marche !","Meet at 8pm outside the café? — Sounds good!",'f'],
+  ['reagir',"Ça vaut le coup.","It's worth it.","It's worth the blow.","C'est un peu loin, mais ça vaut le coup.","It's a bit far, but it's worth it.",'c'],
+  ['reagir',"Ça me dit quelque chose.","That rings a bell.","That says something to me.","Ce nom, ça me dit quelque chose… on s'est déjà rencontrés ?","That name rings a bell… have we met?",'c'],
+  ['reagir',"Ça ne me dit rien.","I don't fancy it. / It doesn't ring a bell.","It says nothing to me.","Un film d'horreur ce soir ? Bof, ça ne me dit rien.","A horror film tonight? Meh, I don't fancy it.",'c',"Two meanings: no memory of it, or no wish to do it."],
+  ['reagir',"Ça tombe bien.","Good timing. / That works out nicely.","That falls well.","Tu es libre jeudi ? Ça tombe bien, moi aussi.","You're free Thursday? Good timing, so am I.",'c'],
+  ['reagir',"Ça tombe mal.","Bad timing.","That falls badly.","Les travaux commencent lundi ? Ça tombe mal, on part en voyage.","Work starts Monday? Bad timing, we're going away.",'c'],
+  ['reagir',"Laisse tomber.","Forget it. / Never mind.","Let it fall.","Tu ne trouves pas le fichier ? Laisse tomber, je le renvoie.","Can't find the file? Never mind, I'll resend it.",'f',"Polite form: « Laissez tomber »."],
+  ['reagir',"C'est pas grave.","No big deal. / Don't worry about it.","It's not serious.","Désolé, j'ai renversé un peu de vin. — C'est pas grave !","Sorry, I spilled some wine. — No big deal!",'f',"Spoken French drops the « ne »."],
+  ['reagir',"Il n'y a pas de quoi.","You're welcome. / Don't mention it.","There's nothing (to thank me) for.","Merci pour ton aide ! — Il n'y a pas de quoi.","Thanks for your help! — Don't mention it.",'c',"Often shortened to « Pas de quoi »."],
+  ['reagir',"Je n'en reviens pas.","I can't get over it. / I can't believe it.","I'm not coming back from it.","Ils ont fini le chantier en avance ? Je n'en reviens pas !","They finished the job early? I can't believe it!",'c'],
+  ['reagir',"C'est n'importe quoi.","That's nonsense. / That's ridiculous.","It's anything at all.","Trente euros pour un café ? C'est n'importe quoi !","Thirty euros for a coffee? That's ridiculous!",'c'],
+  ['reagir',"Ça se voit.","It shows. / You can tell.","It sees itself.","Tu es fatigué, ça se voit.","You're tired, you can tell.",'c'],
+  ['reagir',"Tant pis.","Oh well. / Too bad.","So much the worse.","Le marché est fermé ? Tant pis, on ira demain.","The market's closed? Oh well, we'll go tomorrow.",'c'],
+  ['reagir',"Tant mieux.","All the better. / Good.","So much the better.","Il ne pleut plus ? Tant mieux, on mange dehors.","It's stopped raining? Good, we'll eat outside.",'c'],
+  ['reagir',"Ça m'est égal.","I don't mind either way.","It's equal to me.","Rouge ou blanc ? — Ça m'est égal, choisis.","Red or white? — I don't mind, you choose.",'c'],
+  ['reagir',"Je m'en fiche.","I couldn't care less.","—","Ce qu'ils pensent, je m'en fiche.","I couldn't care less what they think.",'f',"Blunter than « ça m'est égal »."],
+  ['reagir',"Ça craint.","That sucks. / That's dodgy.","It fears.","Plus de batterie et pas de chargeur… ça craint.","No battery and no charger… that sucks.",'f'],
+  ['reagir',"C'est pas terrible.","It's not great.","It's not terrific.","Le restaurant d'hier ? C'était pas terrible.","Last night's restaurant? It wasn't great.",'f',"An understatement: it means fairly bad."],
+  ['reagir',"C'est nickel.","It's spotless. / It's perfect.","It's nickel.","Le ménage est fait, l'appartement est nickel.","The cleaning's done, the flat is spotless.",'f'],
+  ['reagir',"Ça roule.","All good. / Fine by me.","It rolls.","Je passe te prendre à 9 h ? — Ça roule.","I'll pick you up at 9? — Fine by me.",'f'],
+
+  // Humeur & émotions
+  ['humeur',"Avoir le cafard","To feel down / blue","To have the cockroach","Le dimanche soir, j'ai souvent le cafard.","On Sunday evenings I often feel down.",'c'],
+  ['humeur',"Avoir le moral à zéro","To feel really low","To have morale at zero","Avec cette pluie, j'ai le moral à zéro.","With this rain, I feel really low.",'f'],
+  ['humeur',"Être aux anges","To be over the moon","To be with the angels","Depuis qu'elle a eu le poste, elle est aux anges.","Since she got the job, she's over the moon.",'c'],
+  ['humeur',"Être sur un petit nuage","To be on cloud nine","To be on a little cloud","Ils viennent de se marier, ils sont sur un petit nuage.","They just got married, they're on cloud nine.",'c'],
+  ['humeur',"Avoir un coup de cœur pour","To fall for (a place, a thing)","To have a heart-blow for","On a eu un coup de cœur pour cette maison.","We fell in love with this house.",'c'],
+  ['humeur',"Avoir le coup de foudre","To fall in love at first sight","To have the lightning strike","Ils ont eu le coup de foudre à Venise.","They fell in love at first sight in Venice.",'c'],
+  ['humeur',"Se lever du pied gauche","To get out of bed on the wrong side","To get up on the left foot","Laisse-le tranquille, il s'est levé du pied gauche.","Leave him alone, he got out of bed on the wrong side.",'c'],
+  ['humeur',"Avoir la pêche","To be full of beans","To have the peach","Ce matin, j'ai la pêche !","I'm full of energy this morning!",'f',"Also: « avoir la frite »."],
+  ['humeur',"Ne pas être dans son assiette","To feel off / out of sorts","Not to be in one's plate","Je ne suis pas dans mon assiette aujourd'hui.","I'm feeling a bit off today.",'c'],
+  ['humeur',"Être à cran","To be on edge","To be at the notch","Avec les travaux, tout le monde est à cran.","With the renovation, everyone's on edge.",'f'],
+  ['humeur',"Péter les plombs","To lose it / flip out","To blow the fuses","Après trois heures d'attente, il a pété les plombs.","After a three-hour wait, he lost it.",'f'],
+  ['humeur',"Avoir les nerfs","To be really wound up / furious","To have the nerves","J'ai les nerfs, ils ont encore annulé.","I'm furious, they've cancelled again.",'f'],
+  ['humeur',"Ça me prend la tête.","It's doing my head in.","It takes my head.","Ces formulaires, ça me prend la tête.","These forms are doing my head in.",'f'],
+  ['humeur',"Avoir la chair de poule","To have goosebumps","To have hen's flesh","Cette chanson me donne la chair de poule.","This song gives me goosebumps.",'c'],
+  ['humeur',"Avoir la trouille","To be scared stiff","To have the fright","J'avais la trouille avant de parler en public.","I was scared stiff before speaking in public.",'f'],
+  ['humeur',"Avoir le trac","To have stage fright / the jitters","—","Même après vingt ans de scène, elle a toujours le trac.","Even after twenty years on stage, she still gets nervous.",'c'],
+  ['humeur',"En avoir gros sur le cœur","To be really upset / hurt","To have a lot on the heart","Elle n'a rien dit, mais elle en a gros sur le cœur.","She didn't say anything, but she's really hurt.",'c'],
+  ['humeur',"Rire jaune","To force a laugh","To laugh yellow","Quand il a parlé de son âge, elle a ri jaune.","When he mentioned her age, she forced a laugh.",'c'],
+  ['humeur',"J'en ai marre.","I'm fed up.","I have had enough of it.","J'en ai marre de cette pluie !","I'm fed up with this rain!",'f'],
+  ['humeur',"Ça me saoule.","It's doing my head in. / It's annoying me.","It's getting me drunk.","Ce bruit de perceuse, ça me saoule.","That drilling noise is getting on my nerves.",'f',"Also spelled « soûle »."],
+
+  // Fatigue & effort
+  ['effort',"Être crevé","To be exhausted / wiped out","To be punctured","Après cette journée, je suis crevé.","After today, I'm wiped out.",'f'],
+  ['effort',"Être au bout du rouleau","To be at the end of one's rope","To be at the end of the roll","Elle travaille sans arrêt, elle est au bout du rouleau.","She works nonstop, she's at the end of her rope.",'c'],
+  ['effort',"Être sur les rotules","To be dead on one's feet","To be on one's kneecaps","Trois étages sans ascenseur avec les cartons… je suis sur les rotules.","Three floors with boxes and no lift… I'm dead on my feet.",'f'],
+  ['effort',"Dormir comme un loir","To sleep like a log","To sleep like a dormouse","À la campagne, je dors comme un loir.","In the countryside I sleep like a log.",'c'],
+  ['effort',"Faire la grasse matinée","To sleep in / have a lie-in","To do the fat morning","Dimanche, on fait la grasse matinée.","On Sunday we're having a lie-in.",'c',"Familiar short form: « faire la grasse mat' »."],
+  ['effort',"Faire une nuit blanche","To pull an all-nighter / not sleep a wink","To do a white night","J'ai fait une nuit blanche à cause du bébé des voisins.","I didn't sleep a wink because of the neighbours' baby.",'c'],
+  ['effort',"Ce n'est pas la mer à boire.","It's not that hard.","It's not the sea to drink.","Remplir ce formulaire, ce n'est pas la mer à boire.","Filling in this form isn't that hard.",'c'],
+  ['effort',"Les doigts dans le nez","Easily / with no effort at all","Fingers in the nose","Il a eu son permis les doigts dans le nez.","He passed his driving test without breaking a sweat.",'f'],
+  ['effort',"C'est du gâteau.","It's a piece of cake.","It's cake.","La recette ? C'est du gâteau.","The recipe? It's a piece of cake.",'f'],
+  ['effort',"C'est pas sorcier.","It's not rocket science.","It's not wizardry.","Changer un fusible, c'est pas sorcier.","Changing a fuse isn't rocket science.",'f'],
+  ['effort',"Se casser la tête","To rack one's brains / go to a lot of trouble","To break one's head","Ne te casse pas la tête, on apporte juste du fromage.","Don't go to any trouble, we'll just bring cheese.",'f'],
+  ['effort',"Donner du fil à retordre","To give someone a hard time / be a real headache","To give thread to twist","Ce dossier nous donne du fil à retordre.","This file is giving us a real headache.",'c'],
+  ['effort',"Mettre la main à la pâte","To pitch in / roll up one's sleeves","To put one's hand in the dough","Pour finir à temps, tout le monde a mis la main à la pâte.","To finish on time, everyone pitched in.",'c'],
+  ['effort',"Donner un coup de main","To give a hand","To give a blow of the hand","Tu peux me donner un coup de main avec les cartons ?","Can you give me a hand with the boxes?",'c'],
+  ['effort',"Galérer","To struggle / have a nightmare of a time","To toil like a galley slave","J'ai galéré pour trouver une place de parking.","I had a nightmare finding a parking space.",'f'],
+  ['effort',"C'est la galère.","It's a nightmare. / What a hassle.","It's the galley.","Les grèves de métro, c'est la galère.","The metro strikes are a nightmare.",'f'],
+  ['effort',"Avoir du pain sur la planche","To have a lot on one's plate","To have bread on the board","Avec deux maisons à rénover, on a du pain sur la planche.","With two houses to renovate, we've got a lot on our plate.",'c'],
+
+  // Argent
+  ['argent',"Coûter les yeux de la tête","To cost an arm and a leg","To cost the eyes of the head","À Paris, un parking coûte les yeux de la tête.","In Paris, parking costs an arm and a leg.",'c',"Familiar variant: « coûter un bras »."],
+  ['argent',"C'est donné.","It's a steal. / It's dirt cheap.","It's given.","Dix euros la bouteille ? C'est donné !","Ten euros a bottle? That's a steal!",'c'],
+  ['argent',"C'est pas donné.","It's not cheap.","It's not given.","Ce restaurant est très bon, mais c'est pas donné.","This restaurant is very good, but it isn't cheap.",'f'],
+  ['argent',"C'est du vol !","It's a rip-off!","It's theft!","Huit euros pour une eau minérale, c'est du vol !","Eight euros for a mineral water, that's a rip-off!",'c'],
+  ['argent',"Se faire avoir","To get ripped off / be had","To get oneself had","Cinquante euros pour ça ? Je crois qu'on s'est fait avoir.","Fifty euros for that? I think we got ripped off.",'f'],
+  ['argent',"Faire un prix","To give a discount / a good price","To make a price","Si on prend six bouteilles, vous nous faites un prix ?","If we take six bottles, will you give us a deal?",'c'],
+  ['argent',"En avoir pour son argent","To get one's money's worth","To have some for one's money","Le menu à 30 euros, on en a pour son argent.","With the 30-euro menu, you get your money's worth.",'c'],
+  ['argent',"Jeter l'argent par les fenêtres","To throw money away","To throw money out of the windows","Acheter ça neuf, c'est jeter l'argent par les fenêtres.","Buying that new is throwing money away.",'c'],
+  ['argent',"Être fauché (comme les blés)","To be broke","To be mown (like the wheat)","Je ne peux pas sortir ce mois-ci, je suis fauché.","I can't go out this month, I'm broke.",'f'],
+  ['argent',"Avoir des oursins dans les poches","To be stingy","To have sea urchins in one's pockets","Il ne paie jamais sa tournée, il a des oursins dans les poches.","He never buys a round, he's so tight.",'f'],
+  ['argent',"Rouler sur l'or","To be rolling in money","To roll on gold","Ils ne roulent pas sur l'or, mais ils vivent bien.","They're not rolling in money, but they live well.",'c'],
+  ['argent',"Se serrer la ceinture","To tighten one's belt","To tighten one's belt","Après les travaux, on va devoir se serrer la ceinture.","After the renovation, we'll have to tighten our belts.",'c'],
+  ['argent',"Casser sa tirelire","To break open one's piggy bank / dip into savings","To break one's piggy bank","Pour ce voyage, j'ai cassé ma tirelire.","I dipped into my savings for this trip.",'c'],
+  ['argent',"Mettre du beurre dans les épinards","To bring in a bit of extra money","To put butter in the spinach","Louer le studio, ça mettra du beurre dans les épinards.","Renting out the studio will bring in a bit extra.",'c'],
+  ['argent',"Passer à la caisse","To pay up","To go to the till","Tout le monde a bien mangé, maintenant il faut passer à la caisse.","Everyone ate well, now it's time to pay up.",'f'],
+  ['argent',"Faire des économies de bouts de chandelle","To penny-pinch / save pennies pointlessly","To save candle ends","Couper le chauffage pour une heure, ce sont des économies de bouts de chandelle.","Turning the heating off for an hour is pointless penny-pinching.",'c'],
+
+  // Le temps
+  ['temps',"Être à la bourre","To be running late","To be at the stuffing","Désolé, je suis à la bourre, j'arrive dans dix minutes.","Sorry, I'm running late, I'll be there in ten minutes.",'f'],
+  ['temps',"Poser un lapin à quelqu'un","To stand someone up","To put a rabbit down on someone","Le plombier m'a encore posé un lapin.","The plumber stood me up again.",'c'],
+  ['temps',"En deux temps, trois mouvements","In no time at all","In two beats, three moves","Il a réparé la porte en deux temps, trois mouvements.","He fixed the door in no time.",'c'],
+  ['temps',"En un clin d'œil","In the blink of an eye","In a wink of the eye","Les places se sont vendues en un clin d'œil.","The tickets sold out in the blink of an eye.",'c'],
+  ['temps',"Ça fait une paye.","It's been ages.","It makes a pay.","Ça fait une paye qu'on ne s'est pas vus !","It's been ages since we saw each other!",'f',"Also spelled « une paie »."],
+  ['temps',"Tous les trente-six du mois","Once in a blue moon","Every thirty-sixth of the month","Il m'appelle tous les trente-six du mois.","He calls me once in a blue moon.",'f'],
+  ['temps',"Quand les poules auront des dents","When pigs fly","When hens have teeth","Il rendra l'argent quand les poules auront des dents.","He'll pay the money back when pigs fly.",'c'],
+  ['temps',"Ce n'est pas demain la veille.","That won't happen any time soon.","It's not tomorrow the day before.","Un métro sans grève ? Ce n'est pas demain la veille.","A metro with no strikes? That won't happen any time soon.",'f'],
+  ['temps',"Il était moins une.","That was a close call.","It was one minute to.","On a eu le train, mais il était moins une !","We caught the train, but it was a close call!",'f'],
+  ['temps',"De justesse","Only just / by a whisker","Of exactness","Il a eu son avion de justesse.","He only just made his flight.",'c'],
+  ['temps',"Au pied levé","At a moment's notice","With the foot raised","Elle a remplacé son collègue au pied levé.","She stood in for her colleague at a moment's notice.",'c'],
+  ['temps',"Du jour au lendemain","Overnight / all of a sudden","From the day to the next","Il a tout quitté du jour au lendemain.","He gave everything up overnight.",'c'],
+  ['temps',"Tuer le temps","To kill time","To kill time","On a tué le temps à l'aéroport en jouant aux cartes.","We killed time at the airport playing cards.",'c'],
+  ['temps',"Faire le pont","To take the extra day off for a long weekend","To do the bridge","Le 11 novembre tombe un mardi, alors on fait le pont.","Armistice Day is a Tuesday, so we're taking Monday off too.",'c',"When a holiday falls on Tuesday or Thursday, the gap day is « le pont »."],
+  ['temps',"Remettre aux calendes grecques","To put off indefinitely","To postpone to the Greek calends","Le projet de piscine est remis aux calendes grecques.","The pool project has been put off indefinitely.",'c'],
+  ['temps',"Avoir le temps de voir venir","To have plenty of time (or a cushion) ahead","To have time to see it coming","La livraison est en mars, on a le temps de voir venir.","Delivery is in March, we've got plenty of time.",'c'],
+
+  // Parler
+  ['parler',"Mettre son grain de sel","To stick one's oar in / put in one's two cents","To put in one's grain of salt","Il faut toujours qu'il mette son grain de sel.","He always has to stick his oar in.",'f'],
+  ['parler',"Tourner autour du pot","To beat around the bush","To turn around the pot","Arrête de tourner autour du pot, dis-moi ce qui se passe.","Stop beating around the bush, tell me what's going on.",'c'],
+  ['parler',"Avoir un chat dans la gorge","To have a frog in one's throat","To have a cat in one's throat","Excusez-moi, j'ai un chat dans la gorge.","Excuse me, I have a frog in my throat.",'c'],
+  ['parler',"Donner sa langue au chat","To give up (guessing)","To give one's tongue to the cat","Alors, c'est quel vin ? — Je donne ma langue au chat.","So, which wine is it? — I give up.",'c'],
+  ['parler',"Avoir la langue bien pendue","To have the gift of the gab / be a chatterbox","To have a well-hung tongue","Sa fille a la langue bien pendue.","Her daughter is a real chatterbox.",'c'],
+  ['parler',"Avoir le mot sur le bout de la langue","To have it on the tip of one's tongue","To have the word on the tip of the tongue","Comment ça s'appelle déjà ? J'ai le mot sur le bout de la langue.","What's it called again? It's on the tip of my tongue.",'c'],
+  ['parler',"Tenir sa langue","To hold one's tongue / keep a secret","To hold one's tongue","C'est une surprise, alors tiens ta langue !","It's a surprise, so keep it to yourself!",'c'],
+  ['parler',"Ne pas mâcher ses mots","Not to mince one's words","Not to chew one's words","L'architecte n'a pas mâché ses mots.","The architect didn't mince his words.",'c'],
+  ['parler',"Mettre les points sur les i","To spell things out / make things clear","To put the dots on the i's","Je préfère mettre les points sur les i avant de signer.","I'd rather make things clear before signing.",'c'],
+  ['parler',"Couper la parole à quelqu'un","To interrupt someone","To cut someone's speech","Pardon, je ne voulais pas vous couper la parole.","Sorry, I didn't mean to interrupt you.",'c'],
+  ['parler',"Passer du coq à l'âne","To jump from one subject to another","To go from the rooster to the donkey","Il passe du coq à l'âne, je ne le suis plus.","He keeps jumping from topic to topic, I can't follow him.",'c'],
+  ['parler',"Revenons à nos moutons.","Let's get back to the point.","Let's return to our sheep.","Bon, revenons à nos moutons : le budget.","Right, back to the point: the budget.",'c'],
+  ['parler',"Raconter des salades","To tell tall tales / fibs","To tell salads","Ne l'écoute pas, il raconte des salades.","Don't listen to him, he's spinning tales.",'f'],
+  ['parler',"Casser du sucre sur le dos de quelqu'un","To badmouth someone behind their back","To break sugar on someone's back","Elles passent leur temps à casser du sucre sur le dos des voisins.","They spend their time badmouthing the neighbours.",'f'],
+  ['parler',"Tirer les vers du nez à quelqu'un","To worm information out of someone","To pull the worms out of someone's nose","Il ne voulait rien dire, j'ai dû lui tirer les vers du nez.","He wouldn't say anything, I had to drag it out of him.",'f'],
+  ['parler',"Parler français comme une vache espagnole","To speak terrible French","To speak French like a Spanish cow","Je parle français comme une vache espagnole, soyez indulgents !","My French is dreadful, bear with me!",'f',"A charming self-deprecating line at dinner."],
+  ['parler',"C'est l'hôpital qui se moque de la charité.","That's the pot calling the kettle black.","It's the hospital mocking the charity.","Lui, me dire que je suis en retard ? C'est l'hôpital qui se moque de la charité.","Him telling me I'm late? That's the pot calling the kettle black.",'c'],
+
+  // Les gens
+  ['gens',"Être sur la même longueur d'onde","To be on the same wavelength","To be on the same wavelength","Avec mon frère, on est toujours sur la même longueur d'onde.","My brother and I are always on the same wavelength.",'c'],
+  ['gens',"S'entendre comme larrons en foire","To be as thick as thieves","To get along like thieves at a fair","Ces deux-là s'entendent comme larrons en foire.","Those two are as thick as thieves.",'c'],
+  ['gens',"Être comme chien et chat","To fight like cat and dog","To be like dog and cat","Les enfants sont comme chien et chat.","The kids fight like cat and dog.",'c'],
+  ['gens',"Avoir le bras long","To have connections / pull","To have a long arm","Son oncle a le bras long au ministère.","Her uncle has a lot of pull at the ministry.",'c'],
+  ['gens',"Avoir la grosse tête","To be big-headed","To have the big head","Depuis sa promotion, il a la grosse tête.","Since his promotion, he's got a big head.",'f',"Also: « avoir le melon »."],
+  ['gens',"Prendre la mouche","To take offence / fly off the handle","To take the fly","Ne prends pas la mouche, c'était une blague !","Don't take offence, it was a joke!",'c'],
+  ['gens',"Faire la tête","To sulk","To make the head","Pourquoi tu fais la tête ?","Why are you sulking?",'c'],
+  ['gens',"Ne pas pouvoir voir quelqu'un en peinture","Not to be able to stand someone","Not to be able to see someone even in a painting","Elle ne peut pas le voir en peinture.","She can't stand him.",'f'],
+  ['gens',"Avoir quelqu'un dans le nez","To have it in for someone / dislike someone","To have someone in one's nose","Je crois que le gardien m'a dans le nez.","I think the caretaker has it in for me.",'f'],
+  ['gens',"Casser les pieds à quelqu'un","To get on someone's nerves / bore someone","To break someone's feet","Il me casse les pieds avec ses histoires.","He's getting on my nerves with his stories.",'f'],
+  ['gens',"Taper sur les nerfs","To get on one's nerves","To tap on the nerves","Cette musique commence à me taper sur les nerfs.","This music is starting to get on my nerves.",'f'],
+  ['gens',"Être bon public","To be easily amused / a good audience","To be a good public","Je ris à toutes ses blagues, je suis bon public.","I laugh at all his jokes, I'm easily amused.",'c'],
+  ['gens',"Avoir un cœur d'artichaut","To fall in love easily","To have an artichoke heart","Il tombe amoureux tous les mois, il a un cœur d'artichaut.","He falls in love every month, he's a soft touch.",'c'],
+  ['gens',"Être une bonne pâte","To be a good sort / easygoing","To be a good dough","Demande à Paul, c'est une bonne pâte.","Ask Paul, he's an easygoing guy.",'c'],
+  ['gens',"Être un pot de colle","To be clingy","To be a glue pot","Mon petit frère est un vrai pot de colle.","My little brother is really clingy.",'f'],
+  ['gens',"Se mettre quelqu'un dans la poche","To win someone over","To put someone in one's pocket","En deux minutes, il s'est mis la galeriste dans la poche.","In two minutes, he'd won the gallerist over.",'f'],
+  ['gens',"Faire la bise","To greet with a kiss on the cheeks","To do the kiss","On se fait la bise ?","Shall we do the cheek kiss?",'c',"Two kisses in Paris; it varies by region."],
+  ['gens',"Mettre les pieds dans le plat","To put one's foot in it","To put one's feet in the dish","J'ai parlé de son ex devant sa femme… j'ai mis les pieds dans le plat.","I mentioned his ex in front of his wife… I put my foot in it.",'c'],
+
+  // Travail & projets
+  ['travail',"Mettre la charrue avant les bœufs","To put the cart before the horse","To put the plough before the oxen","Choisir les rideaux avant les murs, c'est mettre la charrue avant les bœufs.","Choosing curtains before the walls is putting the cart before the horse.",'c'],
+  ['travail',"Faire d'une pierre deux coups","To kill two birds with one stone","To make two hits with one stone","On passe chez le notaire et à la banque : d'une pierre deux coups.","We'll go to the notary and the bank: two birds, one stone.",'c'],
+  ['travail',"Prendre le taureau par les cornes","To take the bull by the horns","To take the bull by the horns","Il faut prendre le taureau par les cornes et appeler l'entreprise.","We need to take the bull by the horns and call the contractor.",'c'],
+  ['travail',"Mettre les bouchées doubles","To double one's efforts / speed up","To take double mouthfuls","Pour livrer avant Noël, ils mettent les bouchées doubles.","To deliver before Christmas, they're working twice as hard.",'c'],
+  ['travail',"Avoir plusieurs cordes à son arc","To have several strings to one's bow","To have several strings to one's bow","Elle est peintre, prof et traductrice : elle a plusieurs cordes à son arc.","She's a painter, teacher and translator: she has many strings to her bow.",'c'],
+  ['travail',"Ne pas avoir les deux pieds dans le même sabot","To be a real go-getter","Not to have both feet in the same clog","Notre chef de chantier n'a pas les deux pieds dans le même sabot.","Our site manager is a real go-getter.",'f'],
+  ['travail',"Être débordé","To be swamped","To be overflowed","Je suis débordé cette semaine, on peut se voir lundi ?","I'm swamped this week, can we meet on Monday?",'c'],
+  ['travail',"C'est un vrai chantier.","It's a total mess.","It's a real building site.","Mon bureau, c'est un vrai chantier.","My desk is a total mess.",'f'],
+  ['travail',"Faire le point","To take stock / have a catch-up","To do the point","On fait le point avec l'architecte lundi ?","Shall we catch up with the architect on Monday?",'c'],
+  ['travail',"Être dans les clous","To be on target / within limits","To be in the studs (the old pedestrian crossing)","Pour le budget, on est encore dans les clous.","We're still within budget.",'c'],
+  ['travail',"Être au point mort","To be at a standstill","To be in neutral","Le dossier est au point mort depuis septembre.","The file has been at a standstill since September.",'c'],
+  ['travail',"Avoir carte blanche","To have free rein","To have a white card","Pour la décoration, la designer a carte blanche.","The designer has free rein on the decor.",'c'],
+  ['travail',"Jeter l'éponge","To throw in the towel","To throw the sponge","Après trois refus, il a jeté l'éponge.","After three refusals, he threw in the towel.",'c'],
+  ['travail',"Repartir à zéro","To start again from scratch","To start off again at zero","Les plans ne vont pas, il faut repartir à zéro.","The plans don't work, we have to start from scratch.",'c'],
+  ['travail',"C'est dans la poche.","It's in the bag.","It's in the pocket.","Le contrat ? C'est dans la poche.","The contract? It's in the bag.",'f'],
+  ['travail',"Avoir le vent en poupe","To be on a roll / riding high","To have the wind astern","Cette jeune galerie a le vent en poupe.","This young gallery is on a roll.",'c'],
+  ['travail',"Monter au créneau","To step up and speak out / go into battle","To climb up to the battlements","Le maire est monté au créneau pour défendre le projet.","The mayor stepped up to defend the project.",'c'],
+
+  // Situations
+  ['situations',"C'est la goutte d'eau qui fait déborder le vase.","That's the last straw.","It's the drop that makes the vase overflow.","Encore un retard ? C'est la goutte d'eau qui fait déborder le vase.","Another delay? That's the last straw.",'c'],
+  ['situations',"Ça ne court pas les rues.","It's rare / thin on the ground.","It doesn't run the streets.","Les bons artisans, ça ne court pas les rues.","Good craftsmen are thin on the ground.",'c'],
+  ['situations',"Il y a anguille sous roche.","Something's going on. / Something's fishy.","There's an eel under the rock.","Ils chuchotent depuis ce matin, il y a anguille sous roche.","They've been whispering all morning, something's up.",'c'],
+  ['situations',"Être dans le pétrin","To be in a fix / in trouble","To be in the kneading trough","Plus de passeport la veille du vol… on est dans le pétrin.","No passport the day before the flight… we're in a fix.",'f'],
+  ['situations',"Être dans de beaux draps","To be in a fine mess","To be in nice sheets","Nous voilà dans de beaux draps !","Now we're in a fine mess!",'c',"Ironic: « beaux » means the opposite."],
+  ['situations',"Ça ne tient pas debout.","That doesn't make sense. / That doesn't hold up.","It doesn't stand up.","Son histoire ne tient pas debout.","His story doesn't hold up.",'c'],
+  ['situations',"Chercher la petite bête","To nitpick","To look for the little creature","Il cherche toujours la petite bête dans les devis.","He always nitpicks the quotes.",'c'],
+  ['situations',"Couper les cheveux en quatre","To split hairs","To cut hairs into four","On ne va pas couper les cheveux en quatre pour dix euros.","Let's not split hairs over ten euros.",'c'],
+  ['situations',"Se noyer dans un verre d'eau","To get flustered over nothing","To drown in a glass of water","Ne panique pas, tu te noies dans un verre d'eau.","Don't panic, you're getting worked up over nothing.",'c'],
+  ['situations',"Tomber à l'eau","To fall through (plans)","To fall in the water","Notre week-end à la mer est tombé à l'eau.","Our weekend by the sea fell through.",'c'],
+  ['situations',"Tomber dans les pommes","To faint / pass out","To fall into the apples","Il faisait si chaud qu'elle est tombée dans les pommes.","It was so hot that she fainted.",'f'],
+  ['situations',"Se mettre le doigt dans l'œil","To be completely wrong","To put one's finger in one's eye","S'il croit que je vais payer, il se met le doigt dans l'œil.","If he thinks I'm paying, he's got another think coming.",'f',"Emphatic: « …jusqu'au coude » (up to the elbow)."],
+  ['situations',"Être à côté de la plaque","To be off the mark / miss the point","To be beside the plate","Sa réponse était complètement à côté de la plaque.","His answer completely missed the point.",'f'],
+  ['situations',"Tirer son épingle du jeu","To come out of it well / get out unscathed","To pull one's pin out of the game","Malgré la crise, la maison a tiré son épingle du jeu.","Despite the crisis, the firm came out of it well.",'c'],
+  ['situations',"Avoir d'autres chats à fouetter","To have bigger fish to fry","To have other cats to whip","Laisse ça, on a d'autres chats à fouetter.","Leave that, we've got bigger fish to fry.",'c'],
+  ['situations',"Avoir du bol","To be lucky","To have bowl","Il restait une table ? T'as du bol !","There was one table left? You're lucky!",'f'],
+  ['situations',"Avoir la poisse","To be jinxed / have bad luck","To have the pitch (tar)","Deux crevaisons en une semaine, j'ai la poisse.","Two punctures in one week, I'm jinxed.",'f'],
+  ['situations',"Croiser les doigts","To keep one's fingers crossed","To cross one's fingers","Le notaire répond demain, on croise les doigts.","The notary answers tomorrow, fingers crossed.",'c'],
+  ['situations',"Faut pas pousser mémé dans les orties !","Don't push it! / That's going too far!","Mustn't push granny into the nettles!","Il veut qu'on paie aussi son taxi ? Faut pas pousser mémé dans les orties !","He wants us to pay for his taxi too? That's going too far!",'f'],
+  ['situations',"C'est le monde à l'envers !","It's the world turned upside down!","It's the world inside out!","C'est le client qui s'excuse ? C'est le monde à l'envers !","The customer is apologising? It's the world turned upside down!",'c'],
+
+  // À table
+  ['table',"Avoir la dalle","To be starving","To have the slab","On mange quand ? J'ai la dalle.","When are we eating? I'm starving.",'f'],
+  ['table',"Avoir un petit creux","To be a bit peckish","To have a little hollow","J'ai un petit creux, on prend un croissant ?","I'm a bit peckish, shall we get a croissant?",'c'],
+  ['table',"Manger sur le pouce","To grab a quick bite","To eat on the thumb","On n'a pas le temps, on mange sur le pouce.","No time, we'll grab a quick bite.",'c'],
+  ['table',"Boire un coup","To have a drink","To drink a blow","On va boire un coup après le vernissage ?","Shall we go for a drink after the opening?",'f'],
+  ['table',"Avoir un verre dans le nez","To be tipsy","To have a glass in the nose","Après la dégustation, il avait un verre dans le nez.","After the tasting, he was a bit tipsy.",'f'],
+  ['table',"Avoir la gueule de bois","To be hungover","To have a wooden mouth","Le lendemain du mariage, tout le monde avait la gueule de bois.","The day after the wedding, everyone was hungover.",'f'],
+  ['table',"Mettre les petits plats dans les grands","To pull out all the stops (for guests)","To put the small dishes inside the big ones","Pour leurs amis, ils ont mis les petits plats dans les grands.","They pulled out all the stops for their friends.",'c'],
+  ['table',"En faire tout un plat","To make a big fuss about it","To make a whole dish of it","Ce n'est qu'une rayure, n'en fais pas tout un plat.","It's just a scratch, don't make a big fuss about it.",'f',"Also: « en faire tout un fromage »."],
+  ['table',"Les carottes sont cuites.","The game's up. / It's all over.","The carrots are cooked.","Le dernier train est parti, les carottes sont cuites.","The last train has gone, that's that.",'f'],
+  ['table',"C'est la fin des haricots.","That's the end of everything. / We're done for.","It's the end of the beans.","Si le vin augmente encore, c'est la fin des haricots !","If wine goes up again, we're done for!",'f',"Usually said half-jokingly."],
+  ['table',"Avoir la banane","To be grinning from ear to ear","To have the banana","Depuis ce matin, il a la banane.","He's been grinning from ear to ear all morning.",'f'],
+  ['table',"Être soupe au lait","To be quick-tempered","To be milk soup","Attention, le patron est un peu soupe au lait.","Careful, the boss has a short fuse.",'c'],
+  ['table',"Ramener sa fraise","To butt in / stick one's nose in","To bring back one's strawberry","On ne t'a rien demandé, ne ramène pas ta fraise !","Nobody asked you, don't butt in!",'f'],
+  ['table',"Pour des prunes","For nothing / in vain","For plums","On a attendu deux heures pour des prunes.","We waited two hours for nothing.",'f'],
+  ['table',"Faire chou blanc","To draw a blank / come away empty-handed","To make white cabbage","On a cherché des chaises anciennes aux puces, mais on a fait chou blanc.","We looked for antique chairs at the flea market but came away empty-handed.",'c'],
+  ['table',"Ce n'est pas ma tasse de thé.","It's not my cup of tea.","It's not my cup of tea.","L'art conceptuel, ce n'est pas trop ma tasse de thé.","Conceptual art isn't really my cup of tea.",'c'],
+
+  // Météo
+  ['meteo',"Il pleut des cordes.","It's pouring. / It's raining cats and dogs.","It's raining ropes.","Prends un parapluie, il pleut des cordes.","Take an umbrella, it's pouring.",'c'],
+  ['meteo',"Il fait un froid de canard.","It's freezing cold.","It's duck cold.","Couvre-toi, il fait un froid de canard.","Wrap up, it's freezing.",'c'],
+  ['meteo',"Il caille.","It's freezing.","It's curdling.","Ferme la fenêtre, ça caille !","Close the window, it's freezing!",'f',"Often « ça caille »."],
+  ['meteo',"Il fait un temps de chien.","The weather's awful.","It's dog weather.","Il fait un temps de chien, on reste à la maison.","The weather's awful, let's stay in.",'c'],
+  ['meteo',"Il fait une chaleur à crever.","It's boiling hot.","It's a heat to die in.","En août, dans le métro, il fait une chaleur à crever.","In August, it's boiling in the metro.",'f'],
+  ['meteo',"Il y a un vent à décorner les bœufs.","It's blowing a gale.","There's a wind to knock the horns off oxen.","Sur la côte, il y avait un vent à décorner les bœufs.","On the coast, it was blowing a gale.",'c'],
+  ['meteo',"Après la pluie, le beau temps.","Every cloud has a silver lining.","After the rain, fine weather.","Ne t'inquiète pas, après la pluie, le beau temps.","Don't worry, things will get better.",'c'],
+];
+function idmKey(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[’']/g, "'").replace(/[.!?…\s]+$/, '').replace(/\s+/g, ' ').trim();
+}
+let _idiomBuilt = null, _idiomBuiltFor = null;
+// Built-in idioms as word cards, minus any already in the cloud word bank.
+// Ids are stable ("idm_" + the phrase), so known marks and SRS progress stick.
+function getBuiltinIdioms() {
+  if (_idiomBuiltFor === vocabBank && _idiomBuilt) return _idiomBuilt;
+  const inBank = new Set(vocabBank.map(w => idmKey(w.french)));
+  const used = new Set();
+  _idiomBuilt = IDIOM_LIST.map(([group, french, english, lit, example, exampleEn, reg, tip], i) => {
+    let id = 'idm_' + idmKey(french).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    while (used.has(id)) id += '-2';
+    used.add(id);
+    const register = reg === 'f' ? 'familier' : 'courant';
+    const note = [lit && lit !== '—' ? `Literally: “${lit}”` : '', register, tip || ''].filter(Boolean).join(' · ');
+    return { id, french, english, type: 'expression', example, exampleEn, note, register, group, category: 'idioms', rank: 90000 + i, noGender: true };
+  }).filter(w => !inBank.has(idmKey(w.french)));
+  _idiomBuiltFor = vocabBank;
+  return _idiomBuilt;
+}
+
 function getThemeWords(themeId) {
   if (themeId === 'mine') return getMinedWords();
-  const words = vocabBank.filter(w => w.category === themeId);
+  let words = vocabBank.filter(w => w.category === themeId);
   if (themeId !== 'idioms') return words;
+  words = [...words, ...getBuiltinIdioms()];
   const pins = state._idiomPins || {};
   const extra = vocabBank.filter(w => pins[w.id] && w.category !== 'idioms');
   // pinned phrases first (most recently spotted first), then the rest in rank order
@@ -1482,13 +1732,14 @@ function openTheme(id) {
   vocabState.theme = id; vocabState.themeView = false;
   vocabState.cardIndex = 0; vocabState.revealed = false; vocabState.filter = 'all';
   const prev = vocabState.tb || {};
-  vocabState.tb = { idx: 0, revealed: false, filter: prev.filter || 'all', view: prev.view || 'cards', dir: prev.dir || 'fr', order: null };
+  vocabState.tb = { idx: 0, revealed: false, filter: prev.filter || 'all', view: prev.view || 'cards', dir: prev.dir || 'fr', order: null, group: null };
   renderContent();
 }
 function tbWords() {
   const tb = vocabState.tb;
   let words = getThemeWords(vocabState.theme);
   if (tb.order) { const pos = new Map(tb.order.map((id, i) => [id, i])); words = [...words].sort((a, b) => (pos.get(a.id) ?? 1e9) - (pos.get(b.id) ?? 1e9)); }
+  if (tb.group) words = words.filter(w => tb.group === 'autres' ? !w.group : w.group === tb.group);
   if (tb.filter === 'learning') { const k = tbKnown(); words = words.filter(w => !k[w.id]); }
   return words;
 }
@@ -1558,7 +1809,16 @@ function renderThemeBrowse() {
       ${tb.view === 'cards' ? chip(false, tb.dir === 'fr' ? 'FR → EN' : 'EN → FR', `tbSet({dir:'${tb.dir === 'fr' ? 'en' : 'fr'}',revealed:false})`) : ''}
       ${chip(!!tb.order, '🔀 Mélanger', 'tbShuffle()')}
       ${tb.order ? chip(false, '↺ In order', 'tbSet({order:null,idx:0,revealed:false})') : ''}
-    </div>`;
+    </div>
+    ${vocabState.theme === 'idioms' ? (() => {
+      const groups = [...IDIOM_GROUPS.map(g => ({ ...g, n: all.filter(w => w.group === g.id).length })),
+        { id: 'autres', emoji: '☁️', label: 'Autres', labelEn: 'From your word bank', n: all.filter(w => !w.group).length }].filter(g => g.n);
+      const cur = groups.find(g => g.id === tb.group);
+      return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${chip(!tb.group, `Toutes · ${all.length}`, "tbSet({group:null,idx:0,revealed:false})", 'var(--green)')}
+        ${groups.map(g => chip(tb.group === g.id, `${g.emoji} ${g.label} · ${g.n}`, `tbSet({group:'${g.id}',idx:0,revealed:false})`, 'var(--green)')).join('')}
+      </div>${cur ? `<div style="font-size:11px;color:var(--text3);margin-top:6px">${cur.labelEn}</div>` : ''}`;
+    })() : ''}`;
 
   if (!words.length) {
     return `<div class="practice-screen">${header}
@@ -1579,6 +1839,8 @@ function renderThemeBrowse() {
             <div style="font-size:15px;color:var(--text)">${genderWordHTML(w, 'sm')}</div>
             <div style="font-size:13px;color:var(--text2);margin-top:1px">${w.english}</div>
             ${w.example ? `<div style="font-size:12px;color:var(--text3);margin-top:3px;font-style:italic">${w.example}</div>` : ''}
+            ${w.exampleEn ? `<div style="font-size:11px;color:var(--text3);margin-top:1px">${w.exampleEn}</div>` : ''}
+            ${w.note && w.group ? `<div style="font-size:11px;color:var(--amber);margin-top:3px">${w.note}</div>` : ''}
           </div>
           <button class="btn" style="font-size:12px;padding:3px 8px" data-speak="${tbEsc(w.french)}" onclick="speakFrench(this.dataset.speak)">🔊</button>
           <button class="btn" title="${k[w.id] ? 'Known — tap to unmark' : 'Mark as known'}" style="font-size:12px;padding:3px 8px;${k[w.id] ? 'color:var(--green);border-color:var(--green)' : 'color:var(--text3)'}" onclick="tbToggleKnown('${tbEsc(w.id)}')">✓</button>
@@ -1602,6 +1864,7 @@ function renderThemeBrowse() {
       ${!rev ? `<div class="card-sub" style="margin-top:12px">Tap to reveal</div>` : `<div class="card-back">
         ${frontFr ? `<div class="card-translation">${w.english}</div>` : genderWordHTML(w, 'md')}
         ${w.example ? `<div class="card-example">${w.example}</div>` : ''}
+        ${w.exampleEn ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">${w.exampleEn}</div>` : ''}
         ${w.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${w.note}</div>` : ''}
         ${rp.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left">
           <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">With prepositions</div>
