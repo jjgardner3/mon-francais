@@ -1777,6 +1777,112 @@ function tbResetKnown() {
   saveState(state); tbSet({ idx: 0, revealed: false });
 }
 
+// ── Ask about this word (vocab cards) ─────────────────────────────
+// A small question box under a revealed vocab card: "could I also use malgré?"
+// Answers are kept per card while you stay on it; follow-ups see the earlier Q&A.
+let vwAsk = { id: null, draft: '', loading: false, error: '', items: [] };
+let vwAskWord = null;
+function vwAskFmt(s) {
+  return tbEsc(s).replace(/\*([^*]+)\*/g, '<em style="color:var(--green);font-family:\'Playfair Display\',serif">$1</em>').replace(/\n/g, '<br>');
+}
+function vwAskHTML(w) {
+  if (!w) return '';
+  if (vwAsk.id !== w.id) vwAsk = { id: w.id, draft: '', loading: false, error: '', items: [] };
+  vwAskWord = w;
+  const have = pkMinedKeys();
+  const badge = { yes: ['✓ Yes', 'var(--green)'], sometimes: ['≈ Sometimes', 'var(--amber)'], no: ['✕ Not here', 'var(--coral)'] };
+  const items = vwAsk.items.map((it, i) => `<div style="padding:10px 0;border-top:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--text3);font-style:italic;margin-bottom:5px">“${tbEsc(it.q)}”</div>
+      ${badge[it.verdict] ? `<span style="font-size:10px;font-weight:600;letter-spacing:.05em;color:${badge[it.verdict][1]};border:1px solid ${badge[it.verdict][1]};border-radius:10px;padding:1px 8px;margin-right:6px">${badge[it.verdict][0]}</span>` : ''}
+      <span style="font-size:13px;color:var(--text2);line-height:1.6">${vwAskFmt(it.answer)}</span>
+      ${(it.examples || []).map((x, j) => `<div style="display:flex;gap:8px;align-items:flex-start;margin-top:7px">
+        <button class="btn" style="font-size:11px;padding:2px 7px;flex-shrink:0" onclick="vwAskSpeak(${i},${j},this)">🔊</button>
+        <div><div style="font-size:14px;color:var(--blue);font-family:'Playfair Display',serif;font-style:italic">${tbEsc(x.fr)}</div>
+        ${x.en ? `<div style="font-size:11px;color:var(--text3)">${tbEsc(x.en)}</div>` : ''}</div>
+      </div>`).join('')}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">
+        ${(it.alternatives || []).map((a, j) => { const got = have.has(pkKey(a.french)); return `<button class="btn" style="font-size:11px;padding:3px 9px;${got ? 'color:var(--green);border-color:var(--green)' : 'color:var(--coral);border-color:var(--coral)'}" ${got ? 'disabled title="Already in Mes expressions"' : ''} onclick="vwAskAddAlt(${i},${j},this)">${got ? '✓' : '+'} ${tbEsc(a.french)}${got ? '' : ' → Mes expressions'}</button>`; }).join('')}
+        <button class="btn" style="font-size:11px;padding:3px 9px;color:var(--blue);border-color:var(--blue)" onclick="vwAskSaveNote(${i},this)">📌 Save to notes</button>
+      </div>
+    </div>`).join('');
+  return `<div id="vwAsk" onclick="event.stopPropagation()" style="margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px">
+    <div style="display:flex;gap:8px">
+      <input id="vwAskInput" type="text" value="${tbEsc(vwAsk.draft)}" placeholder="Ask about this word… e.g. could I also use…?" autocomplete="off"
+        style="flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:Inter,sans-serif;outline:none"
+        oninput="vwAsk.draft=this.value" onkeydown="event.stopPropagation();if(event.key==='Enter'){event.preventDefault();vwAskSubmit()}" ${vwAsk.loading ? 'disabled' : ''}>
+      <button class="btn" style="white-space:nowrap;font-size:12px;color:var(--purple);border-color:var(--purple)" onclick="vwAskSubmit()" ${vwAsk.loading ? 'disabled' : ''}>💬 Ask</button>
+    </div>
+    ${vwAsk.loading ? `<div style="display:flex;align-items:center;gap:8px;color:var(--text3);font-size:12px;margin-top:10px"><div class="spinner" style="width:14px;height:14px"></div>Thinking…</div>` : ''}
+    ${vwAsk.error ? `<div style="color:var(--coral);font-size:12px;margin-top:8px">${tbEsc(vwAsk.error)}</div>` : ''}
+    ${items ? `<div style="margin-top:8px">${items}</div>` : ''}
+  </div>`;
+}
+function vwAskRefresh(focus) {
+  const el = document.getElementById('vwAsk');
+  if (!el || !vwAskWord || vwAsk.id !== vwAskWord.id) return;
+  el.outerHTML = vwAskHTML(vwAskWord);
+  if (focus) { const inp = document.getElementById('vwAskInput'); if (inp) inp.focus(); }
+}
+async function vwAskSubmit() {
+  const w = vwAskWord;
+  const inp = document.getElementById('vwAskInput');
+  const q = ((inp && inp.value) || vwAsk.draft || '').trim();
+  if (!w || !q || vwAsk.loading) return;
+  const id = w.id;
+  vwAsk.draft = q; vwAsk.loading = true; vwAsk.error = '';
+  vwAskRefresh();
+  const prior = vwAsk.items.slice(-3).map(it => `Q: ${it.q}\nA: ${it.answer}`).join('\n\n');
+  const prompt = `You are a friendly, precise French tutor. An intermediate adult learner (English speaker, spends a lot of time in Paris) is drilling vocabulary and has a question about the card in front of them.
+
+The card:
+French: ${w.french}
+English: ${w.english || '—'}${w.type ? `\nType: ${w.type}` : ''}${w.example ? `\nExample: ${w.example}` : ''}${w.exampleEn ? `\nExample (English): ${w.exampleEn}` : ''}${w.note ? `\nNote: ${w.note}` : ''}
+${prior ? `\nEarlier questions about this card:\n${prior}\n` : ''}
+Their question: "${q}"
+
+Answer practically. If they ask whether another word or phrase could be used instead, say whether it works in this card's sense and example, and explain the real difference: meaning, register (formal / written / everyday / spoken / familiar), grammar it takes (e.g. "malgré + noun" vs "bien que + subjunctive"), and anything a native speaker would notice. Do not invent nuances; if two words are interchangeable, say so.
+
+Reply with JSON only, no prose around it:
+{"verdict":"yes" | "sometimes" | "no" | "info",
+ "answer":"2-4 short sentences in plain English. Put French words in *asterisks*.",
+ "examples":[{"fr":"a natural French sentence","en":"its English"}],
+ "alternatives":[{"french":"word or expression","english":"short meaning"}]}
+
+verdict: "yes" if their alternative works here, "sometimes" if only in some contexts or registers, "no" if it does not fit, "info" if the question isn't a yes/no about an alternative.
+examples: 1 to 3 everyday sentences showing the difference (one with the card word, one with the alternative, if they asked about one).
+alternatives: the word(s) they asked about plus at most one other genuinely useful synonym, base form, 0 to 3 items; leave out the card word itself.`;
+  try {
+    const text = await parlerCallAI(prompt, 700);
+    let r;
+    try { r = parlerParseJSON(text, '{', '}'); } catch { r = { verdict: 'info', answer: text, examples: [], alternatives: [] }; }
+    const self = pkKey(w.french);
+    const item = {
+      q, verdict: String(r.verdict || 'info').toLowerCase(), answer: String(r.answer || '').trim() || 'No answer — try asking another way.',
+      examples: (Array.isArray(r.examples) ? r.examples : []).filter(x => x && x.fr).slice(0, 3).map(x => ({ fr: String(x.fr), en: String(x.en || '') })),
+      alternatives: (Array.isArray(r.alternatives) ? r.alternatives : []).filter(a => a && a.french && pkKey(a.french) !== self).slice(0, 3).map(a => ({ french: String(a.french), english: String(a.english || '') })),
+    };
+    if (vwAsk.id !== id) return; // moved to another card meanwhile
+    vwAsk.items.push(item); vwAsk.draft = ''; vwAsk.loading = false;
+  } catch (e) {
+    if (vwAsk.id !== id) return;
+    vwAsk.loading = false; vwAsk.error = 'Couldn’t get an answer — try again.';
+  }
+  vwAskRefresh(true);
+}
+function vwAskSpeak(i, j, btn) { const x = vwAsk.items[i]?.examples?.[j]; if (x) speakFrenchHQ(x.fr, btn); }
+function vwAskAddAlt(i, j, btn) {
+  const a = vwAsk.items[i]?.alternatives?.[j]; const w = vwAskWord; if (!a || !w) return;
+  const ex = (vwAsk.items[i].examples || []).find(x => pkKey(x.fr).includes(pkKey(a.french)));
+  const n = mxAdd([{ french: a.french, english: a.english, example: ex ? ex.fr : '', note: `Alternative to ${w.french}` }], 'Asked on a vocab card');
+  btn.textContent = '✓ ' + a.french; btn.disabled = true; btn.style.color = 'var(--green)'; btn.style.borderColor = 'var(--green)';
+  btn.title = n ? 'Added to Mes expressions' : 'Already in Mes expressions';
+}
+function vwAskSaveNote(i, btn) {
+  const it = vwAsk.items[i]; const w = vwAskWord; if (!it || !w) return;
+  const ex = (it.examples || []).map(x => `<br><em style="color:var(--green)">${tbEsc(x.fr)}</em>${x.en ? ` — ${tbEsc(x.en)}` : ''}`).join('');
+  saveNoteBtn(btn, { topic: `Vocabulaire · ${w.french}`, question: it.q, exp: vwAskFmt(it.answer) + ex });
+}
+
 function renderThemeBrowse() {
   const theme = THEMES.find(t => t.id === vocabState.theme);
   if (!vocabState.tb) vocabState.tb = { idx: 0, revealed: false, filter: 'all', view: 'cards', dir: 'fr', order: null };
@@ -1880,6 +1986,7 @@ function renderThemeBrowse() {
       <button class="btn btn-good" onclick="tbMark(true)">Je sais ✓</button>`
       : `<button class="btn" onclick="tbMove(1)">Suiv. →</button>`}
     </div>
+    ${rev ? vwAskHTML(w) : ''}
   </div>`;
 }
 
@@ -2024,7 +2131,8 @@ function renderVocabHTML() {
     </div>
     <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">
       Interval: ${getVocabSRS(card.id).interval}d · Reviews: ${getVocabSRS(card.id).seen}
-    </div>` : card.reverse ? '' : `<div class="btn-row" style="justify-content:center;margin-top:0">
+    </div>
+    ${vwAskHTML(card)}` : card.reverse ? '' : `<div class="btn-row" style="justify-content:center;margin-top:0">
       <button class="btn" data-speak="${card.french}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊 Hear it</button>
     </div>`}
     <div style="margin-top:1.5rem">${personal ? mxListHTML() : renderVocabList(stats)}</div>
