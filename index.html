@@ -1777,6 +1777,85 @@ function tbResetKnown() {
   saveState(state); tbSet({ idx: 0, revealed: false });
 }
 
+// ── In a sentence (vocab cards) ───────────────────────────────────
+// After reveal, shows the word used in a real sentence, with English and 🔊.
+// If the card has no example of its own, one is made automatically; "Another" adds more.
+// Generated sentences are kept on this device (fpl_vx_examples) so they don't cost a call twice.
+const VX_KEY = 'fpl_vx_examples';
+let vxCache = (() => { try { return JSON.parse(localStorage.getItem(VX_KEY) || '{}'); } catch { return {}; } })();
+let vx = { key: null, loading: false, error: '' };
+let vxWord = null;
+function vxKeyOf(w) { return pkKey(w.french); }
+function vxList(w) { return vxCache[vxKeyOf(w)] || []; }
+function vxSave() { try { localStorage.setItem(VX_KEY, JSON.stringify(vxCache)); } catch {} }
+function vxMark(fr, w) {
+  // Bold the expression where it appears as written (best effort; conjugated forms stay plain)
+  const safe = tbEsc(fr);
+  const core = String(w.french || '').replace(/^(le|la|les|l'|un|une|des|se|s')\s*/i, '').replace(/[.!?…]+$/, '').trim();
+  if (core.length < 3) return safe;
+  const esc = tbEsc(core).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return safe.replace(new RegExp(esc, 'i'), m => `<b style="font-style:normal;color:var(--text)">${m}</b>`);
+}
+function vxHTML(w) {
+  if (!w || !w.french) return '';
+  const key = vxKeyOf(w);
+  if (vx.key !== key) vx = { key, loading: false, error: '' };
+  vxWord = w;
+  const list = vxList(w);
+  if (!w.example && !list.length && !vx.loading && !vx.error) { vx.loading = true; setTimeout(() => vxGenerate(true), 0); }
+  const row = (x, i) => `<div style="display:flex;gap:8px;align-items:flex-start;margin-top:7px">
+      <button class="btn" style="font-size:11px;padding:2px 7px;flex-shrink:0" onclick="vxSpeak(${i},this)">🔊</button>
+      <div><div style="font-size:14px;color:var(--blue);font-family:'Playfair Display',serif;font-style:italic">${vxMark(x.fr, w)}</div>
+      ${x.en ? `<div style="font-size:11px;color:var(--text3)">${tbEsc(x.en)}</div>` : ''}</div>
+    </div>`;
+  return `<div id="vxBox" onclick="event.stopPropagation()" style="margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase">✍️ In a sentence</span>
+      <button class="btn" style="font-size:11px;padding:3px 9px;color:var(--purple);border-color:var(--purple)" onclick="vxGenerate(false)" ${vx.loading ? 'disabled' : ''}>＋ ${list.length || w.example ? 'Another example' : 'Example'}</button>
+    </div>
+    ${w.example ? row({ fr: w.example, en: w.exampleEn || '' }, -1) : ''}
+    ${list.map((x, i) => row(x, i)).join('')}
+    ${vx.loading ? `<div style="display:flex;align-items:center;gap:8px;color:var(--text3);font-size:12px;margin-top:8px"><div class="spinner" style="width:14px;height:14px"></div>Writing an example…</div>` : ''}
+    ${vx.error ? `<div style="color:var(--coral);font-size:12px;margin-top:8px">${tbEsc(vx.error)}</div>` : ''}
+  </div>`;
+}
+function vxRefresh() {
+  const el = document.getElementById('vxBox');
+  if (el && vxWord && vx.key === vxKeyOf(vxWord)) el.outerHTML = vxHTML(vxWord);
+}
+async function vxGenerate(auto) {
+  const w = vxWord; if (!w) return;
+  const key = vxKeyOf(w);
+  if (!auto && vx.loading) return;
+  vx.loading = true; vx.error = ''; vxRefresh();
+  const seen = [w.example, ...vxList(w).map(x => x.fr)].filter(Boolean);
+  const prompt = `Write one natural, everyday French sentence that uses the expression below, for an intermediate adult learner who lives part of the year in Paris.
+
+Expression: ${w.french}
+Meaning: ${w.english || '—'}${w.type ? `\nType: ${w.type}` : ''}${w.note ? `\nNote: ${w.note}` : ''}
+${seen.length ? `Make it clearly different in situation from these:\n${seen.map(s => '- ' + s).join('\n')}\n` : ''}
+Use the expression in this meaning, conjugated or agreed as needed, in a real-life situation (8 to 18 words). Natural spoken French, not textbook.
+Reply with JSON only: {"fr":"the French sentence","en":"a natural English translation"}`;
+  try {
+    const text = await parlerCallAI(prompt, 250);
+    let r; try { r = parlerParseJSON(text, '{', '}'); } catch { r = { fr: text.split('\n')[0], en: '' }; }
+    if (!r || !r.fr) throw new Error('empty');
+    const list = vxCache[key] = vxCache[key] || [];
+    list.push({ fr: String(r.fr).trim(), en: String(r.en || '').trim() });
+    if (list.length > 5) list.splice(0, list.length - 5);
+    vxSave();
+    if (vx.key === key) { vx.loading = false; vx.error = ''; }
+  } catch (e) {
+    if (vx.key === key) { vx.loading = false; vx.error = 'Couldn’t write an example — tap again.'; }
+  }
+  vxRefresh();
+}
+function vxSpeak(i, btn) {
+  const w = vxWord; if (!w) return;
+  const x = i < 0 ? { fr: w.example } : vxList(w)[i];
+  if (x && x.fr) speakFrenchHQ(x.fr, btn);
+}
+
 // ── Ask about this word (vocab cards) ─────────────────────────────
 // A small question box under a revealed vocab card: "could I also use malgré?"
 // Answers are kept per card while you stay on it; follow-ups see the earlier Q&A.
@@ -1849,7 +1928,7 @@ Reply with JSON only, no prose around it:
  "alternatives":[{"french":"word or expression","english":"short meaning"}]}
 
 verdict: "yes" if their alternative works here, "sometimes" if only in some contexts or registers, "no" if it does not fit, "info" if the question isn't a yes/no about an alternative.
-examples: 1 to 3 everyday sentences showing the difference (one with the card word, one with the alternative, if they asked about one).
+examples: 1 to 3 everyday sentences. Always include at least one that uses the card's expression itself; if they asked about an alternative, add one with the alternative so the difference is clear.
 alternatives: the word(s) they asked about plus at most one other genuinely useful synonym, base form, 0 to 3 items; leave out the card word itself.`;
   try {
     const text = await parlerCallAI(prompt, 700);
@@ -1970,8 +2049,6 @@ function renderThemeBrowse() {
         : `<div class="card-front" style="font-size:22px">${w.english}</div><div style="font-size:11px;color:var(--text3);margin-top:4px">Say it in French${w.type ? ' · ' + w.type : ''}</div>`}
       ${!rev ? `<div class="card-sub" style="margin-top:12px">Tap to reveal</div>` : `<div class="card-back">
         ${frontFr ? `<div class="card-translation">${w.english}</div>` : genderWordHTML(w, 'md')}
-        ${w.example ? `<div class="card-example">${w.example}</div>` : ''}
-        ${w.exampleEn ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">${w.exampleEn}</div>` : ''}
         ${w.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${w.note}</div>` : ''}
         ${rp.length ? `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);text-align:left">
           <div style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px">With prepositions</div>
@@ -1986,7 +2063,7 @@ function renderThemeBrowse() {
       <button class="btn btn-good" onclick="tbMark(true)">Je sais ✓</button>`
       : `<button class="btn" onclick="tbMove(1)">Suiv. →</button>`}
     </div>
-    ${rev ? vwAskHTML(w) : ''}
+    ${rev ? vxHTML(w) + vwAskHTML(w) : ''}
   </div>`;
 }
 
@@ -2105,7 +2182,6 @@ function renderVocabHTML() {
         ${card.reverse
           ? genderWordHTML(card, 'md')
           : `<div class="card-translation">${card.english}</div>`}
-        ${card.example ? `<div class="card-example">${card.example}</div>` : ''}
         ${card.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${card.note}</div>` : ''}
         ${(()=>{
           const rp = getRelatedPreps(card);
@@ -2132,6 +2208,7 @@ function renderVocabHTML() {
     <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">
       Interval: ${getVocabSRS(card.id).interval}d · Reviews: ${getVocabSRS(card.id).seen}
     </div>
+    ${vxHTML(card)}
     ${vwAskHTML(card)}` : card.reverse ? '' : `<div class="btn-row" style="justify-content:center;margin-top:0">
       <button class="btn" data-speak="${card.french}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊 Hear it</button>
     </div>`}
