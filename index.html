@@ -68,6 +68,9 @@
 .c-opts .q-option { text-align:left; }
 @media (max-width: 560px) { .c-sub { font-size:12px; padding:8px 2px; } .c-note-b table { font-size:12px; } }
 
+.pv-chip{font-family:Inter,sans-serif;font-size:12px;padding:6px 12px;border-radius:14px;border:1px solid var(--purple);background:transparent;color:var(--purple);cursor:pointer;font-style:normal;white-space:nowrap}
+.pv-chip:hover{background:var(--purple);color:#fff}
+.pv-chip.sm{font-size:10.5px;padding:2px 8px;border-radius:10px;opacity:.85}
 </style>
 <style>
 :root {
@@ -2183,6 +2186,7 @@ function renderVocabHTML() {
           ? genderWordHTML(card, 'md')
           : `<div class="card-translation">${card.english}</div>`}
         ${card.note ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">${card.note}</div>` : ''}
+        ${(() => { const c = pvChipsHTML(card.french, '', card.type === 'verb'); return c ? `<div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center"><span style="color:var(--text3);font-size:10px;letter-spacing:.07em;text-transform:uppercase;margin-right:2px">Conjugaison</span>${c}</div>` : ''; })()}
         ${(()=>{
           const rp = getRelatedPreps(card);
           if (!rp.length) return '';
@@ -2199,7 +2203,6 @@ function renderVocabHTML() {
     </div>
     ${rev ? `<div class="btn-row">
       <button class="btn" data-speak="${card.french}" onclick="event.stopPropagation();speakFrench(this.dataset.speak)">🔊 Hear it</button>
-      ${(card.type === 'verb' || /(?:er|ir|re|oir)$/i.test((card.french||'').trim())) ? `<button class="btn" style="color:var(--purple);border-color:var(--purple)" onclick="showVocabConjModal('${card.french.replace(/'/g,"\\'")}','${card.english.replace(/'/g,"\\'")}')">🔄 Conjugate</button>` : ''}
       <button class="btn btn-hard" onclick="rateVocab2(1)">Again</button>
       <button class="btn btn-ok" onclick="rateVocab2(2)">Hard</button>
       <button class="btn" onclick="rateVocab2(3)">Good</button>
@@ -2314,7 +2317,8 @@ function renderVerbEndingsContent(type) {
 }
 
 // ── Vocab card conjugation modal ────────────────────────────────
-function showVocabConjModal(french, english) {
+function showVocabConjModal(french, english, form, noAI) {
+  english = english || '';
   const isReflexive = /^(se |s')/i.test(french);
   const bare = french.replace(/^(se |s')/i, '').trim();
 
@@ -2322,6 +2326,22 @@ function showVocabConjModal(french, english) {
     v.infinitive.toLowerCase() === french.toLowerCase() ||
     v.infinitive.toLowerCase() === bare.toLowerCase()
   ) : null;
+  // Not a Verbs-tab verb → accurate table from the AI (fetched once, then cached on this device)
+  if (!vb) vb = pvDerivedVerb(french.toLowerCase()) || pvCacheGet(french) || pvCacheGet(bare);
+  const modalEl = document.getElementById('vocabConjModal');
+  if (!vb && !noAI) {
+    document.getElementById('vocabConjBody').innerHTML = `<div style="padding:1.5rem 0;text-align:center;color:var(--text3);font-size:13px"><span style="font-family:'Playfair Display',serif;font-style:italic;color:var(--text);font-size:16px">${pkEsc(french)}</span><br><br>Fetching the full table…</div>`;
+    modalEl.style.display = 'flex';
+    pvFetchConj(french)
+      .then(v => { pvCacheSet(french, v); if (modalEl.style.display === 'flex') showVocabConjModal(french, english, form); })
+      .catch(() => { if (modalEl.style.display === 'flex') showVocabConjModal(french, english, form, true); });
+    return;
+  }
+  if (!english && vb) english = vb.translation || '';
+  if (!english && typeof vocabBank !== 'undefined') { const bw = vocabBank.find(w => (w.french || '').toLowerCase().trim() === french.toLowerCase()); if (bw) english = bw.english || ''; }
+  const fLow = String(form || '').toLowerCase();
+  const isHit = d => !!fLow && d.toLowerCase().split(/[\s']+/).includes(fLow);
+  const rowStyle = d => isHit(d) ? 'background:var(--purple-dim, rgba(167,139,250,.14));border-radius:4px;padding-left:6px;margin-left:-6px' : '';
 
   const PRONOUNS = ['je','tu','il/elle','nous','vous','ils/elles'];
   const TENSES_TO_SHOW = ['present','passe','imparfait','futur','conditional','subjunctive'];
@@ -2374,15 +2394,15 @@ function showVocabConjModal(french, english) {
       if (!conjs || !conjs.length) return;
       // Reflexive: override passé composé with être-based forms
       if (isReflexive && tId === 'passe') {
-        conjs = ETRE_FORMS.map(ef => ef + ' ' + vb.pp);
+        conjs = ETRE_FORMS.map((ef, i) => ef + ' ' + String(vb.pp).replace(/\(e\)$/, '') + (i < 3 ? '(e)' : '(e)s'));
       }
       html += `<div style="margin-bottom:1.1rem">
         <div style="font-size:11px;font-weight:600;color:var(--purple);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${TENSE_LABELS[tId]}</div>
         <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:4px 12px">
           ${conjs.map((c,i) => {
-            const pron = (isReflexive && tId !== 'passe') ? rPron(i, c) : '';
+            const pron = (isReflexive && tId !== 'passe' && !/^(me |te |se |nous |vous |m'|t'|s')/i.test(c)) ? rPron(i, c) : '';
             const display = tId === 'subjunctive' ? 'que ' + pron + c : pron + c;
-            return `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+            return `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border);${rowStyle(display)}">
               <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
               <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${display}</span>
             </div>`;
@@ -2391,6 +2411,8 @@ function showVocabConjModal(french, english) {
       </div>`;
     });
     html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${dispAux} + ${vb.pp}</span></div>`;
+  } else if (!(bare.endsWith('er') && bare !== 'aller')) {
+    html += `<div style="font-size:13px;color:var(--amber);line-height:1.5">Couldn't load the table for <em>${pkEsc(french)}</em> (offline?). I won't guess: -ir, -re and -oir verbs are too often irregular.<br><a href="#" onclick="showVocabConjModal('${french.replace(/'/g,"\\'")}','','${fLow.replace(/'/g,"\\'")}');return false" style="color:var(--blue)">Retry</a></div>`;
   } else {
     const ending = bare.endsWith('re') ? 're' : bare.endsWith('ir') ? 'ir' : 'er';
     const stem = bare.slice(0,-2);
@@ -2409,14 +2431,14 @@ function showVocabConjModal(french, english) {
       if (tId === 'passe') {
         rows = ETRE_FORMS.map((ef,i) => `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
           <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
-          <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${ef} ${pp}</span>
+          <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${ef} ${pp}${i < 3 ? '(e)' : '(e)s'}</span>
         </div>`).join('');
       } else {
         rows = ends[tId].map((e,i) => {
-          const form = e === '—' ? stem : stem + e;
-          const pron = isReflexive ? rPron(i, form) : '';
-          const display = tId === 'subjunctive' ? 'que ' + pron + form : pron + form;
-          return `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+          const vf = e === '—' ? stem : stem + e;
+          const pron = isReflexive ? rPron(i, vf) : '';
+          const display = tId === 'subjunctive' ? 'que ' + pron + vf : pron + vf;
+          return `<div style="display:flex;gap:12px;padding:4px 0;border-bottom:1px solid var(--border);${rowStyle(display)}">
             <span style="color:var(--text3);font-size:12px;min-width:80px">${PRONOUNS[i]}</span>
             <span style="color:var(--green);font-style:italic;font-family:'Playfair Display',serif">${display}</span>
           </div>`;
@@ -2429,6 +2451,7 @@ function showVocabConjModal(french, english) {
       </div>`;
     });
     html += `<div style="font-size:11px;color:var(--text3);margin-top:8px">Passé composé: <span style="color:var(--green);font-style:italic">${dispAux} + ${pp}</span></div>`;
+    html += `<div style="font-size:11px;color:var(--amber);margin-top:6px">Couldn't fetch the full table (offline?) — this is the regular -er pattern; a few -er verbs change spelling. <a href="#" onclick="showVocabConjModal('${french.replace(/'/g,"\\'")}','','${fLow.replace(/'/g,"\\'")}');return false" style="color:var(--blue)">Retry</a></div>`;
   }
 
   document.getElementById('vocabConjBody').innerHTML = html;
@@ -2436,6 +2459,185 @@ function showVocabConjModal(french, english) {
 }
 function closeVocabConjModal() {
   document.getElementById('vocabConjModal').style.display = 'none';
+}
+
+// ── Verbs inside expressions → clickable conjugation tables ─────
+// phraseVerbs("Il faut que je prenne rendez-vous") → [{inf:'falloir',form:'faut'},{inf:'prendre',form:'prenne'}]
+// Verbs-tab verbs use their hand-checked tables; any other verb gets an accurate table from the AI once, cached on this device.
+const PV_DET = new Set(['un','une','des','du','au','aux','mon','ma','mes','ton','ta','tes','son','sa','ses','notre','nos','votre','vos','leur','leurs','ce','cet','cette','ces','chaque','quel','quelle','quels','quelles','quelques','plusieurs','autre','autres','bon','bonne','beau','belle','petit','petite','grand','grande','nouveau','nouvelle','premier','première','dernier','dernière','même']);
+const PV_ART = new Set(['le','la','les','l']);
+const PV_SUBJ = new Set(['je','j','tu','il','elle','on','nous','vous','ils','elles','ne','n','me','m','te','t','se','s','lui','y','qui','pour','va','vais','vas','allons','allez','vont','peux','peut','pouvez','veux','veut','voulez','dois','doit','devez','faut','voudrais','pourrais','pourriez','devrais','devriez','aimerais','faire','fais','fait']);
+const PV_INF_TRIG = new Set(['pour','sans','peux','peut','pouvez','pouvons','pourrais','pourriez','pourrait','veux','veut','voulez','voulons','voudrais','voudriez','voudrait','aimerais','aimerait','aime','aimez','dois','doit','devez','devons','devrais','devriez','devrait','faut','faudrait','vais','vas','va','allons','allez','vont','sais','savez','faire','fais','fait','laisser','laisse','préfère','préférez','préférerais']);
+const PV_NOT_INF = new Set(['hier','hiver','cher','chère','fier','tiers','premier','dernier','entier','léger','étranger','papier','métier','quartier','cahier','dossier','escalier','plancher','boucher','boulanger','danger','plombier','chantier','atelier','grenier','cellier','évier','foyer','loyer','dîner','déjeuner','souper','goûter','plaisir','loisir','désir','avenir','souvenir','devoir','pouvoir','savoir','soir','espoir','miroir','couloir','tiroir','trottoir','arrosoir','comptoir','bière','pierre','lettre','chambre','livre','verre','terre','mètre','centre','fenêtre','être','rire','sourire']);
+const PV_ALWAYS_SKIP = new Set(['été','bois','cours','vis','sens','vers','fin','son','sort','mort','part','fils','pas','or','mis']);
+const PV_EXTRA = {
+  'falloir':'faut fallait faudra faudrait faille fallu',
+  'connaître':'connais connaît connaissons connaissez connaissent connaissais connaissait connaissions connaissiez connaissaient connaîtrai connaîtras connaîtra connaîtrons connaîtrez connaîtront connaîtrais connaîtrait connaisse connu connue connus',
+  'reconnaître':'reconnais reconnaît reconnaissons reconnaissez reconnaissent reconnaissait reconnu reconnue',
+  'paraître':'parais paraît paraissons paraissez paraissent paraissait paraîtra paru',
+  'disparaître':'disparais disparaît disparaissent disparaissait disparu',
+  'plaire':'plais plaît plaisons plaisez plaisent plaisait plaira plairait plaise',
+  'valoir':'vaut vaux valons valez valent valait vaudra vaudrait vaille valu',
+  'conduire':'conduis conduit conduisons conduisez conduisent conduisais conduisait conduirai conduira conduirait conduise',
+  'construire':'construis construit construisons construisez construisent construisait construira construirait construise',
+  'détruire':'détruis détruit détruisons détruisez détruisent détruisait',
+  'produire':'produis produit produisons produisez produisent produisait',
+  'traduire':'traduis traduit traduisons traduisez traduisent',
+  'suivre':'suit suivons suivez suivent suivais suivait suivra suivi suivie',
+  'naître':'nais naît naissent né née nés',
+  'mourir':'meurs meurt mourons mourez meurent mourait mourra',
+  'pleuvoir':'pleut pleuvait pleuvra pleuvrait pleuve',
+  'offrir':'offre offres offrons offrez offrent offrait offrira offrirait offert offerte',
+  'craindre':'crains craint craignons craignez craignent craignait',
+  'peindre':'peins peint peignons peignez peignent peignait peindra',
+  'éteindre':'éteins éteint éteignons éteignez éteignent',
+  'joindre':'joins joint joignons joignez joignent',
+  'rejoindre':'rejoins rejoint rejoignons rejoignez rejoignent',
+  'rire':'ris rit rions riez rient riait',
+  'sourire':'souris sourit sourions souriez sourient',
+  'asseoir':'assieds assied asseyons asseyez asseyent assis assise',
+  'résoudre':'résous résout résolvons résolvez résolvent résolu',
+  'battre':'bats bat battons battez battent battu',
+  'mentir':'mens ment mentons mentez mentent',
+  'envoyer':'envoie envoies envoient envoyons envoyez envoyait enverrai enverras enverra enverrons enverrez enverront enverrais enverrait envoyé envoyée',
+  'acquérir':'acquiers acquiert acquérons acquérez acquièrent acquis',
+  'cueillir':'cueille cueilles cueillons cueillez cueillent cueilli',
+  'interdire':'interdis interdit interdisons interdisez interdisent',
+};
+const PV_DERIV = { prendre:['com','ap','sur','entre','re','dé'], venir:['re','pré','con','sur','inter','par','ad'], tenir:['ob','ap','main','con','re','sou','dé','en','abs'], mettre:['re','pro','per','ad','com','sou','trans','dé'], faire:['re','dé','satis'], dire:['re'], voir:['re','entre'], partir:['re'], sortir:['res'], ouvrir:['ré','entr'], couvrir:['dé','re'], écrire:['dé','ins','pres','ré'], lire:['re','é'], vivre:['re','sur'], sentir:['res','con','pres'], dormir:['en','ren'], servir:['des'], courir:['par','re','se','ac','con','dis'] };
+
+let _pvIndex = null, _pvBankLen = -1;
+function pvIndex() {
+  const bank = (typeof vocabBank !== 'undefined' && Array.isArray(vocabBank)) ? vocabBank : [];
+  if (_pvIndex && _pvBankLen === bank.length) return _pvIndex;
+  const idx = new Map();
+  const add = (f, inf, core) => {
+    f = String(f || '').toLowerCase().trim().replace(/\(.*$/, '');
+    if (!f || /\s/.test(f)) return;
+    const cur = idx.get(f);
+    if (!cur || (core && !cur.core)) idx.set(f, { inf, core });
+  };
+  const strip = f => String(f || '').replace(/^(me |te |se |nous |vous |m'|t'|s')/i, '');
+  const SIMPLE = ['present','imparfait','futur','conditional','subjunctive'];
+  // 1. The Verbs-tab verbs (hand-checked tables)
+  vmVerbs.forEach(vb => {
+    const bare = vb.infinitive.replace(/^(se |s')/, '');
+    add(bare, vb.infinitive, true);
+    SIMPLE.forEach(t => (vb.tenses[t] || []).forEach(f => add(strip(f), vb.infinitive, true)));
+    const pp = (vb.pp || '').replace(/\(e\)$/, '');
+    ['', 'e', 's', 'es'].forEach(e => add(pp + e, vb.infinitive, true));
+    (PV_DERIV[bare] || []).forEach(p => {
+      add(p + bare, p + bare, false);
+      SIMPLE.forEach(t => (vb.tenses[t] || []).forEach(f => { const s = strip(f); if (!/\s/.test(s)) add(p + s, p + bare, false); }));
+      add(p + pp, p + bare, false);
+    });
+  });
+  // 2. Common irregulars that aren't in the Verbs tab
+  Object.entries(PV_EXTRA).forEach(([inf, forms]) => { add(inf, inf, false); forms.split(' ').forEach(f => add(f, inf, false)); });
+  // 3. Every verb in the vocab bank: the infinitive, plus regular forms
+  const vow = /^[aeiouâàéèêhîïôûœ]/i;
+  bank.forEach(w => {
+    if (!/verb/i.test(w.type || '')) return;
+    const fr = String(w.french || '').toLowerCase().trim();
+    const m = fr.match(/^(?:\(s[e']\)\s*|se\s+|s')?([a-zàâçéèêëîïôûùüÿœ]+(?:er|ir|re|oir))(?![a-zàâçéèêëîïôûùüÿœ])/);
+    if (!m) return;
+    const v = m[1]; const refl = /^(se\s|s'|\(s)/.test(fr);
+    const inf = refl ? (vow.test(v) ? "s'" + v : 'se ' + v) : v;
+    if (idx.get(v)?.core) return;
+    add(v, inf, false);
+    if (v.endsWith('er') && v !== 'aller') {
+      const st = v.slice(0, -2);
+      const soft = /g$/.test(st) ? st + 'e' : /c$/.test(st) ? st.slice(0, -1) + 'ç' : st; // mangeons, commençons
+      const stems = [st];
+      const mm = st.match(/^(.*)([eé])([^aeiouéèy]+)$/); // acheter→achète, préférer→préfère
+      if (mm) stems.push(mm[1] + 'è' + mm[3]);
+      if (/(el|et)$/.test(st)) stems.push(st + st.slice(-1)); // appeler→appelle
+      if (/y$/.test(st)) stems.push(st.slice(0, -1) + 'i'); // payer→paie
+      stems.forEach(s => ['e','es','ent'].forEach(e => add(s + e, inf, false)));
+      add(st + 'ez', inf, false); add(soft + 'ons', inf, false);
+      ['ais','ait','aient'].forEach(e => add(soft + e, inf, false)); add(st + 'ions', inf, false); add(st + 'iez', inf, false);
+      ['ai','as','a','ons','ez','ont','ais','ait','ions','iez','aient'].forEach(e => stems.forEach(s => add(s + 'er' + e, inf, false)));
+      ['é','ée','és','ées'].forEach(e => add(st + e, inf, false));
+    } else if (v.endsWith('ir') && !v.endsWith('oir')) {
+      const st = v.slice(0, -2);
+      ['is','it','issons','issez','issent','issais','issait','issaient','isse','i','ie','irai','ira','irons','irez','iront','irais','irait'].forEach(e => add(st + e, inf, false));
+    }
+  });
+  _pvIndex = idx; _pvBankLen = bank.length;
+  return idx;
+}
+
+function phraseVerbs(french) {
+  const idx = pvIndex();
+  const toks = String(french || '').toLowerCase().replace(/[’`]/g, "'")
+    .split(/[\s,.;:!?«»"()\/…\[\]]+|-(?=[a-zàâéèêîôû])/).flatMap(t => t.split("'")).map(t => t.replace(/^-+|-+$/g, '')).filter(Boolean);
+  const out = [], seen = new Set();
+  toks.forEach((t, i) => {
+    const p1 = toks[i - 1] || '', p2 = toks[i - 2] || '';
+    let hit = idx.get(t);
+    if (!hit) {
+      const infLike = t.length >= 5 && /(er|ir)$/.test(t) && !PV_NOT_INF.has(t);
+      // an infinitive not in the bank: after pour / peux / faut / vais…, opening an idiom (tomber dans les pommes), or reflexive (peut se tutoyer)
+      if (infLike && (PV_INF_TRIG.has(p1) || (i === 0 && toks.length > 1))) hit = { inf: t, core: false };
+      else if (infLike && /^(se|s|me|m|te|t)$/.test(p1) && (PV_INF_TRIG.has(p2) || i === 1)) hit = { inf: (/^[aeiouéèêh]/.test(t) ? "s'" : 'se ') + t, core: false };
+      else return;
+    }
+    if (t === 'est' && toks[i + 1] === 'ce') return;               // est-ce que
+    if (/^(avoir|être)$/.test(hit.inf) && t !== hit.inf) {         // j'ai acheté → just acheter
+      let k = i + 1; while (/^(pas|jamais|plus|rien|déjà|bien|toujours|encore|vraiment|beaucoup|trop|tout|y|en)$/.test(toks[k] || '')) k++;
+      const nx = toks[k] && idx.get(toks[k]);
+      if (nx && !/^(avoir|être)$/.test(nx.inf) && nx.inf.replace(/^(se |s')/, '') !== toks[k] && /(é|ée|és|ées|i|ie|is|it|u|ue|us|ert|erte|ort|ait|eint|int)$/.test(toks[k])) return;
+    }
+    const isInf = hit.inf.replace(/^(se |s')/, '') === t;
+    if (PV_ALWAYS_SKIP.has(t) && !(t === 'été' && /^(ai|as|a|avons|avez|ont|avais|avait|aurait|aurais|aura|avoir|ayant)$/.test(p1))) return;
+    if (PV_DET.has(p1)) return;                                   // la porte, mon livre
+    if (PV_ART.has(p1) && !PV_SUBJ.has(p2) && !(isInf && hit.core && !PV_NOT_INF.has(t))) return; // je le prends ✓ / la place ✗
+    if ((p1 === 'de' || p1 === 'd') && !isInf) return;            // de + infinitive only
+    if (PV_NOT_INF.has(t) && !PV_INF_TRIG.has(p1) && !PV_SUBJ.has(p1)) return; // le dîner, un devoir
+    if (p1 === 'en' && !PV_SUBJ.has(p2)) return;                  // en été ✗ / j'en ai ✓
+    if (seen.has(hit.inf)) return;
+    seen.add(hit.inf); out.push({ inf: hit.inf, form: t, core: hit.core });
+  });
+  return out.slice(0, 5);
+}
+
+function pvChipsHTML(french, size, isVerbType) {
+  let vs = phraseVerbs(french);
+  if (!vs.length && isVerbType) {
+    const m = String(french || '').toLowerCase().match(/(?:^|\s)((?:se |s')?[a-zàâçéèêëîïôûùüÿœ]+(?:er|ir|re|oir))(?![a-zàâçéèêëîïôûùüÿœ])/);
+    if (m) vs = [{ inf: m[1], form: m[1].replace(/^(se |s')/, '') }];
+  }
+  if (!vs.length) return '';
+  return vs.map(v => `<button class="pv-chip${size === 'sm' ? ' sm' : ''}" data-inf="${pkEsc(v.inf)}" data-form="${pkEsc(v.form)}" onclick="event.stopPropagation();showVocabConjModal(this.dataset.inf,'',this.dataset.form)" title="Conjugaison de ${pkEsc(v.inf)}">🔄 ${pkEsc(v.inf)}</button>`).join('');
+}
+
+const PV_CACHE_KEY = 'fpl_conj_ai_v1';
+function pvCacheGet(inf) { try { return (JSON.parse(localStorage.getItem(PV_CACHE_KEY) || '{}'))[String(inf).toLowerCase()] || null; } catch { return null; } }
+function pvCacheSet(inf, vb) { try { const c = JSON.parse(localStorage.getItem(PV_CACHE_KEY) || '{}'); c[String(inf).toLowerCase()] = vb; localStorage.setItem(PV_CACHE_KEY, JSON.stringify(c)); } catch {} }
+function pvDerivedVerb(inf) {
+  const refl = /^(se |s')/.test(inf); const v = inf.replace(/^(se |s')/, '');
+  for (const [base, prefixes] of Object.entries(PV_DERIV)) {
+    const p = prefixes.find(px => v === px + base); if (!p) continue;
+    const bv = vmVerbs.find(x => x.infinitive === base); if (!bv) continue;
+    const pre = f => String(f).replace(/(^|\s)([^\s]+)$/, (m, sp, w) => sp + p + w); // prefix the verb word (last word)
+    const tenses = {}; Object.entries(bv.tenses).forEach(([t, arr]) => tenses[t] = arr.map(pre));
+    let aux = bv.aux;
+    if (base === 'venir' && /^(pré|con|sub|contre)$/.test(p)) { aux = 'avoir'; tenses.passe = ['ai','as','a','avons','avez','ont'].map(a => a + ' ' + p + 'venu'); }
+    return vmV('dv_' + v, inf, '', bv.group, bv.subtype, p + bv.pp.replace(/\(e\)$/, ''), refl ? 'être' : aux, tenses);
+  }
+  return null;
+}
+async function pvFetchConj(inf) {
+  const prompt = `Conjugate the French verb "${inf}" correctly (standard modern French). Return ONLY a JSON object, no prose, no code fence:
+{"infinitive":"${inf}","translation":"to …","aux":"avoir or être","pp":"masculine singular past participle","tenses":{"present":[6],"passe":[6],"imparfait":[6],"futur":[6],"conditional":[6],"subjunctive":[6]}}
+Each array has exactly 6 strings in the order je, tu, il/elle, nous, vous, ils/elles.
+Write ONLY the verb forms: no subject pronouns, no "que", and no reflexive pronouns (me/te/se/nous/vous) even if the verb is pronominal.
+"passe" is the passé composé: auxiliary + participle, e.g. "ai pris", "es allé(e)", "sommes allé(e)s".`;
+  const txt = await parlerCallAI(prompt, 900);
+  const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+  const ts = j.tenses || {};
+  ['present','imparfait','futur','conditional','subjunctive'].forEach(t => { if (!Array.isArray(ts[t]) || ts[t].length !== 6) throw new Error('bad table'); });
+  return vmV('ai_' + inf, inf, j.translation || '', 0, 'irregular', j.pp || '', j.aux || 'avoir', ts);
 }
 
 function renderVocabList(stats) {
@@ -5870,7 +6072,7 @@ function mxListHTML(){
     const dot = later ? '⏳' : !s ? '⚪' : s.due <= now ? '🔴' : s.interval >= 7 ? '🟢' : '🟡';
     return `<div style="display:flex;align-items:baseline;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:13px">
       <span style="font-size:11px">${dot}</span>
-      <span style="color:var(--text);flex:1.2;min-width:0;cursor:pointer" data-speak="${pkEsc(w.french)}" onclick="speakFrenchHQ(this.dataset.speak)">${genderWordHTML(w, 'sm')}</span>
+      <span style="color:var(--text);flex:1.2;min-width:0;cursor:pointer" data-speak="${pkEsc(w.french)}" onclick="speakFrenchHQ(this.dataset.speak)">${genderWordHTML(w, 'sm')}${(() => { const c = pvChipsHTML(w.french, 'sm', w.type === 'verb'); return c ? `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${c}</div>` : ''; })()}</span>
       <span style="color:var(--text2);flex:1;min-width:0;font-size:12px">${pkEsc(w.english || '—')}</span>
       <span style="font-size:10px;color:var(--text3);white-space:nowrap">${pkEsc(mxSourceGroup(w.source))}</span>
       <button onclick="mxDelete('${w.id}')" title="Remove" style="font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0 4px">✕</button>
