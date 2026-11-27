@@ -1049,7 +1049,9 @@ async function vocabLoadFromSupabase() {
   // Use the saved bank, but re-download it every 6 hours so words added in
   // Supabase (new themes etc.) show up without clearing anything by hand
   const fetchedAt = +(localStorage.getItem('fpl_vocab_bank_ts') || 0);
-  if (cached.length > 100 && Date.now() - fetchedAt < 6 * 3600 * 1000) return;
+  // Re-download straight away if the Clémence themes aren't in the saved copy yet
+  const hasClemence = cached.some(w => w.category === 'cl_expr');
+  if (cached.length > 100 && hasClemence && Date.now() - fetchedAt < 6 * 3600 * 1000) return;
 
   // Show loading state
   const statusEl = document.getElementById('vocabLoadStatus');
@@ -1160,7 +1162,7 @@ function recordNewCardSeen(wordId) {
 }
 
 // Themed words live in their theme lists (free study), not in the daily new-card queue
-const DAILY_EXCLUDED_THEMES = new Set(['clothes','kitchen','bedroom','bathroom','city','shopping','transport','cafe','home','family','navigate','coffee','idioms','wine']);
+const DAILY_EXCLUDED_THEMES = new Set(['clothes','kitchen','bedroom','bathroom','city','shopping','transport','cafe','home','family','navigate','coffee','idioms','wine','cl_maison','cl_cuisine','cl_nature','cl_loisirs','cl_societe','cl_personnes','cl_ecole','cl_expr']);
 function getVocabDeck(themeFilter) {
   const now = Date.now();
   const srsData = state._vocab2 || {};
@@ -1679,6 +1681,14 @@ const THEMES = [
   { id: 'coffee',   emoji: '🫘', label: 'Café spécialisé',   labelEn: 'Coffee & Brewing' },
   { id: 'idioms',   emoji: '💬', label: 'Expressions',       labelEn: 'Idioms & Phrases' },
   { id: 'wine',     emoji: '🍷', label: 'Vin',               labelEn: 'Wine — tasting & growing' },
+  { id: 'cl_maison',    emoji: '🏡', label: 'Maison & jardin',        labelEn: 'Home & garden — Clémence' },
+  { id: 'cl_cuisine',   emoji: '🥕', label: 'Nourriture & courses',   labelEn: 'Food & shopping — Clémence' },
+  { id: 'cl_nature',    emoji: '🌿', label: 'Nature & animaux',       labelEn: 'Nature, animals & weather — Clémence' },
+  { id: 'cl_loisirs',   emoji: '🎨', label: 'Loisirs & sports',       labelEn: 'Hobbies, arts & sports — Clémence' },
+  { id: 'cl_societe',   emoji: '🏛', label: 'Ville & société',        labelEn: 'City, society & tech — Clémence' },
+  { id: 'cl_personnes', emoji: '👤', label: 'Corps, famille & style', labelEn: 'People, body, clothes & colours — Clémence' },
+  { id: 'cl_ecole',     emoji: '🎄', label: 'École & fêtes',          labelEn: 'School & holidays — Clémence' },
+  { id: 'cl_expr',      emoji: '💬', label: 'Expressions (Clémence)', labelEn: 'Expressions Deep-Dives — Clémence' },
 ];
 
 function renderThemesView() {
